@@ -13,8 +13,8 @@
 
 ### server/backend
 
-- [ ] Add database model Client
-- [ ] Setup Alembic
+- [x] Add database model Client
+- [x] Setup Alembic
 - [ ] Setup timer lifecycle and client `checked_in` tracking
 - [ ] Implement client authentication endpoints:
   - [ ] `/client/auth/enroll`
