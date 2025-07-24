@@ -7,7 +7,7 @@
 - [x] Setup project skeleton and initialize Git
 - [x] Create `requirements.txt`
 - [x] Configure PostgreSQL for FastAPI
-- [ ] Add Tailwind + Flowbite
+- [x] Add Tailwind + Flowbite
 
 ## Phase Two: Authentication _(July 26 – August 15)_
 
