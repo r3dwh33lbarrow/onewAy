@@ -4,9 +4,10 @@
 
 ## Phase One: Project Setup _(July 23 – July 25)_
 
-- [ ] Setup project skeleton and initialize Git
-- [ ] Create `requirements.txt`
-- [ ] Configure PostgreSQL for FastAPI
+- [x] Setup project skeleton and initialize Git
+- [x] Create `requirements.txt`
+- [x] Configure PostgreSQL for FastAPI
+- [ ] Add Tailwind + Flowbite
 
 ## Phase Two: Authentication _(July 26 – August 15)_
 
