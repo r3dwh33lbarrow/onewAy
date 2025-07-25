@@ -1,4 +1,3 @@
-import os
 import uuid
 from datetime import timedelta, datetime, UTC
 from typing import Optional
@@ -12,14 +11,12 @@ from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.refresh_token import RefreshToken
+from app.settings import settings
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
-ALGORITHM = "HS256"
-REFRESH_TOKEN_EXPIRE_DAYS = 7
-SECRET_KEY = os.getenv("SECRET_KEY")
-
-if not SECRET_KEY:
-    raise ValueError("SECRET_KEY environment variable is not set")
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
+ALGORITHM = settings.jwt_algorithm
+REFRESH_TOKEN_EXPIRE_DAYS = settings.refresh_token_expire_days
+SECRET_KEY = settings.secret_key
 
 security = HTTPBearer(auto_error=False)
 pwd_context = CryptContext(schemes=["scrypt"], deprecated="auto")
