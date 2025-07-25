@@ -169,10 +169,13 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> Optional[Refresh
         if not jti:
             raise HTTPException(status_code=401, detail="Invalid token: missing jti")
 
-        # Query active refresh tokens that haven't expired or been revoked
-        # We'll need to check the JTI hash for each one, but we can limit the search
+        client_uuid = payload.get("sub")
+        if not client_uuid:
+            raise HTTPException(status_code=401, detail="Invalid token: missing client identifier")
+
         result = await db.execute(
             Select(RefreshToken).where(
+                RefreshToken.client_uuid == client_uuid,
                 RefreshToken.revoked == False,
                 RefreshToken.expires_at > datetime.now(UTC)
             )
