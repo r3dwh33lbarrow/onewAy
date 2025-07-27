@@ -15,7 +15,7 @@
 
 - [x] Add database model Client
 - [x] Setup Alembic
-- [ ] Setup timer lifecycle and client `checked_in` tracking
+      ~~- [ ] Setup timer lifecycle and client `alive` tracking~~
 - [x] Implement client authentication endpoints:
   - [x] `/client/auth/enroll`
   - [x] `/client/auth/login`

@@ -131,14 +131,10 @@ async def client_auth_refresh(response: Response,
                             detail="Refresh token missing")
     
     try:
-        # Rotate the refresh token (verify current token, create new tokens, revoke old token)
         new_access_token, new_refresh_token = await rotate_refresh_token(refresh_token, db)
-        
-        # Set the new refresh token as an HTTP-only cookie
         response.set_cookie(key="refresh_token", value=new_refresh_token,
                             httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
         
-        # Return the new access token
         return {"access_token": new_access_token, "token_type": "Bearer"}
     
     except HTTPException as e:
