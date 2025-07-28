@@ -15,15 +15,15 @@
 
 - [x] Add database model Client
 - [x] Setup Alembic
-      ~~- [ ] Setup timer lifecycle and client `alive` tracking~~
+~~- [ ] Setup timer lifecycle and client `alive` tracking~~
 - [x] Implement client authentication endpoints:
   - [x] `/client/auth/enroll`
   - [x] `/client/auth/login`
   - [x] `/client/auth/refresh`
-- [ ] Implement JWT-based access and refresh tokens:
+- [x] Implement JWT-based access and refresh tokens:
   - [x] Define token structure and claims (sub, exp, iat)
   - [x] Create refresh token database model and secure storage
-  - [ ] Implement token expiration and rotation policy
+  - [x] Implement token expiration and rotation policy
   - [x] Add revocation logic
 - [ ] Write unit tests for authentication routes
 - [ ] Write fixtures for test database
