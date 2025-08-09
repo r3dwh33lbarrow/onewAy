@@ -174,7 +174,7 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> Optional[Refresh
             Select(RefreshToken).where(
                 RefreshToken.client_uuid == client_uuid,
                 RefreshToken.revoked == False,
-                RefreshToken.expires_at > datetime.now(UTC)
+                RefreshToken.expires_at > datetime.now().replace(tzinfo=None)
             )
         )
         refresh_tokens = result.scalars().all()
@@ -192,6 +192,8 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> Optional[Refresh
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+    except HTTPException as e:
+        raise e
     except Exception:
         raise HTTPException(status_code=500, detail="Token verification failed")
 
