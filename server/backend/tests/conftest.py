@@ -19,12 +19,14 @@ from app.db.base import Base
 from app.dependencies import get_db
 from app.main import app
 
-# Load the environments variables first
-load_dotenv(f"{os.getcwd()}\\tests\\.env.test")
 
+
+# Load the environment variables first
+print(f"{os.path.dirname(os.path.abspath(__file__))}/.env.test")
+load_dotenv(f"{os.path.dirname(os.path.abspath(__file__))}/.env.test", verbose=True)
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
-print(os.getcwd())
-os.environ.setdefault("DATABASE_URL", "")
+
+os.environ.setdefault("DATABASE_URL", TEST_DATABASE_URL)
 
 test_engine = create_async_engine(TEST_DATABASE_URL)
 TestAsyncSessionLocal = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
@@ -63,3 +65,4 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield ac
 
     app.dependency_overrides.clear()
+

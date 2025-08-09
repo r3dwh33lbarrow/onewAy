@@ -23,6 +23,6 @@ class RefreshToken(Base):
     client_uuid = Column(UUID(as_uuid=True), ForeignKey("clients.uuid", ondelete="CASCADE"),
                          nullable=False, index=True)
     jti = Column(String, nullable=False, unique=True)
-    issued_at = Column(DateTime, nullable=False, default=lambda : datetime.now(UTC))
+    issued_at = Column(DateTime, nullable=False, default=lambda : datetime.now(UTC).replace(tzinfo=None))
     expires_at = Column(DateTime, nullable=False)
     revoked = Column(Boolean, nullable=False, default=False)

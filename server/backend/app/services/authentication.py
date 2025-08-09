@@ -126,7 +126,7 @@ async def create_refresh_token(client_uuid: uuid.UUID, db: AsyncSession) -> str:
     refresh_token = RefreshToken(
         client_uuid=client_uuid,
         jti=hashed_jti,  # Store hashed JTI in the database
-        expires_at=expires
+        expires_at=expires.replace(tzinfo=None)
     )
 
     try:
