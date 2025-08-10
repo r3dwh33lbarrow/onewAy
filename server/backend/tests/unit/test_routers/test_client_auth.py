@@ -403,6 +403,9 @@ async def test_client_refresh_token_rotation(client: AsyncClient, db_session: As
     assert second_refresh_response.status_code == 401
 
 
+import asyncio
+
+
 @pytest.mark.asyncio
 async def test_client_login_refresh_flow(client: AsyncClient, db_session: AsyncSession):
     """Test complete login -> refresh flow"""
@@ -428,6 +431,9 @@ async def test_client_login_refresh_flow(client: AsyncClient, db_session: AsyncS
     login_data = login_response.json()
     initial_access_token = login_data["access_token"]
     refresh_token = login_response.cookies.get("refresh_token")
+
+    # Add a small delay to ensure the new token's timestamp is different
+    await asyncio.sleep(1)
 
     # Step 2: Use refresh token to get new access token
     client.cookies = {"refresh_token": refresh_token}
