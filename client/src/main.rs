@@ -1,3 +1,7 @@
+use crate::logger::{LogLevel, log};
+
+mod logger;
+
 fn main() {
-    println!("Hello, world!");
+    debug!("Hello, world!");
 }

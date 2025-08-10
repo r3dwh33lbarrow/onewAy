@@ -25,12 +25,12 @@
   - [x] Create refresh token database model and secure storage
   - [x] Implement token expiration and rotation policy
   - [x] Add revocation logic
-- [ ] Write unit tests for authentication routes
-- [ ] Write fixtures for test database
+- [x] Write unit tests for authentication routes
+- [x] Write fixtures for test database
 
 ### client
 
-- [ ] Implement a custom logger
+- [x] Implement a custom logger
 - [ ] Implement HTTP API client
 - [ ] Implement system metadata collection
 - [ ] Implement authentication lifecycle:
