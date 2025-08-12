@@ -79,30 +79,30 @@ pub fn log(level: LogLevel, message: impl Into<String>) {
 #[macro_export]
 macro_rules! debug {
     ($($arg:tt)*) => {
-        $crate::log($crate::LogLevel::Debug, format!($($arg)*));
+        $crate::logger::log($crate::logger::LogLevel::Debug, format!($($arg)*));
     };
 }
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)*) => {
-        $crate::log($crate::LogLevel::Info, format!($($arg)*));
+        $crate::logger::log($crate::logger::LogLevel::Info, format!($($arg)*));
     };
 }
 #[macro_export]
 macro_rules! warn {
     ($($arg:tt)*) => {
-        $crate::log($crate::LogLevel::Warn, format!($($arg)*));
+        $crate::logger::log($crate::logger::LogLevel::Warn, format!($($arg)*));
     };
 }
 #[macro_export]
 macro_rules! error {
     ($($arg:tt)*) => {
-        $crate::log($crate::LogLevel::Error, format!($($arg)*));
+        $crate::logger::log($crate::logger::LogLevel::Error, format!($($arg)*));
     };
 }
 #[macro_export]
 macro_rules! fatal {
     ($($arg:tt)*) => {
-        $crate::log($crate::LogLevel::Fatal, format!($($arg)*));
+        $crate::logger::log($crate::logger::LogLevel::Fatal, format!($($arg)*));
     };
 }

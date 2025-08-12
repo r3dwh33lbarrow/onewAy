@@ -31,7 +31,7 @@
 ### client
 
 - [x] Implement a custom logger
-- [ ] Implement HTTP API client
+- [x] Implement HTTP API client
 - [ ] Implement system metadata collection
 - [ ] Implement authentication lifecycle:
   - [ ] Enroll on first run
