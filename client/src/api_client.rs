@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
-use std::time::Duration;
 use reqwest::{Client, Method, Url};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct ApiClient {
@@ -21,13 +21,18 @@ impl ApiClient {
             .build()
             .context("failed to build reqwest client")?;
 
-        Ok(Self { base_url: url, token: None, client })
+        Ok(Self {
+            base_url: url,
+            token: None,
+            client,
+        })
     }
 
     fn parse_path(&self, path: &str) -> Result<Url> {
         let mut base_clone = self.base_url.clone();
         let path = path.strip_prefix('/').unwrap_or(path);
-        base_clone.path_segments_mut()
+        base_clone
+            .path_segments_mut()
             .map_err(|_| anyhow::anyhow!("base URL cannot be a base for paths"))?
             .extend(path.split('/').filter(|s| !s.is_empty()));
         Ok(base_clone)
@@ -56,7 +61,10 @@ impl ApiClient {
 
         let response = request.send().await.context("request failed")?;
         let response = response.error_for_status().context("non-2xx status")?;
-        let data = response.json::<TRes>().await.context("failed to parse JSON")?;
+        let data = response
+            .json::<TRes>()
+            .await
+            .context("failed to parse JSON")?;
         Ok(data)
     }
 
