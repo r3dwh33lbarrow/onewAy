@@ -32,7 +32,7 @@
 
 - [x] Implement a custom logger
 - [x] Implement HTTP API client
-- [ ] Implement system metadata collection
+- [x] Implement system metadata collection
 - [ ] Implement authentication lifecycle:
   - [ ] Enroll on first run
   - [ ] Login on subsequent runs

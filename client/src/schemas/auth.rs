@@ -6,3 +6,15 @@ pub struct ClientEnrollRequest {
     pub password: String,
     pub client_version: String,
 }
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct ClientLoginRequest {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct TokenResponse {
+    pub access_token: String,
+    pub token_type: String,
+}

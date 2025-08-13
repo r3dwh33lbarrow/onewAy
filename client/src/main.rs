@@ -1,24 +1,25 @@
-mod api_client;
+mod config;
+mod http;
 mod logger;
 mod schemas;
 
-use crate::api_client::ApiClient;
-use crate::schemas::auth::ClientEnrollRequest;
-use crate::schemas::BasicTaskResponse;
+use crate::config::ConfigData;
+use crate::http::api_client::ApiClient;
+use crate::http::auth::enroll;
+use std::path::Path;
 
 #[tokio::main]
 async fn main() {
-    let api_client =
-        ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient");
-    let mut enroll_data = ClientEnrollRequest::default();
-    enroll_data.username = String::from("REDACTED");
-    enroll_data.password = String::from("REDACTED");
-    enroll_data.client_version = String::from("0.1.0");
+    let config_data = ConfigData::get(Path::new("SECRET")).expect("failed to get config file");
 
-    debug!("Sending data...");
-    let response = api_client
-        .post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enroll_data)
-        .await
-        .expect("failed to post /client/auth/enroll");
-    println!("{:?}", response);
+    if !config_data.enrolled() {
+        let api_client =
+            ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient");
+        let result = enroll(&api_client, config_data.username(), config_data.password()).await;
+        if !result {
+            panic!("Failed to enroll client");
+        }
+    } else {
+        debug!("Client already enrolled");
+    }
 }
