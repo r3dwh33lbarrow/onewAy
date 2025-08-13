@@ -7,7 +7,7 @@ use std::time::Duration;
 #[derive(Debug, Clone)]
 pub struct ApiClient {
     base_url: Url,
-    token: Option<String>,
+    access_token: Option<String>,
     client: Client,
 }
 
@@ -16,6 +16,7 @@ impl ApiClient {
         let url = Url::parse(base_url).context("invalid base URL")?;
         let client = Client::builder()
             .user_agent("oneway-api-client/0.1")
+            .cookie_store(true)
             .timeout(Duration::from_secs(5))
             .tcp_keepalive(Duration::from_secs(30))
             .build()
@@ -23,7 +24,7 @@ impl ApiClient {
 
         Ok(Self {
             base_url: url,
-            token: None,
+            access_token: None,
             client,
         })
     }
@@ -50,10 +51,6 @@ impl ApiClient {
     {
         let url = self.parse_path(path)?;
         let mut request = self.client.request(method, url);
-
-        if let Some(t) = &self.token {
-            request = request.bearer_auth(t);
-        }
 
         if let Some(b) = body {
             request = request.json(b);
@@ -85,14 +82,14 @@ impl ApiClient {
 
     pub async fn get_text(&self, path: &str) -> Result<String> {
         let url = self.parse_path(path)?;
-        let mut request = self.client.get(url);
-
-        if let Some(token) = &self.token {
-            request = request.bearer_auth(token);
-        }
+        let request = self.client.get(url);
 
         let response = request.send().await?.error_for_status()?;
         let body = response.text().await?;
         Ok(body)
+    }
+    
+    pub fn set_access_token(&mut self, token_str: &str) {
+        self.access_token = Some(token_str.to_string());
     }
 }

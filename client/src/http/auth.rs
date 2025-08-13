@@ -30,7 +30,7 @@ pub async fn enroll(
     }
 }
 
-pub async fn login(api_client: &ApiClient, username: &str, password: &str) -> bool {
+pub async fn login(api_client: &mut ApiClient, username: &str, password: &str) -> bool {
     let mut login_data = ClientLoginRequest::default();
     login_data.username = username.to_string();
     login_data.password = password.to_string();
@@ -42,6 +42,7 @@ pub async fn login(api_client: &ApiClient, username: &str, password: &str) -> bo
     match response {
         Ok(_) => {
             info!("Login successful");
+            api_client.set_access_token(&*response.unwrap().access_token);
             true
         }
         Err(e) => {

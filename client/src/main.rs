@@ -7,11 +7,12 @@ use crate::config::ConfigData;
 use crate::http::api_client::ApiClient;
 use crate::http::auth::{enroll, login};
 use std::path::Path;
+use crate::schemas::BasicTaskResponse;
 
 #[tokio::main]
 async fn main() {
     let config_data = ConfigData::get(Path::new("SECRET")).expect("failed to get config file");
-    let api_client =
+    let mut api_client =
         ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient");
 
     if !config_data.enrolled() {
@@ -23,13 +24,18 @@ async fn main() {
         )
         .await;
         if !result {
-            panic!("Failed to enroll client");
+            panic!("failed to enroll client");
         }
     } else {
         debug!("Client already enrolled");
     }
 
-    if !login(&api_client, config_data.username(), config_data.password()).await {
-        panic!("Failed to login");
+    if !login(&mut api_client, config_data.username(), config_data.password()).await {
+        panic!("failed to login");
     }
+
+    let url = format!("/client/auth/{}/check", config_data.username());
+    api_client.get::<BasicTaskResponse>(&url)
+        .await
+        .expect("login check failed");
 }
