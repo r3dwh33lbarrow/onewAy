@@ -7,6 +7,7 @@ pub struct ConfigData {
     username: String,
     password: String,
     enrolled: bool,
+    version: String,
 }
 
 impl ConfigData {
@@ -30,6 +31,7 @@ impl ConfigData {
                             cfg.enrolled = false;
                         }
                     }
+                    "version" => cfg.version = value.trim().to_string(),
                     _ => {}
                 }
             }
@@ -48,5 +50,9 @@ impl ConfigData {
 
     pub fn enrolled(&self) -> bool {
         self.enrolled
+    }
+
+    pub fn version(&self) -> &str {
+        &self.version
     }
 }
