@@ -8,7 +8,7 @@ from app.dependencies import get_db
 from app.models.client import Client
 from app.schemas.client_auth import ClientEnrollRequest, ClientLoginRequest, TokenResponse
 from app.schemas.general import BasicTaskResponse
-from app.services.authentication import hash_password, create_access_token, create_refresh_token, rotate_refresh_token
+from app.services.authentication import hash_password, create_access_token, create_refresh_token, rotate_refresh_token, verify_refresh_token
 
 router = APIRouter(prefix="/client/auth")
 
@@ -144,3 +144,50 @@ async def client_auth_refresh(response: Response,
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail="Token refresh failed due to database error")
 
+
+@router.get("/{username}/check", response_model=BasicTaskResponse)
+async def client_auth_username_check(username:str,
+                                     refresh_token: Optional[str] = Cookie(None, alias="refresh_token"),
+                                     db: AsyncSession = Depends(get_db)):
+    """
+    Check if the provided username matches the client associated with the refresh token.
+
+    This endpoint verifies that the refresh token is valid and belongs to the client
+    with the specified username. This can be used for additional security checks.
+
+    Args:
+        username (str): The username to verify against the token.
+        refresh_token (Optional[str]): The refresh token extracted from the cookie.
+        db (AsyncSession): The database session dependency.
+
+    Returns:
+        BasicTaskResponse: A response indicating the success of the check.
+
+    Raises:
+        HTTPException: If the refresh token is missing, invalid, or the username doesn't match.
+    """
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Refresh token missing")
+
+    try:
+        refresh_token_obj = await verify_refresh_token(refresh_token, db)
+        client = await db.execute(select(Client).where(Client.uuid == refresh_token_obj.client_uuid))
+        client = client.scalar_one_or_none()
+
+        if not client:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Invalid token")
+
+        if client.username != username:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Username mismatch")
+
+        return {"result": "success"}
+
+    except HTTPException as e:
+        raise e
+    except Exception:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Check failed due to server error")

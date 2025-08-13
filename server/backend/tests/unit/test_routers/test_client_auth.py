@@ -446,3 +446,284 @@ async def test_client_login_refresh_flow(client: AsyncClient, db_session: AsyncS
     # Tokens should be different
     assert new_access_token != initial_access_token
     assert refresh_data["token_type"] == "Bearer"
+
+
+# USERNAME CHECK ENDPOINT TESTS
+
+@pytest.mark.asyncio
+async def test_client_username_check_success(client: AsyncClient, db_session: AsyncSession):
+    """Test successful username check with valid token and matching username"""
+    # Create a client and login to get a refresh token
+    test_client = Client(
+        username="checkuser",
+        hashed_password=hash_password("password123"),
+        ip_address="127.0.0.1",
+        client_version="1.0.0"
+    )
+    db_session.add(test_client)
+    await db_session.commit()
+
+    # Login to get refresh token
+    login_data = {
+        "username": "checkuser",
+        "password": "password123"
+    }
+
+    login_response = await client.post("/client/auth/login", json=login_data)
+    refresh_token = login_response.cookies.get("refresh_token")
+
+    # Test username check with correct username
+    client.cookies = {"refresh_token": refresh_token}
+    response = await client.get("/client/auth/checkuser/check")
+
+    assert response.status_code == 200
+    assert response.json() == {"result": "success"}
+
+
+@pytest.mark.asyncio
+async def test_client_username_check_missing_token(client: AsyncClient):
+    """Test username check without refresh token"""
+    response = await client.get("/client/auth/testuser/check")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Refresh token missing"
+
+
+@pytest.mark.asyncio
+async def test_client_username_check_invalid_token(client: AsyncClient):
+    """Test username check with invalid refresh token"""
+    client.cookies = {"refresh_token": "invalid_token"}
+    response = await client.get("/client/auth/testuser/check")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_client_username_check_username_mismatch(client: AsyncClient, db_session: AsyncSession):
+    """Test username check with valid token but wrong username"""
+    # Create a client and login
+    test_client = Client(
+        username="realuser",
+        hashed_password=hash_password("password123"),
+        ip_address="127.0.0.1",
+        client_version="1.0.0"
+    )
+    db_session.add(test_client)
+    await db_session.commit()
+
+    # Login to get refresh token
+    login_data = {
+        "username": "realuser",
+        "password": "password123"
+    }
+
+    login_response = await client.post("/client/auth/login", json=login_data)
+    refresh_token = login_response.cookies.get("refresh_token")
+
+    # Test username check with different username
+    client.cookies = {"refresh_token": refresh_token}
+    response = await client.get("/client/auth/wronguser/check")
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Username mismatch"
+
+
+@pytest.mark.asyncio
+async def test_client_username_check_revoked_token(client: AsyncClient, db_session: AsyncSession):
+    """Test username check with revoked token"""
+    # Create a client and login
+    test_client = Client(
+        username="revokedcheckuser",
+        hashed_password=hash_password("password123"),
+        ip_address="127.0.0.1",
+        client_version="1.0.0"
+    )
+    db_session.add(test_client)
+    await db_session.commit()
+
+    # Login to get refresh token
+    login_data = {
+        "username": "revokedcheckuser",
+        "password": "password123"
+    }
+
+    login_response = await client.post("/client/auth/login", json=login_data)
+    old_refresh_token = login_response.cookies.get("refresh_token")
+
+    # Use refresh token to rotate it (which revokes the old one)
+    client.cookies = {"refresh_token": old_refresh_token}
+    await client.post("/client/auth/refresh")
+
+    # Try to use the old (now revoked) token for username check
+    client.cookies = {"refresh_token": old_refresh_token}
+    response = await client.get("/client/auth/revokedcheckuser/check")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_client_username_check_case_sensitivity(client: AsyncClient, db_session: AsyncSession):
+    """Test username check with case sensitivity"""
+    # Create a client with lowercase username
+    test_client = Client(
+        username="caseuser",
+        hashed_password=hash_password("password123"),
+        ip_address="127.0.0.1",
+        client_version="1.0.0"
+    )
+    db_session.add(test_client)
+    await db_session.commit()
+
+    # Login to get refresh token
+    login_data = {
+        "username": "caseuser",
+        "password": "password123"
+    }
+
+    login_response = await client.post("/client/auth/login", json=login_data)
+    refresh_token = login_response.cookies.get("refresh_token")
+
+    # Test with uppercase username (should fail if case-sensitive)
+    client.cookies = {"refresh_token": refresh_token}
+    response = await client.get("/client/auth/CASEUSER/check")
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Username mismatch"
+
+
+@pytest.mark.asyncio
+async def test_client_username_check_special_characters(client: AsyncClient, db_session: AsyncSession):
+    """Test username check with special characters in username"""
+    # Create a client with special characters in username
+    test_client = Client(
+        username="user.name_123",
+        hashed_password=hash_password("password123"),
+        ip_address="127.0.0.1",
+        client_version="1.0.0"
+    )
+    db_session.add(test_client)
+    await db_session.commit()
+
+    # Login to get refresh token
+    login_data = {
+        "username": "user.name_123",
+        "password": "password123"
+    }
+
+    login_response = await client.post("/client/auth/login", json=login_data)
+    refresh_token = login_response.cookies.get("refresh_token")
+
+    # Test username check with special characters
+    client.cookies = {"refresh_token": refresh_token}
+    response = await client.get("/client/auth/user.name_123/check")
+
+    assert response.status_code == 200
+    assert response.json() == {"result": "success"}
+
+
+@pytest.mark.asyncio
+async def test_client_username_check_after_refresh(client: AsyncClient, db_session: AsyncSession):
+    """Test username check with token after refresh operation"""
+    # Create a client and login
+    test_client = Client(
+        username="refreshcheckuser",
+        hashed_password=hash_password("password123"),
+        ip_address="127.0.0.1",
+        client_version="1.0.0"
+    )
+    db_session.add(test_client)
+    await db_session.commit()
+
+    # Login to get initial refresh token
+    login_data = {
+        "username": "refreshcheckuser",
+        "password": "password123"
+    }
+
+    login_response = await client.post("/client/auth/login", json=login_data)
+    old_refresh_token = login_response.cookies.get("refresh_token")
+
+    # Refresh to get new token
+    client.cookies = {"refresh_token": old_refresh_token}
+    refresh_response = await client.post("/client/auth/refresh")
+    new_refresh_token = refresh_response.cookies.get("refresh_token")
+
+    # Test username check with new token
+    client.cookies = {"refresh_token": new_refresh_token}
+    response = await client.get("/client/auth/refreshcheckuser/check")
+
+    assert response.status_code == 200
+    assert response.json() == {"result": "success"}
+
+
+@pytest.mark.asyncio
+async def test_client_username_check_empty_username(client: AsyncClient, db_session: AsyncSession):
+    """Test username check with empty username in URL"""
+    # Create a client and login
+    test_client = Client(
+        username="emptyuser",
+        hashed_password=hash_password("password123"),
+        ip_address="127.0.0.1",
+        client_version="1.0.0"
+    )
+    db_session.add(test_client)
+    await db_session.commit()
+
+    # Login to get refresh token
+    login_data = {
+        "username": "emptyuser",
+        "password": "password123"
+    }
+
+    login_response = await client.post("/client/auth/login", json=login_data)
+    refresh_token = login_response.cookies.get("refresh_token")
+
+    # Test with empty string username (this would be a path parameter issue)
+    client.cookies = {"refresh_token": refresh_token}
+    response = await client.get("/client/auth//check")
+
+    # This should result in a 404 due to invalid URL path
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_client_username_check_multiple_clients(client: AsyncClient, db_session: AsyncSession):
+    """Test username check with multiple clients to ensure isolation"""
+    # Create two different clients
+    client1 = Client(
+        username="client1",
+        hashed_password=hash_password("password123"),
+        ip_address="127.0.0.1",
+        client_version="1.0.0"
+    )
+    client2 = Client(
+        username="client2",
+        hashed_password=hash_password("password123"),
+        ip_address="127.0.0.1",
+        client_version="1.0.0"
+    )
+
+    db_session.add(client1)
+    db_session.add(client2)
+    await db_session.commit()
+
+    # Login as client1
+    login_data1 = {
+        "username": "client1",
+        "password": "password123"
+    }
+
+    login_response1 = await client.post("/client/auth/login", json=login_data1)
+    refresh_token1 = login_response1.cookies.get("refresh_token")
+
+    # Try to check client2's username with client1's token
+    client.cookies = {"refresh_token": refresh_token1}
+    response = await client.get("/client/auth/client2/check")
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Username mismatch"
+
+    # Verify client1 can check their own username
+    response = await client.get("/client/auth/client1/check")
+    assert response.status_code == 200
+    assert response.json() == {"result": "success"}

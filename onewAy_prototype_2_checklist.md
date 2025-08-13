@@ -34,8 +34,8 @@
 - [x] Implement HTTP API client
 - [x] Implement system metadata collection
 - [ ] Implement authentication lifecycle:
-  - [ ] Enroll on first run
-  - [ ] Login on subsequent runs
+  - [x] Enroll on first run
+  - [x] Login on subsequent runs
   - [ ] Refresh token if access token is expired
 - [ ] Write tests for information processing and lifecycle events
 
