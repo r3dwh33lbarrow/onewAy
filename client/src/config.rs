@@ -1,58 +1,9 @@
-use std::fs::File;
-use std::io::{BufRead, BufReader, Result};
-use std::path::Path;
+use serde::Deserialize;
 
-#[derive(Default)]
+#[derive(Deserialize)]
 pub struct ConfigData {
-    username: String,
-    password: String,
-    enrolled: bool,
-    version: String,
-}
-
-impl ConfigData {
-    pub fn get(file_path: &Path) -> Result<Self> {
-        let file = File::open(file_path)?;
-        let reader = BufReader::new(file);
-
-        let mut cfg = Self::default();
-
-        for line in reader.lines() {
-            let line = line?;
-
-            if let Some((key, value)) = line.split_once('=') {
-                match key.trim() {
-                    "username" => cfg.username = value.trim().to_string(),
-                    "password" => cfg.password = value.trim().to_string(),
-                    "enrolled" => {
-                        if value.trim().to_string() == "true" {
-                            cfg.enrolled = true;
-                        } else {
-                            cfg.enrolled = false;
-                        }
-                    }
-                    "version" => cfg.version = value.trim().to_string(),
-                    _ => {}
-                }
-            }
-        }
-
-        Ok(cfg)
-    }
-
-    pub fn username(&self) -> &str {
-        &self.username
-    }
-
-    pub fn password(&self) -> &str {
-        &self.password
-    }
-
-    pub fn enrolled(&self) -> bool {
-        self.enrolled
-    }
-
-    pub fn version(&self) -> &str {
-        &self.version
-    }
+    pub username: String,
+    pub password: String,
+    pub enrolled: bool,
+    pub version: String
 }
