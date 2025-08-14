@@ -2,14 +2,14 @@
 
 ---
 
-## Phase One: Project Setup _(July 23 – July 25)_
+## Phase One: Project Setup
 
 - [x] Setup project skeleton and initialize Git
 - [x] Create `requirements.txt`
 - [x] Configure PostgreSQL for FastAPI
 - [x] Add Tailwind + Flowbite
 
-## Phase Two: Authentication _(July 26 – August 15)_
+## Phase Two: Authentication
 
 ### server/backend
 
@@ -51,7 +51,7 @@
   - [ ] Zustand store behavior (e.g., token set/reset)
   - [ ] Protected route access control
 
-## Phase Three: Dashboard and Websockets _(August 16 – September 05)_
+## Phase Three: Dashboard and Websockets
 
 ### server/backend
 
@@ -64,7 +64,7 @@
 - [ ] Create basic dashboard and implement websockets
 - [ ] Create dashboard test
 
-## Phase Four: Client Modules & Update System _(September 06 – October 01)_
+## Phase Four: Client Modules & Update System
 
 ### server/backend
 
