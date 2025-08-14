@@ -40,9 +40,9 @@ pub async fn login(api_client: &mut ApiClient, username: &str, password: &str) -
         .await;
 
     match response {
-        Ok(_) => {
+        Ok(token) => {
             info!("Login successful");
-            api_client.set_access_token(&*response.unwrap().access_token);
+            api_client.set_access_token(&token.access_token);
             true
         }
         Err(e) => {
