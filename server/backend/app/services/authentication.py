@@ -151,8 +151,7 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> Optional[Refresh
         db (AsyncSession): The database session used to query the refresh token.
 
     Returns:
-        Optional[RefreshToken]: The corresponding RefreshToken object if the token is valid,
-        or None if the token is invalid.
+        RefreshToken: The corresponding RefreshToken object if the token is valid.
 
     Raises:
         HTTPException: If the token is invalid, revoked, expired, or not found in the database.
