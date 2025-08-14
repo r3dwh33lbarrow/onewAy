@@ -94,17 +94,19 @@ async def test_client_enroll_missing_client_version(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_client_enroll_empty_fields(client: AsyncClient):
+@pytest.mark.parametrize(
+    "enroll_data",
+    [
+        {"username": "", "password": "testpassword123", "client_version": "1.0.0"},
+        {"username": "testuser", "password": "", "client_version": "1.0.0"},
+        {"username": "testuser", "password": "testpassword123", "client_version": ""},
+        {"username": "", "password": "", "client_version": ""},
+    ],
+)
+async def test_client_enroll_empty_fields(client: AsyncClient, enroll_data):
     """Test enrollment with empty string fields"""
-    enroll_data = {
-        "username": "",
-        "password": "",
-        "client_version": ""
-    }
-
     response = await client.post("/client/auth/enroll", json=enroll_data)
-    # This should still work from a validation perspective, but might want to add business logic validation
-    assert response.status_code in [200, 422]  # Depends on if you add validation for empty strings
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
