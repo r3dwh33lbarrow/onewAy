@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from fastapi.security import HTTPBearer
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-from sqlalchemy import Select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.refresh_token import RefreshToken
@@ -169,9 +169,10 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> Optional[Refresh
         client_uuid = payload.get("sub")
         if not client_uuid:
             raise HTTPException(status_code=401, detail="Invalid token: missing client identifier")
+        client_uuid = uuid.UUID(client_uuid)
 
         result = await db.execute(
-            Select(RefreshToken).where(
+            select(RefreshToken).where(
                 RefreshToken.client_uuid == client_uuid,
                 RefreshToken.revoked == False,
                 RefreshToken.expires_at > datetime.now().replace(tzinfo=None)
