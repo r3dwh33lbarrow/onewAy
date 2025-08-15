@@ -41,12 +41,31 @@ pub async fn login(api_client: &mut ApiClient, username: &str, password: &str) -
 
     match response {
         Ok(token) => {
-            info!("Login successful");
             api_client.set_access_token(&token.access_token);
+            info!("Login successful");
             true
         }
         Err(e) => {
-            error!("Failed to enroll client {e}");
+            error!("Client login failed: {e}");
+            false
+        }
+    }
+}
+
+pub async fn refresh_access_token(api_client: &mut ApiClient) -> bool {
+    let response = api_client
+        .post::<TokenResponse, ()>("/client/auth/refresh", &())
+        .await;
+
+    match response {
+        Ok(token) => {
+            api_client.set_access_token(&token.access_token);
+            info!("Refresh success");
+            true
+        }
+
+        Err(e) => {
+            error!("Failed to refresh access token: {e}");
             false
         }
     }

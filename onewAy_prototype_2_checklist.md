@@ -33,10 +33,10 @@
 - [x] Implement a custom logger
 - [x] Implement HTTP API client
 - [x] Implement system metadata collection
-- [ ] Implement authentication lifecycle:
+- [x] Implement authentication lifecycle:
   - [x] Enroll on first run
   - [x] Login on subsequent runs
-  - [ ] Refresh token if access token is expired
+  - [x] Refresh token if access token is expired
 - [ ] Write tests for information processing and lifecycle events
 
 ### server/frontend

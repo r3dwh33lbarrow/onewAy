@@ -88,7 +88,7 @@ impl ApiClient {
         let body = response.text().await?;
         Ok(body)
     }
-    
+
     pub fn set_access_token(&mut self, token_str: &str) {
         self.access_token = Some(token_str.to_string());
     }

@@ -3,18 +3,15 @@ mod http;
 mod logger;
 mod schemas;
 
+use std::path::Path;
 use crate::config::ConfigData;
 use crate::http::api_client::ApiClient;
-use crate::http::auth::{enroll, login};
-use std::path::Path;
-use dotenv::dotenv;
+use crate::http::auth::{enroll, login, refresh_access_token};
 use crate::schemas::BasicTaskResponse;
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
-    let config_data: ConfigData =
-        envy::from_env().unwrap_or_else(|e| panic!("failed to load config: {e}"));
+    let mut config_data: ConfigData = ConfigData::load(Path::new(".env")).unwrap();
 
     let mut api_client =
         ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient");
@@ -30,16 +27,34 @@ async fn main() {
         if !result {
             panic!("failed to enroll client");
         }
+
+        config_data.replace("enrolled", &true).expect("failed to save config data");
     } else {
         debug!("Client already enrolled");
     }
 
-    if !login(&mut api_client, &*config_data.username, &*config_data.password).await {
+    if !login(
+        &mut api_client,
+        &*config_data.username,
+        &*config_data.password,
+    )
+    .await
+    {
         panic!("failed to login");
     }
 
     let url = format!("/client/auth/{}/check", config_data.username);
-    api_client.get::<BasicTaskResponse>(&url)
+    api_client
+        .get::<BasicTaskResponse>(&url)
         .await
         .expect("login check failed");
+
+    if !refresh_access_token(&mut api_client).await {
+        panic!("failed to refresh token");
+    }
+
+    api_client
+        .get::<BasicTaskResponse>(&url)
+        .await
+        .expect("login check 2 failed");
 }
