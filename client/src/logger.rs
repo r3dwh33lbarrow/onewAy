@@ -33,7 +33,7 @@ struct LogRecord {
 }
 
 pub struct Logger {
-    tx: Sender<LogRecord>, // crossbeam Sender is Send + Sync + Clone
+    tx: Sender<LogRecord>,
 }
 
 static LOGGER: OnceCell<Logger> = OnceCell::new();
@@ -49,7 +49,6 @@ pub fn init_logger() {
         .name("logger-writer".into())
         .spawn(move || {
             for rec in rx.iter() {
-                // [LOG_LEVEL] [%d/%m/%Y %H:%M:%S] - message
                 println!("[{}] [{}] - {}", rec.level, rec.timestamp, rec.message);
             }
         })
