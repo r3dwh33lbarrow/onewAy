@@ -1,6 +1,10 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
+from app.logger import get_logger
+
+log = get_logger()
+
 
 class Settings(BaseSettings):
     # Database settings
@@ -8,6 +12,9 @@ class Settings(BaseSettings):
 
     # Security settings
     secret_key: str = Field(..., alias="SECRET_KEY")
+
+    # Testing settings
+    testing: bool = Field(False, alias="TESTING")
 
     # JWT settings
     access_token_expire_minutes: int = 15
@@ -21,6 +28,19 @@ class Settings(BaseSettings):
         "extra": "ignore",
         "populate_by_name": True,
     }
+
+
+def load_test_settings(path_env_test: str = "tests/.env.test") -> None:
+    log.info("Loading test settings")
+
+    with open(path_env_test, "r") as env_file:
+        for line in env_file:
+            key, value = line.strip().split("=", 1)
+            if key == "TEST_DATABASE_URL":
+                Settings.database_url = value
+
+            if key == "SECRET_KEY":
+                Settings.secret_key = value
 
 
 settings = Settings()
