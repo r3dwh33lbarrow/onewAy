@@ -8,7 +8,10 @@ from sqlalchemy import update
 
 from app.logger import get_logger
 from app.routes import client_auth
-from app.settings import settings
+from app.settings import settings, load_test_settings
+
+if settings.testing:
+    load_test_settings()
 
 
 @asynccontextmanager
@@ -29,13 +32,14 @@ async def lifespan(_: FastAPI):
         await asyncio.to_thread(command.upgrade, alembic_cfg, "head")
         log.info("Migrations applied successfully.")
 
-        from app.dependencies import get_db
-        from app.models.client import Client
+        if not settings.testing:
+            from app.dependencies import get_db
+            from app.models.client import Client
 
-        async for db in get_db():
-            await db.execute(update(Client).values(alive=False))
-            await db.commit()
-            log.info("All clients marked as not alive")
+            async for db in get_db():
+                await db.execute(update(Client).values(alive=False))
+                await db.commit()
+                log.info("All clients marked as not alive")
     except Exception as e:
         log.error(f"Error applying migrations: {e}")
 
