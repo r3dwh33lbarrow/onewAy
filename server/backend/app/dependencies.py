@@ -25,6 +25,9 @@ async def _get_db_testing() -> AsyncGenerator[AsyncSession, None]:
     test_engine = create_async_engine(settings.database_url)
     TestAsyncSessionLocal = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
 
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     async with TestAsyncSessionLocal() as session:
         try:
             yield session

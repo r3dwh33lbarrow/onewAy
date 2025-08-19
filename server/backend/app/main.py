@@ -11,7 +11,7 @@ from app.routes import client_auth
 from app.settings import settings, load_test_settings
 
 if settings.testing:
-    load_test_settings()
+    settings = load_test_settings()
 
 
 @asynccontextmanager
@@ -30,7 +30,6 @@ async def lifespan(_: FastAPI):
 
     try:
         await asyncio.to_thread(command.upgrade, alembic_cfg, "head")
-        log.info("Migrations applied successfully.")
 
         if not settings.testing:
             from app.dependencies import get_db

@@ -30,17 +30,24 @@ class Settings(BaseSettings):
     }
 
 
-def load_test_settings(path_env_test: str = "tests/.env.test") -> None:
+def load_test_settings(path_env_test: str = "tests/.env.test") -> Settings:
+    """Return a new Settings instance with test configuration"""
     log.info("Loading test settings")
+
+    # Create a new settings object with test values
+    test_settings = Settings()
 
     with open(path_env_test, "r") as env_file:
         for line in env_file:
-            key, value = line.strip().split("=", 1)
-            if key == "TEST_DATABASE_URL":
-                Settings.database_url = value
+            if "=" in line and not line.startswith("#"):
+                key, value = line.strip().split("=", 1)
+                if key == "TEST_DATABASE_URL":
+                    test_settings.database_url = value
+                if key == "SECRET_KEY":
+                    test_settings.secret_key = value
 
-            if key == "SECRET_KEY":
-                Settings.secret_key = value
+    test_settings.testing = True
+    return test_settings
 
 
 settings = Settings()
