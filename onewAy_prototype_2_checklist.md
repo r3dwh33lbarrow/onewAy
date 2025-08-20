@@ -37,7 +37,7 @@
   - [x] Enroll on first run
   - [x] Login on subsequent runs
   - [x] Refresh token if access token is expired
-- [ ] Write tests for information processing and lifecycle events
+- [x] Write tests for information processing and lifecycle events
 
 ### server/frontend
 
