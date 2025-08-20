@@ -65,7 +65,7 @@ def verify_jti(jti: str, hashed_jti: str) -> bool:
     return pwd_context.verify(jti, hashed_jti)
 
 
-def create_access_token(user_or_client_uuid: uuid.UUID) -> str:
+def create_access_token(user_or_client_uuid: uuid.UUID, is_user: bool = False) -> str:
     """
     Create a new access token for a user or client.
 
@@ -75,12 +75,17 @@ def create_access_token(user_or_client_uuid: uuid.UUID) -> str:
 
     Args:
         user_or_client_uuid (uuid.UUID): The UUID of the user or client for whom the access token is being created.
+        is_user (bool, optional): Indicates whether the token is for a user or client. Defaults to False.
 
     Returns:
         str: The encoded JWT access token.
     """
     now = datetime.now(UTC)
-    expires = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    # Extend token expiration time for user accounts
+    if is_user:
+        expires = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES + 15)
+    else:
+        expires = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     payload = {
         "sub": str(user_or_client_uuid),
