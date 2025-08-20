@@ -6,7 +6,7 @@ from alembic.config import Config
 from fastapi import FastAPI
 from sqlalchemy import update
 
-from app.dependencies import get_db, cleanup_db
+from app.dependencies import get_db, cleanup_db, init_db
 from app.logger import get_logger
 from app.models.client import Client
 from app.routes import client_auth
@@ -40,6 +40,8 @@ async def lifespan(_: FastAPI):
                 log.info("All clients marked as not alive")
         except Exception as e:
             log.error(f"Error applying migrations: {e}")
+
+    await init_db()
 
     yield
     
