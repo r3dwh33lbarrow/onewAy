@@ -27,6 +27,15 @@ async def _get_db() -> AsyncGenerator:
 
 
 async def _get_db_testing() -> AsyncGenerator[AsyncSession, None]:
+    global TestAsyncSessionLocal
+    async with TestAsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+async def init_db() -> None:
     global test_engine, TestAsyncSessionLocal
     if test_engine is None and TestAsyncSessionLocal is None:
         test_engine = create_async_engine(settings.database_url)
@@ -34,14 +43,7 @@ async def _get_db_testing() -> AsyncGenerator[AsyncSession, None]:
 
         async with test_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-
-        log.debug("DB tables created")
-
-    async with TestAsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+            log.debug("DB tables created")
 
 
 async def cleanup_db() -> None:
