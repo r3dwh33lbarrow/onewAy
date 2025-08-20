@@ -9,7 +9,7 @@ from sqlalchemy import update
 from app.dependencies import get_db, cleanup_db, init_db
 from app.logger import get_logger
 from app.models.client import Client
-from app.routes import client_auth
+from app.routes import client_auth, user_auth
 from app.settings import settings, load_test_settings
 
 if settings.testing:
@@ -49,6 +49,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(client_auth.router)
+app.include_router(user_auth.router)
 
 @app.get("/")
 async def root():
