@@ -65,4 +65,118 @@ mod tests {
 
         assert!(login_response_2.is_err(), "Expected error on double enroll, but got Ok");
     }
+
+    #[tokio::test]
+    async fn test_invalid_login() {
+        let api_client = ApiClient::new("http://127.0.0.1:8000/")
+            .expect("failed to create API client");
+
+        let mut enrollment_data = ClientEnrollRequest::default();
+        enrollment_data.username = String::from("test_invalid_login");
+        enrollment_data.password = String::from("correct_password");
+        enrollment_data.client_version = String::from("TESTING");
+
+        let enroll_response = api_client.post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enrollment_data)
+            .await
+            .expect("failed to enroll client");
+        assert_eq!(enroll_response.result, "success");
+
+        let mut login_data = ClientLoginRequest::default();
+        login_data.username = String::from("test_invalid_login");
+        login_data.password = String::from("wrong_password");
+
+        let login_response = api_client.post::<TokenResponse, ClientLoginRequest>("/client/auth/login", &login_data)
+            .await;
+
+        assert!(login_response.is_err(), "Expected error on invalid login, but got Ok");
+    }
+
+    #[tokio::test]
+    async fn test_refresh_token() {
+        let api_client = ApiClient::new("http://127.0.0.1:8000/")
+            .expect("failed to create API client");
+
+        let mut enrollment_data = ClientEnrollRequest::default();
+        enrollment_data.username = String::from("test_refresh");
+        enrollment_data.password = String::from("password123");
+        enrollment_data.client_version = String::from("TESTING");
+
+        let enroll_response = api_client.post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enrollment_data)
+            .await
+            .expect("failed to enroll client");
+        assert_eq!(enroll_response.result, "success");
+
+        let mut login_data = ClientLoginRequest::default();
+        login_data.username = String::from("test_refresh");
+        login_data.password = String::from("password123");
+
+        let login_response = api_client.post::<TokenResponse, ClientLoginRequest>("/client/auth/login", &login_data)
+            .await
+            .expect("failed to login");
+        assert!(!login_response.access_token.is_empty());
+
+        let refresh_response = api_client.post::<TokenResponse, ()>("/client/auth/refresh", &())
+            .await
+            .expect("failed to refresh token");
+        assert!(!refresh_response.access_token.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_username_check() {
+        let api_client = ApiClient::new("http://127.0.0.1:8000/")
+            .expect("failed to create API client");
+
+        let mut enrollment_data = ClientEnrollRequest::default();
+        let username = "test_check";
+        enrollment_data.username = String::from(username);
+        enrollment_data.password = String::from("password456");
+        enrollment_data.client_version = String::from("TESTING");
+
+        let enroll_response = api_client.post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enrollment_data)
+            .await
+            .expect("failed to enroll client");
+        assert_eq!(enroll_response.result, "success");
+
+        let mut login_data = ClientLoginRequest::default();
+        login_data.username = String::from(username);
+        login_data.password = String::from("password456");
+
+        api_client.post::<TokenResponse, ClientLoginRequest>("/client/auth/login", &login_data)
+            .await
+            .expect("failed to login");
+
+        let check_response = api_client.get::<BasicTaskResponse>(&format!("/client/auth/{}/check", username))
+            .await
+            .expect("failed to check username");
+        assert_eq!(check_response.result, "success");
+    }
+
+    #[tokio::test]
+    async fn test_username_mismatch() {
+        let api_client = ApiClient::new("http://127.0.0.1:8000/")
+            .expect("failed to create API client");
+
+        let mut enrollment_data = ClientEnrollRequest::default();
+        let username = "test_mismatch";
+        enrollment_data.username = String::from(username);
+        enrollment_data.password = String::from("password789");
+        enrollment_data.client_version = String::from("TESTING");
+
+        let enroll_response = api_client.post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enrollment_data)
+            .await
+            .expect("failed to enroll client");
+        assert_eq!(enroll_response.result, "success");
+
+        let mut login_data = ClientLoginRequest::default();
+        login_data.username = String::from(username);
+        login_data.password = String::from("password789");
+
+        api_client.post::<TokenResponse, ClientLoginRequest>("/client/auth/login", &login_data)
+            .await
+            .expect("failed to login");
+
+        let check_response = api_client.get::<BasicTaskResponse>("/client/auth/wrong_user/check")
+            .await;
+        assert!(check_response.is_err(), "Expected error on username mismatch, but got Ok");
+    }
 }
