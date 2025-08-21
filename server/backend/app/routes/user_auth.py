@@ -14,10 +14,10 @@ from app.services.authentication import hash_password, create_access_token
 router = APIRouter(prefix="/user/auth")
 
 
-@router.post("/signup", response_model=BasicTaskResponse)
-async def user_auth_signup(signup_request: UserSignupRequest, db: AsyncSession = Depends(get_db)):
+@router.post("/register", response_model=BasicTaskResponse)
+async def user_auth_register(signup_request: UserSignupRequest, db: AsyncSession = Depends(get_db)):
     """
-    Handles user signup by creating a new user in the database.
+    Handles user registration by creating a new user in the database.
 
     Args:
         signup_request (UserSignupRequest): The request body containing the username and password for the new user.
@@ -48,10 +48,10 @@ async def user_auth_signup(signup_request: UserSignupRequest, db: AsyncSession =
                             detail="Failed to add user to the database")
 
 
-@router.post("/signin", response_model=BasicTaskResponse)
-async def user_auth_signin(signin_request: UserSigninRequest, response: Response, db: AsyncSession = Depends(get_db)):
+@router.post("/login", response_model=BasicTaskResponse)
+async def user_auth_login(signin_request: UserSigninRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """
-    Handles user sign-in by verifying credentials and generating an access token.
+    Handles user login by verifying credentials and generating an access token.
 
     Args:
         signin_request (UserSigninRequest): The request body containing the username and password for authentication.
@@ -61,7 +61,7 @@ async def user_auth_signin(signin_request: UserSigninRequest, response: Response
     Raises:
         HTTPException:
             - 401 Unauthorized: If the username or password is invalid.
-            - 500 Internal Server Error: If there is an error during the sign-in process.
+            - 500 Internal Server Error: If there is an error during the login process.
 
     Returns:
         dict: A response indicating the success of the operation, with the key "result" set to "success".
@@ -86,4 +86,3 @@ async def user_auth_signin(signin_request: UserSigninRequest, response: Response
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail="Failed to sign in user")
-
