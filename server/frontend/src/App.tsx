@@ -1,8 +1,8 @@
-import { Button } from "flowbite-react";
+import LoginPanel from "./componets/LoginPanel.tsx";
 
 function App() {
   return (
-    <Button>Hello World</Button>
+    <LoginPanel/>
   );
 }
 
