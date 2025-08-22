@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {useLocation, useNavigate} from 'react-router-dom';
 import { Alert, Button, Label, TextInput } from 'flowbite-react';
-import { apiClient } from '../../apiClient';
-import ApiUrlInput from './ApiUrlInput';
+import { apiClient } from '../apiClient.ts';
+import ApiUrlInput from './ApiUrlInput.tsx';
+import {useAuthStore} from "../stores/authStore.ts";
 
 interface AuthFormProps {
   title: string;
@@ -26,6 +27,7 @@ export default function AuthForm({
   footerLinkPath,
 }: AuthFormProps) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [apiUrl, setApiUrl] = useState('http://localhost:8000');
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +35,8 @@ export default function AuthForm({
     username: '',
     password: ''
   });
+
+  const setUser = useAuthStore(state => state.setUser);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -49,6 +53,11 @@ export default function AuthForm({
     if (isUrlValid) {
       const success = await onSubmit(formData);
       if (success) {
+        if (successRedirectPath === '/dashboard') {
+          setUser({ username: formData.username })
+          const from = location.state?.from?.pathname || '/dashboard';
+          navigate(from, { replace: true });
+        }
         navigate(successRedirectPath);
       } else {
         setError(errorMessage);

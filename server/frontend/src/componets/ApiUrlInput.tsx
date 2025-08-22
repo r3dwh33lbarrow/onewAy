@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Label, TextInput } from 'flowbite-react';
-import { apiClient } from '../../apiClient';
+import { apiClient } from '../apiClient.ts';
 
 interface ApiUrlInputProps {
   value: string;
