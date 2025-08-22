@@ -5,6 +5,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
 from sqlalchemy import update
+from starlette.middleware.cors import CORSMiddleware
 
 from app.dependencies import get_db, cleanup_db, init_db
 from app.logger import get_logger
@@ -33,21 +34,34 @@ async def lifespan(_: FastAPI):
 
         try:
             await asyncio.to_thread(command.upgrade, alembic_cfg, "head")
+            log.info("Migrations completed successfully")
 
             async for db in get_db():
                 await db.execute(update(Client).values(alive=False))
                 await db.commit()
                 log.info("All clients marked as not alive")
+
         except Exception as e:
             log.error(f"Error applying migrations: {e}")
+            raise
 
-    await init_db()
+    else:
+        await init_db()
 
     yield
-    
-    await cleanup_db()
+
+    if not settings.testing:
+        await cleanup_db()
+
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(client_auth.router)
 app.include_router(user_auth.router)
 
