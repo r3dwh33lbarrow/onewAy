@@ -1,22 +1,21 @@
-import {apiClient} from '../apiClient';
-import {useNavigate} from 'react-router-dom';
+import {useNavigate} from "react-router-dom";
 import React, {useState} from "react";
+import {apiClient} from "../apiClient.ts";
 import {Alert, Button, Label, TextInput} from "flowbite-react";
 
-interface LoginPanelProps {
+interface RegisterPanelProps {
   onSubmit: (data: { username: string, password: string }) => Promise<boolean>;
 }
 
-export default function LoginPanel({ onSubmit }: LoginPanelProps) {
+export default function RegisterPanel({ onSubmit }: RegisterPanelProps) {
   const navigate = useNavigate();
 
   const [apiUrl, setApiUrl] = useState('http://localhost:8000');
-  const [LoginError, setLoginError] = useState<string | null>(null);
+  const [registerError, setRegisterError] = useState<string | null>(null);
   const [urlValidation, setUrlValidation] = useState<'valid' | 'invalid' | 'pending'>('pending');
-
   const [formData, setFormData] = useState({
     username: '',
-    password: '',
+    password: ''
   });
 
   const handleApiUrlChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,36 +31,33 @@ export default function LoginPanel({ onSubmit }: LoginPanelProps) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-
     setFormData(prevFormData => ({
       ...prevFormData,
       [id]: value
     }));
-  };
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    // Fix this: this is unnecessary
     const isUrlValid = await apiClient.setApiUrl(apiUrl);
     if (isUrlValid) {
-      const authenticated = await onSubmit(formData);
-      if (authenticated) {
-        navigate('/dashboard');
+      const success = await onSubmit(formData);
+      if (success) {
+        navigate('/login');
       } else {
-        setLoginError('Invalid username or password');
+        setRegisterError('Failed to register');
       }
     }
-  };
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
       <div className="w-full max-w-md rounded-lg shadow-xl flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800">
-        <h1 className="text-xl font-bold dark:text-white mb-4">onewAy Login</h1>
+        <h1 className="text-xl font-bold dark:text-white mb-4">onewAy Registration</h1>
 
-        {LoginError && (
-          <Alert color="failure" className="mb-4 w-full" onDismiss={() => setLoginError(null)}>
-            <span>{LoginError}</span>
+        {registerError && (
+          <Alert color="failure" className="mb-4 w-full" onDismiss={() => setRegisterError(null)}>
+            <span>{registerError}</span>
           </Alert>
         )}
 
@@ -77,7 +73,7 @@ export default function LoginPanel({ onSubmit }: LoginPanelProps) {
             required={true}
             onChange={handleApiUrlChange}
             onBlur={handleApiUrlBlur}
-            color={urlValidation === 'valid' ? 'success': urlValidation === 'invalid' ? 'failure': 'gray'}
+            color={urlValidation === 'valid' ? 'success' : urlValidation === 'invalid' ? 'failure' : 'gray'}
           />
         </div>
 
@@ -113,13 +109,14 @@ export default function LoginPanel({ onSubmit }: LoginPanelProps) {
           </div>
 
           <div className="flex items-center w-full mt-2">
-            <Button color="indigo" type="submit" className="w-full">Log In</Button>
+            <Button color="indigo" type="submit" className="w-full">Register</Button>
           </div>
         </form>
 
         <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
-          Don't have an account? <span className="text-indigo-600 dark:text-indigo-400
-          hover:underline cursor-pointer" onClick={() => navigate('/register')}>Register</span>
+          Already have an account? <span className="text-indigo-600 dark:text-indigo-400
+          hover:underline cursor-pointer" onClick={() => navigate('/login')}>
+          Login</span>
         </div>
       </div>
     </div>
