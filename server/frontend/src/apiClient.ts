@@ -8,6 +8,7 @@ class ApiClient {
   private apiUrl: string | undefined;
 
   public async setApiUrl(url: string): Promise<boolean> {
+    url = url.trim().replace(/\/+$/, '');
     let validUrl = false;
 
     try {
