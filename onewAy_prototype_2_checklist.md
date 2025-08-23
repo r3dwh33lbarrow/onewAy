@@ -41,13 +41,13 @@
 
 ### server/frontend
 
-- [ ] Setup global state management with Zustand
-- [ ] Create `APIClient.ts` with generic types
-- [ ] Create the `LoginPanel` component
-- [ ] Create the `RegisterPanel` component
-- [ ] Setup protected routes and routes to existing components
+- [x] Setup global state management with Zustand
+- [x] Create `APIClient.ts` with generic types
+- [x] Create the `LoginPanel` component
+- [x] Create the `RegisterPanel` component
+- [x] Setup protected routes and routes to existing components
 - [ ] Write tests for:
-  - [ ] Login form input and submission logic
+  - [x] Login form input and submission logic
   - [ ] Zustand store behavior (e.g., token set/reset)
   - [ ] Protected route access control
 
