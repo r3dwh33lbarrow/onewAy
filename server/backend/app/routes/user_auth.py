@@ -86,3 +86,23 @@ async def user_auth_login(signin_request: UserSigninRequest, response: Response,
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail="Failed to sign in user")
+
+
+@router.post("/logout", response_model=BasicTaskResponse)
+async def user_auth_logout(response: Response):
+    """
+    Handles user logout by clearing the access token cookie.
+
+    Args:
+        response (Response): The HTTP response object used to delete cookies.
+
+    Returns:
+        dict: A response indicating the success of the logout operation,
+              with the key "result" set to "success".
+    """
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="lax"
+    )
+    return {"result": "success"}
