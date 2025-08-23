@@ -57,8 +57,9 @@ export default function AuthForm({
           setUser({ username: formData.username })
           const from = location.state?.from?.pathname || '/dashboard';
           navigate(from, { replace: true });
+        } else {
+          navigate(successRedirectPath);
         }
-        navigate(successRedirectPath);
       } else {
         setError(errorMessage);
       }
