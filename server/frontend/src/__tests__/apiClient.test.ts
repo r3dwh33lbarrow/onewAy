@@ -9,6 +9,9 @@ describe('ApiClient - Live API Tests', () => {
   }, TIMEOUT);
 
   describe('setApiUrl', () => {
-
+    it('should return true for a valid API URL', async () => {
+      const result = await apiClient.setApiUrl(API_URL);
+      expect(result).toEqual(true);
+    }, TIMEOUT);
   })
 })
