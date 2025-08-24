@@ -46,10 +46,10 @@
 - [x] Create the `LoginPanel` component
 - [x] Create the `RegisterPanel` component
 - [x] Setup protected routes and routes to existing components
-- [ ] Write tests for:
+- [x] Write tests for:
   - [x] Login form input and submission logic
-  - [ ] Zustand store behavior (e.g., token set/reset)
-  - [ ] Protected route access control
+  - [x] Zustand store behavior (e.g., token set/reset)
+  - [x] Protected route access control
 
 ## Phase Three: Dashboard and Websockets
 

@@ -3,12 +3,13 @@ from datetime import timedelta, datetime, UTC
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from fastapi.security import HTTPBearer
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
 from app.models.refresh_token import RefreshToken
 from app.settings import settings
@@ -164,15 +165,15 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> Optional[Refresh
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "refresh":
-            raise HTTPException(status_code=401, detail="Invalid token type")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
 
         jti = payload.get("jti")
         if not jti:
-            raise HTTPException(status_code=401, detail="Invalid token: missing jti")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: missing jti")
 
         client_uuid = payload.get("sub")
         if not client_uuid:
-            raise HTTPException(status_code=401, detail="Invalid token: missing client identifier")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: missing client identifier")
         client_uuid = uuid.UUID(client_uuid)
 
         result = await db.execute(
@@ -191,16 +192,16 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> Optional[Refresh
                 break
 
         if not refresh_token:
-            raise HTTPException(status_code=401, detail="Token not found")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token not found")
 
         return refresh_token
 
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     except HTTPException as e:
         raise e
     except Exception:
-        raise HTTPException(status_code=500, detail="Token verification failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Token verification failed")
 
 
 async def revoke_refresh_token(token: str, db: AsyncSession) -> bool:
@@ -259,7 +260,7 @@ async def rotate_refresh_token(token: str, db: AsyncSession) -> tuple[str, str]:
     try:
         current_refresh_token = await verify_refresh_token(token, db)
         if not current_refresh_token:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
         client_uuid = current_refresh_token.client_uuid
 
@@ -275,4 +276,42 @@ async def rotate_refresh_token(token: str, db: AsyncSession) -> tuple[str, str]:
         raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to rotate refresh token: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to rotate refresh token: {str(e)}")
+
+
+def verify_access_token(request: Request):
+    """
+    Verify the validity of an access token provided in the request cookies.
+
+    This function checks for the presence of an access token in the request's cookies.
+    It decodes the token using the configured secret key and algorithm, and extracts
+    the user UUID from the token payload. If the token is missing, invalid, or does not
+    contain a valid user UUID, an HTTPException is raised.
+
+    Args:
+        request (Request): The HTTP request object containing the cookies.
+
+    Returns:
+        str: The UUID of the user extracted from the access token.
+
+    Raises:
+        HTTPException: If the access token is missing, invalid, or does not contain a valid user UUID.
+    """
+    access_token = None
+    if "access_token" in request.cookies:
+        access_token = request.cookies.get("access_token")
+
+    if not access_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing access token")
+
+    try:
+        decoded_token = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_uuid = decoded_token.get("sub")
+
+        if user_uuid is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+        return user_uuid
+
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
