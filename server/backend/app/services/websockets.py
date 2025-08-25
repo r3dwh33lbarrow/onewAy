@@ -92,16 +92,16 @@ class WebSocketManager:
         for user_uuid in list(self.active_connections.keys()):
             await self.send_to_user(user_uuid, message)
 
-    async def send_client_status(self, client_info: dict):
+    async def send_client_alive_update(self, alive_dict: dict):
         """
         Send client status update to all connected users.
 
         Args:
-            client_info: Dictionary containing client information
+            alive_dict: Dictionary containing client information
         """
         message = {
-            "type": "client_status",
-            "data": client_info
+            "type": "alive_update",
+            "data": alive_dict
         }
         await self.broadcast_to_all(message)
 
