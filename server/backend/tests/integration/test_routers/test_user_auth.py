@@ -8,14 +8,14 @@ from app.services.authentication import hash_password
 
 
 @pytest.mark.asyncio
-async def test_user_signup_success(client: AsyncClient, db_session: AsyncSession):
-    """Test successful user signup"""
-    signup_data = {
+async def test_user_register_success(client: AsyncClient, db_session: AsyncSession):
+    """Test successful user register"""
+    register_data = {
         "username": "testuser",
         "password": "testpassword123"
     }
 
-    response = await client.post("/user/auth/signup", json=signup_data)
+    response = await client.post("/user/auth/register", json=register_data)
 
     assert response.status_code == 200
     assert response.json() == {"result": "success"}
@@ -29,73 +29,73 @@ async def test_user_signup_success(client: AsyncClient, db_session: AsyncSession
 
 
 @pytest.mark.asyncio
-async def test_user_signup_duplicate_username(client: AsyncClient, db_session: AsyncSession):
-    """Test signup with an already existing username"""
+async def test_user_register_duplicate_username(client: AsyncClient, db_session: AsyncSession):
+    """Test register with an already existing username"""
     # First, create a user
-    signup_data = {
+    register_data = {
         "username": "existinguser",
         "password": "password123"
     }
 
-    # First signup should succeed
-    response = await client.post("/user/auth/signup", json=signup_data)
+    # First register should succeed
+    response = await client.post("/user/auth/register", json=register_data)
     assert response.status_code == 200
 
-    # Second signup with same username should fail
-    response = await client.post("/user/auth/signup", json=signup_data)
+    # Second register with same username should fail
+    response = await client.post("/user/auth/register", json=register_data)
     assert response.status_code == 409
     assert response.json()["detail"] == "Username already exists"
 
 
 @pytest.mark.asyncio
-async def test_user_signup_missing_username(client: AsyncClient):
-    """Test signup with missing username"""
-    signup_data = {
+async def test_user_register_missing_username(client: AsyncClient):
+    """Test register with missing username"""
+    register_data = {
         "password": "testpassword123"
     }
 
-    response = await client.post("/user/auth/signup", json=signup_data)
+    response = await client.post("/user/auth/register", json=register_data)
     assert response.status_code == 422  # Validation error
 
 
 @pytest.mark.asyncio
-async def test_user_signup_missing_password(client: AsyncClient):
-    """Test signup with missing password"""
-    signup_data = {
+async def test_user_register_missing_password(client: AsyncClient):
+    """Test register with missing password"""
+    register_data = {
         "username": "testuser"
     }
 
-    response = await client.post("/user/auth/signup", json=signup_data)
+    response = await client.post("/user/auth/register", json=register_data)
     assert response.status_code == 422  # Validation error
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "signup_data",
+    "register_data",
     [
         {"username": "", "password": "testpassword123"},
         {"username": "testuser", "password": ""},
         {"username": "", "password": ""},
     ],
 )
-async def test_user_signup_empty_fields(client: AsyncClient, signup_data):
-    """Test signup with empty string fields"""
-    response = await client.post("/user/auth/signup", json=signup_data)
+async def test_user_register_empty_fields(client: AsyncClient, register_data):
+    """Test register with empty string fields"""
+    response = await client.post("/user/auth/register", json=register_data)
     assert response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_user_signup_invalid_json(client: AsyncClient):
-    """Test signup with invalid JSON payload"""
-    response = await client.post("/user/auth/signup", content="invalid json")
+async def test_user_register_invalid_json(client: AsyncClient):
+    """Test register with invalid JSON payload"""
+    response = await client.post("/user/auth/register", content="invalid json")
     assert response.status_code == 422
 
 
-# SIGNIN ENDPOINT TESTS
+# login ENDPOINT TESTS
 
 @pytest.mark.asyncio
-async def test_user_signin_success(client: AsyncClient, db_session: AsyncSession):
-    """Test successful user signin"""
+async def test_user_login_success(client: AsyncClient, db_session: AsyncSession):
+    """Test successful user login"""
     # First create a user
     test_user = User(
         username="loginuser",
@@ -104,12 +104,12 @@ async def test_user_signin_success(client: AsyncClient, db_session: AsyncSession
     db_session.add(test_user)
     await db_session.commit()
 
-    signin_data = {
+    login_data = {
         "username": "loginuser",
         "password": "password123"
     }
 
-    response = await client.post("/user/auth/signin", json=signin_data)
+    response = await client.post("/user/auth/login", json=login_data)
 
     assert response.status_code == 200
     assert response.json() == {"result": "success"}
@@ -123,22 +123,22 @@ async def test_user_signin_success(client: AsyncClient, db_session: AsyncSession
 
 
 @pytest.mark.asyncio
-async def test_user_signin_invalid_username(client: AsyncClient, db_session: AsyncSession):
-    """Test signin with non-existent username"""
-    signin_data = {
+async def test_user_login_invalid_username(client: AsyncClient, db_session: AsyncSession):
+    """Test login with non-existent username"""
+    login_data = {
         "username": "nonexistentuser",
         "password": "password123"
     }
 
-    response = await client.post("/user/auth/signin", json=signin_data)
+    response = await client.post("/user/auth/login", json=login_data)
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid username or password"
 
 
 @pytest.mark.asyncio
-async def test_user_signin_invalid_password(client: AsyncClient, db_session: AsyncSession):
-    """Test signin with incorrect password"""
+async def test_user_login_invalid_password(client: AsyncClient, db_session: AsyncSession):
+    """Test login with incorrect password"""
     # First create a user
     test_user = User(
         username="loginuser2",
@@ -147,48 +147,48 @@ async def test_user_signin_invalid_password(client: AsyncClient, db_session: Asy
     db_session.add(test_user)
     await db_session.commit()
 
-    signin_data = {
+    login_data = {
         "username": "loginuser2",
         "password": "wrongpassword"
     }
 
-    response = await client.post("/user/auth/signin", json=signin_data)
+    response = await client.post("/user/auth/login", json=login_data)
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid username or password"
 
 
 @pytest.mark.asyncio
-async def test_user_signin_missing_fields(client: AsyncClient):
-    """Test signin with missing required fields"""
+async def test_user_login_missing_fields(client: AsyncClient):
+    """Test login with missing required fields"""
     # Missing password
-    signin_data = {
+    login_data = {
         "username": "testuser"
     }
 
-    response = await client.post("/user/auth/signin", json=signin_data)
+    response = await client.post("/user/auth/login", json=login_data)
     assert response.status_code == 422
 
     # Missing username
-    signin_data = {
+    login_data = {
         "password": "password123"
     }
 
-    response = await client.post("/user/auth/signin", json=signin_data)
+    response = await client.post("/user/auth/login", json=login_data)
     assert response.status_code == 422
 
     # Empty payload
-    response = await client.post("/user/auth/signin", json={})
+    response = await client.post("/user/auth/login", json={})
     assert response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_user_signin_empty_fields(client: AsyncClient):
-    """Test signin with empty username/password"""
-    signin_data = {
+async def test_user_login_empty_fields(client: AsyncClient):
+    """Test login with empty username/password"""
+    login_data = {
         "username": "",
         "password": ""
     }
 
-    response = await client.post("/user/auth/signin", json=signin_data)
+    response = await client.post("/user/auth/login", json=login_data)
     assert response.status_code in [401, 422]  # Could be validation error or auth error
