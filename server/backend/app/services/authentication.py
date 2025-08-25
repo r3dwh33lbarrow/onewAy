@@ -315,3 +315,29 @@ def verify_access_token(request: Request):
 
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+
+def verify_websocket_access_token(token: str) -> str:
+    """
+    Verify access token for WebSocket connections.
+
+    Args:
+        token: The access token to verify
+
+    Returns:
+        str: The user UUID if token is valid
+
+    Raises:
+        HTTPException: If token is invalid
+    """
+    try:
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_uuid = decoded_token.get("sub")
+
+        if user_uuid is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+        return user_uuid
+
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
