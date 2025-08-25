@@ -76,7 +76,7 @@ class WebSocketManager:
         # Clean up failed connections
         if connections_to_remove:
             async with self._lock:
-                self.active_connections[user_uuid] -= connections_to_remove
+                self.active_connections[user_uuid].difference_update(connections_to_remove)
                 if not self.active_connections[user_uuid]:
                     del self.active_connections[user_uuid]
 
@@ -87,8 +87,6 @@ class WebSocketManager:
         Args:
             message: The message dictionary to broadcast
         """
-        message_json = json.dumps(message)
-
         for user_uuid in list(self.active_connections.keys()):
             await self.send_to_user(user_uuid, message)
 

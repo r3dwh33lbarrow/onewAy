@@ -8,7 +8,7 @@ from app.services.websockets import websocket_manager
 router = APIRouter(prefix="/ws")
 
 
-@router.websocket("/ws")
+@router.websocket("")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(..., description="Authentication token")):
     """
     WebSocket endpoint for real-time client status updates.
