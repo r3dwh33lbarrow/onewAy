@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, Request, Response, HTTPException, Cookie
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +11,7 @@ from app.models.client import Client
 from app.schemas.client_auth import ClientEnrollRequest, ClientLoginRequest, TokenResponse
 from app.schemas.general import BasicTaskResponse
 from app.services.authentication import hash_password, create_access_token, create_refresh_token, rotate_refresh_token, verify_refresh_token
+from app.services.websockets import websocket_manager
 
 router = APIRouter(prefix="/client/auth")
 
@@ -92,6 +95,11 @@ async def client_auth_login(login_request: ClientLoginRequest, request: Request,
         refresh_token = await create_refresh_token(client.uuid, db)
         await db.commit()
 
+        alive_dict = {
+            "uuid": str(client.uuid),
+            "alive": True
+        }
+        asyncio.create_task(websocket_manager.send_client_alive_update(alive_dict))
         response.set_cookie(key="refresh_token", value=refresh_token,
                             httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
 
