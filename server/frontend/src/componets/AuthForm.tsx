@@ -54,7 +54,7 @@ export default function AuthForm({
       const success = await onSubmit(formData);
       if (success) {
         if (successRedirectPath === '/dashboard') {
-          setUser({ username: formData.username })
+          setUser({ username: formData.username });
           const from = location.state?.from?.pathname || '/dashboard';
           navigate(from, { replace: true });
         } else {
