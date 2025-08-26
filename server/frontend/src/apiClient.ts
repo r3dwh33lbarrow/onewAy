@@ -1,4 +1,4 @@
-interface ApiError {
+export interface ApiError {
   // Status code -1 indicates a try catch error
   statusCode: number;
   message: string;
@@ -12,14 +12,16 @@ class ApiClient {
     let validUrl = false;
 
     try {
-      const response = await fetch(`${url}`);
+      const response = await fetch(`${url}`, {
+        credentials: 'include'
+      });
       const data = await response.json();
 
       if (data.message === 'onewAy API') {
         validUrl = true;
       }
     } catch { /* empty */ }
-    
+
     if (validUrl) {
       this.apiUrl = url;
       return true;
@@ -36,6 +38,7 @@ class ApiClient {
           'Content-Type': 'application/json',
           ...options.headers,
         },
+        credentials: 'include',
         ...options,
       });
 
