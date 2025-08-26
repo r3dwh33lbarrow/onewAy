@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import {useLocation, useNavigate} from 'react-router-dom';
-import { Alert, Button, Label, TextInput } from 'flowbite-react';
-import { apiClient } from '../apiClient.ts';
-import ApiUrlInput from './ApiUrlInput.tsx';
-import {useAuthStore} from "../stores/authStore.ts";
+import React, { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Alert, Button, Label, TextInput } from "flowbite-react";
+import { apiClient } from "../apiClient.ts";
+import ApiUrlInput from "./ApiUrlInput.tsx";
+import { useAuthStore } from "../stores/authStore.ts";
 
 interface AuthFormProps {
   title: string;
