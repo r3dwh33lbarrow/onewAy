@@ -31,7 +31,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(..., descr
         except WebSocketDisconnect:
             pass
         finally:
-            await websocket_manager.disconnect(websocket)
+            await websocket_manager.disconnect(websocket, user_uuid)
 
     except HTTPException as e:
         await websocket.close(code=e.status_code, reason=e.detail)
