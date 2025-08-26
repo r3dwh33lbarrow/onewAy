@@ -43,7 +43,7 @@ class ApiClient {
         return {
           statusCode: response.status,
           message: response.statusText,
-        }
+        };
       }
 
       return await response.json() as T;
