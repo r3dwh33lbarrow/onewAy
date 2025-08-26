@@ -1,11 +1,13 @@
-import {useAuthStore} from "../stores/authStore.ts";
+import TopBar from "./TopBar.tsx";
+import MainSidebar from "./MainSidebar.tsx";
 
 export default function Dashboard() {
-  const user = useAuthStore(state => state.user);
-
   return (
-    <div>
-      {user == null ? <h1>How did you get here?</h1> : <h1>Hello {user.username}</h1>}
+    <div className="flex flex-col h-screen">
+      <TopBar />
+      <div className="flex flex-1 overflow-hidden">
+        <MainSidebar />
+      </div>
     </div>
-  );
+  )
 }
