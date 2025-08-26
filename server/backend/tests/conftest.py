@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 import httpx
+from httpx_ws.transport import ASGIWebSocketTransport
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -18,8 +19,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from app.db.base import Base
 from app.dependencies import get_db
 from app.main import app
-
-
 
 # Load the environment variables first
 print(f"{os.path.dirname(os.path.abspath(__file__))}/.env.test")
@@ -66,3 +65,21 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides.clear()
 
+
+@pytest_asyncio.fixture(scope="function")
+async def ws_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    def override_get_db():
+        return db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    transport = ASGIWebSocketTransport(app=app)
+
+    # Create the client without entering the async context manager here
+    client = httpx.AsyncClient(transport=transport, base_url="http://testserver")
+
+    try:
+        yield client
+    finally:
+        # Clean up the client properly
+        await client.aclose()
+        app.dependency_overrides.clear()
