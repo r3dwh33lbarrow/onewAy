@@ -1,4 +1,10 @@
-import {Sidebar, SidebarItems, SidebarItemGroup, SidebarItem, SidebarLogo} from "flowbite-react";
+import {
+  Sidebar,
+  SidebarItems,
+  SidebarItemGroup,
+  SidebarItem,
+  SidebarLogo,
+} from "flowbite-react";
 import { HiOutlineViewGrid } from "react-icons/hi";
 
 type Props = { onNavigate?: () => void };
