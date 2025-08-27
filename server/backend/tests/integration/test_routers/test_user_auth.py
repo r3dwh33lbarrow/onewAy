@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models.user import User
-from app.services.authentication import hash_password
+from app.services.password import hash_password
 
 
 @pytest.mark.asyncio

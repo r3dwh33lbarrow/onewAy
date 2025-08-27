@@ -2,7 +2,7 @@ from uuid import uuid4
 from sqlalchemy import Column, Boolean, UUID, String, DateTime
 
 from app.db.base import Base
-from app.services.authentication import pwd_context
+from app.services.password import pwd_context
 
 
 class Client(Base):

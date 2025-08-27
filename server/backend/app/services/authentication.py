@@ -3,15 +3,17 @@ from datetime import timedelta, datetime, UTC
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Depends
 from fastapi.security import HTTPBearer
 from jose import jwt, JWTError
-from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from app.dependencies import get_db
 from app.models.refresh_token import RefreshToken
+from app.models.user import User
+from app.services.password import hash_password, pwd_context
 from app.settings import settings
 
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
@@ -20,20 +22,6 @@ REFRESH_TOKEN_EXPIRE_DAYS = settings.refresh_token_expire_days
 SECRET_KEY = settings.secret_key
 
 security = HTTPBearer(auto_error=False)
-pwd_context = CryptContext(schemes=["scrypt"], deprecated="auto")
-
-
-def hash_password(password: str) -> str:
-    """
-    Hash a password using scrypt hashing algorithm.
-
-    Args:
-        password: The plaintext password to be hashed
-
-    Returns:
-        str: The hashed password
-    """
-    return pwd_context.hash(password)
 
 
 def hash_jti(jti: str) -> str:
@@ -66,7 +54,7 @@ def verify_jti(jti: str, hashed_jti: str) -> bool:
     return pwd_context.verify(jti, hashed_jti)
 
 
-def create_access_token(user_or_client_uuid: uuid.UUID, is_user: bool = False) -> str:
+def create_access_token(user_or_client_uuid: uuid.UUID, is_user: bool = False, is_ws: bool = False) -> str:
     """
     Create a new access token for a user or client.
 
@@ -85,12 +73,15 @@ def create_access_token(user_or_client_uuid: uuid.UUID, is_user: bool = False) -
     # Extend token expiration time for user accounts
     if is_user:
         expires = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES + 15)
+    elif is_ws:
+        expires = now + timedelta(minutes=15)
     else:
         expires = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
+    token_type = "websocket" if is_ws else "access"
     payload = {
         "sub": str(user_or_client_uuid),
-        "type": "access",
+        "type": token_type,
         "exp": int(expires.timestamp()),
         "iat": int(now.timestamp())
     }
@@ -315,6 +306,49 @@ def verify_access_token(request: Request):
 
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+
+async def get_current_user(
+        db: AsyncSession = Depends(get_db),
+        user_uuid: str = Depends(verify_access_token)
+) -> User:
+    """
+    Retrieve the current authenticated user from the database.
+
+    This function uses the user UUID extracted from the access token to query the database
+    and fetch the corresponding user record. If the user is not found or an error occurs
+    during the database query, an HTTPException is raised.
+
+    Args:
+        db (AsyncSession): The database session used to query the user.
+        user_uuid (str): The UUID of the user extracted from the access token.
+
+    Returns:
+        User: The user object corresponding to the authenticated user.
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: If the user does not exist in the database.
+            - 500 Internal Server Error: If there is an error during the database query.
+    """
+    try:
+        result = await db.execute(select(User).where(User.uuid == uuid.UUID(user_uuid)))
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        return user
+    except HTTPException as e:
+        raise e
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get current user"
+        )
 
 
 def verify_websocket_access_token(token: str) -> str:
