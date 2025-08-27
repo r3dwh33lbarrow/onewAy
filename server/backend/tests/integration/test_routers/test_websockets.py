@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt
 
 from app.models.user import User
-from app.services.authentication import hash_password, create_access_token
+from app.services.authentication import create_access_token
+from app.services.password import hash_password
 from app.settings import settings
 
 
@@ -308,4 +309,3 @@ async def test_websocket_edge_cases(ws_client, db_session: AsyncSession):
                 assert False, "Should have disconnected due to empty message"
             except Exception:
                 pass
-

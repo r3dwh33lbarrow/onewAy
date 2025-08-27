@@ -7,9 +7,10 @@ from starlette import status
 
 from app.dependencies import get_db
 from app.models.user import User
-from app.schemas.general import BasicTaskResponse
+from app.schemas.general import BasicTaskResponse, TokenResponse
 from app.schemas.user_auth import UserSignupRequest, UserSigninRequest
-from app.services.authentication import hash_password, create_access_token
+from app.services.authentication import create_access_token, get_current_user
+from app.services.password import hash_password
 
 router = APIRouter(prefix="/user/auth")
 
@@ -106,3 +107,8 @@ async def user_auth_logout(response: Response):
         samesite="lax"
     )
     return {"result": "success"}
+
+
+@router.post("/ws-token", response_model=TokenResponse)
+async def user_auth_ws_token(user: User = Depends(get_current_user)):
+    ws_token = create_access_token(user.uuid, is_ws=True)

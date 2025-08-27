@@ -1,14 +1,16 @@
 import json
 
-from fastapi import APIRouter, WebSocket, Query, WebSocketDisconnect, HTTPException
+from fastapi import APIRouter, WebSocket, Query, WebSocketDisconnect, HTTPException, Depends
 
-from app.services.authentication import verify_websocket_access_token
+from app.models.user import User
+from app.schemas.general import BasicTaskResponse, TokenResponse
+from app.services.authentication import verify_websocket_access_token, get_current_user, create_access_token
 from app.services.websockets import websocket_manager
 
-router = APIRouter(prefix="/ws")
+router = APIRouter()
 
 
-@router.websocket("")
+@router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(..., description="Authentication token")):
     """
     WebSocket endpoint for real-time client status updates.
@@ -37,3 +39,9 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(..., descr
         await websocket.close(code=e.status_code, reason=e.detail)
     except Exception:
         await websocket.close(code=500, reason="Internal server error")
+
+
+@router.post("/ws-token", response_model=TokenResponse)
+async def websocket_token(user: User = Depends(get_current_user)):
+    access_token = create_access_token(user.uuid, is_ws=True)
+    return {"access_token": access_token, "token_type": "websocket"}

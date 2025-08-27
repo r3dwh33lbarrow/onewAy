@@ -8,9 +8,10 @@ from typing import Optional
 
 from app.dependencies import get_db
 from app.models.client import Client
-from app.schemas.client_auth import ClientEnrollRequest, ClientLoginRequest, TokenResponse
-from app.schemas.general import BasicTaskResponse
-from app.services.authentication import hash_password, create_access_token, create_refresh_token, rotate_refresh_token, verify_refresh_token
+from app.schemas.client_auth import ClientEnrollRequest, ClientLoginRequest
+from app.schemas.general import BasicTaskResponse, TokenResponse
+from app.services.authentication import create_access_token, create_refresh_token, rotate_refresh_token, verify_refresh_token
+from app.services.password import hash_password
 from app.services.websockets import websocket_manager
 
 router = APIRouter(prefix="/client/auth")
@@ -96,7 +97,7 @@ async def client_auth_login(login_request: ClientLoginRequest, request: Request,
         await db.commit()
 
         alive_dict = {
-            "uuid": str(client.uuid),
+            "username": client.username,
             "alive": True
         }
         asyncio.create_task(websocket_manager.send_client_alive_update(alive_dict))
