@@ -1,5 +1,4 @@
 export interface ApiError {
-  // Status code -1 indicates a try catch error
   statusCode: number;
   message: string;
 }
@@ -35,7 +34,7 @@ class ApiClient {
       const url = `${this.apiUrl}${endpoint}`;
       const response = await fetch(url, {
         headers: {
-          'Content-Type': 'application/json',
+          ...(options.body && { 'Content-Type': 'application/json' }),
           ...options.headers,
         },
         credentials: 'include',
