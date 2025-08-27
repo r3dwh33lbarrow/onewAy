@@ -13,23 +13,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchClients = async () => {
-      try {
-        const response = await apiClient.get<ClientAllResponse>("/client/all");
-
-        // Check if response is an ApiError
-        if ('statusCode' in response) {
-          console.error("API Error:", response.message);
-          navigate("/login");
-          return;
-        }
-
-        setClients(response.clients);
-      } catch (error) {
-        console.error("Failed to fetch clients:", error);
+      const response = await apiClient.get<ClientAllResponse>("/client/all");
+      if ('statusCode' in response) {
+        console.error("API Error:", response.message);
         navigate("/login");
-      } finally {
-        setLoading(false);
+        return;
       }
+
+      setClients(response.clients);
+      setLoading(false);
     };
 
     fetchClients();
