@@ -6,33 +6,91 @@ export interface ApiError {
 
 class ApiClient {
   private apiUrl: string | undefined;
+  private readonly initializationPromise: Promise<void> | null = null;
+
+  public constructor() {
+    const apiUrl = localStorage.getItem("apiUrl");
+    if (apiUrl) {
+      this.apiUrl = apiUrl;
+      this.initializationPromise = this.validateAndSetUrl(apiUrl).catch((error) => {
+        console.warn('Failed to validate API URL on initialization:', error);
+      });
+    }
+  }
+
+  private async validateAndSetUrl(url: string): Promise<void> {
+    const isValid = await this.validateApiUrl(url);
+    if (!isValid) {
+      this.apiUrl = undefined;
+      localStorage.removeItem("apiUrl");
+      console.warn('Stored API URL is no longer valid, removing from localStorage');
+    }
+  }
 
   public async setApiUrl(url: string): Promise<boolean> {
-    url = url.trim().replace(/\/+$/, '');
-    let validUrl = false;
+    const trimmedUrl = url.trim().replace(/\/+$/, '');
+    const isValid = await this.validateApiUrl(trimmedUrl);
 
-    try {
-      const response = await fetch(`${url}`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
-
-      if (data.message === 'onewAy API') {
-        validUrl = true;
-      }
-    } catch { /* empty */ }
-
-    if (validUrl) {
-      this.apiUrl = url;
+    if (isValid) {
+      this.apiUrl = trimmedUrl;
+      localStorage.setItem("apiUrl", trimmedUrl);
       return true;
     } else {
+      this.apiUrl = undefined;
+      localStorage.removeItem("apiUrl");
       return false;
     }
   }
 
+  private async validateApiUrl(url: string): Promise<boolean> {
+    try {
+      const response = await fetch(url, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) {
+        return false;
+      }
+
+      const data = await response.json();
+      return data.message === 'onewAy API';
+    } catch (error) {
+      console.warn('API URL validation failed:', error);
+      return false;
+    }
+  }
+
+  public async ensureInitialized(): Promise<void> {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
+  }
+
+  public isConfigured(): boolean {
+    return this.apiUrl !== undefined;
+  }
+
+  public getApiUrl(): string | undefined {
+    return this.apiUrl;
+  }
+
   protected async request<T>(endpoint: string, options: RequestInit = {}): Promise<T | ApiError> {
+    if (!this.apiUrl) {
+      return {
+        statusCode: -1,
+        message: 'API URL not configured. Please set a valid API URL first.',
+      };
+    }
+
     try {
       const url = `${this.apiUrl}${endpoint}`;
+      console.log('API Request:', url);
+
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
@@ -45,15 +103,23 @@ class ApiClient {
       if (!response.ok) {
         return {
           statusCode: response.status,
-          message: response.statusText,
+          message: response.statusText || `HTTP ${response.status} error`,
         };
+      }
+
+      // Check if response has content before trying to parse JSON
+      const contentLength = response.headers.get('content-length');
+      const contentType = response.headers.get('content-type');
+
+      if (contentLength === '0' || !contentType?.includes('application/json')) {
+        return {} as T; // Return empty object for empty responses
       }
 
       return await response.json() as T;
     } catch (error) {
       return {
         statusCode: -1,
-        message: (error as Error).message,
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
