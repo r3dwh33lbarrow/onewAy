@@ -1,3 +1,5 @@
+from typing import Literal, Optional
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -20,6 +22,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     jwt_algorithm: str = "HS256"
+
+    # Module settings
+    module_path: Optional[str] = None
 
     model_config = {
         "env_file": ".env",

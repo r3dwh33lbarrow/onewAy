@@ -8,5 +8,6 @@ class Module(Base):
 
     md5_hash = Column(String, primary_key=True)
     name = Column(String, nullable=False, index=True)
+    description = Column(String)
     path = Column(String, nullable=False)
     version = Column(String, nullable=False)
