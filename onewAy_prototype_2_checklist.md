@@ -55,14 +55,14 @@
 
 ### server/backend
 
-- [ ] Add `/client/all`
-- [ ] Add websockets to FastAPI
-- [ ] Write websocket tests
+- [x] Add `/client/all`
+- [x] Add websockets to FastAPI
+- [x] Write websocket tests
 
 ### server/frontend
 
-- [ ] Create basic dashboard and implement websockets
-- [ ] Create dashboard test
+- [x] Create basic dashboard and implement websockets
+- [x] Create dashboard test
 
 ## Phase Four: Client Modules & Update System
 
