@@ -18,6 +18,7 @@ from app.schemas.general import BasicTaskResponse
 from app.schemas.user_modules import UserModuleAllResponse, ModuleBasicInfo, ModuleInfo
 from app.services.authentication import verify_access_token
 from app.settings import settings
+from app.utils import convert_to_snake_case, hyphen_to_snake_case
 
 router = APIRouter(prefix="/user/modules")
 
@@ -64,13 +65,9 @@ async def user_modules_add(module_path: str, db: AsyncSession = Depends(get_db),
     except KeyError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Missing required key in config.yaml: {e}")
 
-    hash_string = f"{module_info.name}{module_info.description}{module_info.path}{module_info.version}"
-    module_hash = hashlib.md5(hash_string.encode()).hexdigest()
-
     try:
         new_module = Module(
-            md5_hash=module_hash,
-            name=module_info.name,
+            name=convert_to_snake_case(module_info.name),
             description=module_info.description,
             path=module_info.path,
             version=module_info.version
@@ -87,12 +84,13 @@ async def user_modules_add(module_path: str, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/upload")
-async def user_modules_upload(module_name: str, file: UploadFile = File(...), _=Depends(verify_access_token)):
+async def user_modules_upload(dev_name: str, file: UploadFile = File(...), _=Depends(verify_access_token)):
+    # Dev name means camelcase; add to docstrings
     if settings.module_path:
-        module_path = Path(settings.module_path) / module_name
+        module_path = Path(settings.module_path) / dev_name
     else:
         mod_dir = Path(__file__).resolve().parent.parent / "modules"
-        module_path = mod_dir / module_name
+        module_path = mod_dir / dev_name
         if not os.path.exists(mod_dir):
             os.makedirs(mod_dir)
 
@@ -150,14 +148,15 @@ async def user_modules_upload(module_name: str, file: UploadFile = File(...), _=
         )
 
 
-@router.put("/update/{module_id}")
+@router.put("/update/{module_name}", response_model=BasicTaskResponse)
 async def user_modules_update(
-        module_id: int,
+        module_name: str,
         file: UploadFile = File(...),
         db: AsyncSession = Depends(get_db),
         _=Depends(verify_access_token)
 ):
-    result = await db.execute(select(Module).where(Module.id == module_id))
+    module_name = hyphen_to_snake_case(module_name)
+    result = await db.execute(select(Module).where(Module.name == module_name))
     existing_module = result.scalar_one_or_none()
 
     if not existing_module:
@@ -229,11 +228,7 @@ async def user_modules_update(
                 detail=f"Missing required key in config.yaml: {e}"
             )
 
-        hash_string = f"{module_info.name}{module_info.description}{module_info.path}{module_info.version}"
-        module_hash = hashlib.md5(hash_string.encode()).hexdigest()
-
-        existing_module.md5_hash = module_hash
-        existing_module.name = module_info.name
+        existing_module.name = convert_to_snake_case(module_info.name)
         existing_module.description = module_info.description
         existing_module.path = module_info.path
         existing_module.version = module_info.version
@@ -244,7 +239,7 @@ async def user_modules_update(
         if backup_path and backup_path.exists():
             shutil.rmtree(backup_path)
 
-        return {"result": "success", "message": "Module updated successfully"}
+        return {"result": "success"}
 
     except Exception as e:
         await db.rollback()
@@ -263,13 +258,14 @@ async def user_modules_update(
             )
 
 
-@router.delete("/delete/{module_id}")
+@router.delete("/delete/{module_name}")
 async def user_modules_delete(
-        module_id: int,
+        module_name: str,
         db: AsyncSession = Depends(get_db),
         _=Depends(verify_access_token)
 ):
-    result = await db.execute(select(Module).where(Module.id == module_id))
+    module_name = hyphen_to_snake_case(module_name)
+    result = await db.execute(select(Module).where(Module.name == module_name))
     module = result.scalar_one_or_none()
 
     if not module:
@@ -301,188 +297,13 @@ async def user_modules_delete(
         )
 
 
-@router.get("/{module_id}", response_model=dict)
-async def user_modules_get(
-        module_id: int,
-        db: AsyncSession = Depends(get_db),
-        _=Depends(verify_access_token)
-):
-    result = await db.execute(select(Module).where(Module.id == module_id))
-    module = result.scalar_one_or_none()
-
-    if not module:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Module not found"
-        )
-
-    return {
-        "id": module.id,
-        "name": module.name,
-        "description": module.description,
-        "path": module.path,
-        "version": module.version,
-        "md5_hash": module.md5_hash
-    }
-
-
-@router.put("/update/{module_name}")
-async def user_modules_update(
-        module_name: str,
-        file: UploadFile = File(...),
-        db: AsyncSession = Depends(get_db),
-        _=Depends(verify_access_token)
-):
-    result = await db.execute(select(Module).where(Module.name == module_name))
-    existing_module = result.scalar_one_or_none()
-
-    if not existing_module:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Module not found"
-        )
-
-    if settings.module_path:
-        module_path = Path(settings.module_path) / existing_module.name
-    else:
-        mod_dir = Path(__file__).resolve().parent.parent / "modules"
-        module_path = mod_dir / existing_module.name
-
-    if not file.filename.endswith('.zip'):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must be a ZIP archive"
-        )
-
-    backup_path = None
-    if os.path.exists(module_path):
-        backup_path = Path(str(module_path) + ".backup")
-        if backup_path.exists():
-            shutil.rmtree(backup_path)
-        shutil.move(module_path, backup_path)
-
-    try:
-        os.makedirs(module_path, exist_ok=True)
-
-        content = await file.read()
-
-        with zipfile.ZipFile(io.BytesIO(content), 'r') as zip_ref:
-            for member in zip_ref.namelist():
-                if os.path.isabs(member) or ".." in member:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Invalid file path in archive: {member}"
-                    )
-
-            zip_ref.extractall(module_path)
-
-        config_path = module_path / "config.yaml"
-        if not config_path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Extracted module must contain config.yaml"
-            )
-
-        try:
-            with open(config_path) as stream:
-                config = yaml.safe_load(stream)
-        except yaml.YAMLError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Error parsing config.yaml: {e}"
-            )
-
-        try:
-            module_info = ModuleInfo(
-                name=config["name"],
-                description=config.get("description"),
-                path=config["path"],
-                version=config["version"]
-            )
-        except KeyError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required key in config.yaml: {e}"
-            )
-
-        hash_string = f"{module_info.name}{module_info.description}{module_info.path}{module_info.version}"
-        module_hash = hashlib.md5(hash_string.encode()).hexdigest()
-
-        existing_module.md5_hash = module_hash
-        existing_module.name = module_info.name
-        existing_module.description = module_info.description
-        existing_module.path = module_info.path
-        existing_module.version = module_info.version
-
-        await db.commit()
-        await db.refresh(existing_module)
-
-        if backup_path and backup_path.exists():
-            shutil.rmtree(backup_path)
-
-        return {"result": "success", "message": "Module updated successfully"}
-
-    except Exception as e:
-        await db.rollback()
-
-        if os.path.exists(module_path):
-            shutil.rmtree(module_path)
-        if backup_path and backup_path.exists():
-            shutil.move(backup_path, module_path)
-
-        if isinstance(e, HTTPException):
-            raise e
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to update module: {str(e)}"
-            )
-
-
-@router.delete("/delete/{module_name}")
-async def user_modules_delete(
-        module_name: str,
-        db: AsyncSession = Depends(get_db),
-        _=Depends(verify_access_token)
-):
-    result = await db.execute(select(Module).where(Module.name == module_name))
-    module = result.scalar_one_or_none()
-
-    if not module:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Module not found"
-        )
-
-    if settings.module_path:
-        module_path = Path(settings.module_path) / module.name
-    else:
-        mod_dir = Path(__file__).resolve().parent.parent / "modules"
-        module_path = mod_dir / module.name
-
-    try:
-        await db.delete(module)
-        await db.commit()
-
-        if os.path.exists(module_path):
-            shutil.rmtree(module_path)
-
-        return {"result": "success", "message": f"Module '{module.name}' deleted successfully"}
-
-    except Exception:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete module"
-        )
-
-
 @router.get("/{module_name}", response_model=ModuleInfo)
 async def user_modules_get(
-        module_name: int,
+        module_name: str,
         db: AsyncSession = Depends(get_db),
         _=Depends(verify_access_token)
 ):
+    module_name = hyphen_to_snake_case(module_name)
     result = await db.execute(select(Module).where(Module.name == module_name))
     module = result.scalar_one_or_none()
 
@@ -492,10 +313,9 @@ async def user_modules_get(
             detail="Module not found"
         )
 
-    return {
-        "name": module.name,
-        "description": module.description,
-        "path": module.path,
-        "version": module.version,
-        "md5_hash": module.md5_hash
-    }
+    return ModuleInfo(
+        name=module.name,
+        description=module.description,
+        path=module.path,
+        version=module.version
+    )
