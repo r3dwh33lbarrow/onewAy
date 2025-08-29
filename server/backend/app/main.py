@@ -10,7 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.dependencies import get_db, cleanup_db, init_db
 from app.logger import get_logger
 from app.models.client import Client
-from app.routes import client_auth, user_auth, client, websockets
+from app.routes import client_auth, user_auth, client, websockets, user_modules
 from app.settings import settings, load_test_settings
 
 if settings.testing:
@@ -69,6 +69,7 @@ app.include_router(client_auth.router)
 app.include_router(user_auth.router)
 app.include_router(client.router)
 app.include_router(websockets.router)
+app.include_router(user_modules.router)
 
 @app.get("/")
 async def root():
