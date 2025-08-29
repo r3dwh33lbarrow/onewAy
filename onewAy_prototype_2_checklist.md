@@ -69,8 +69,8 @@
 ### server/backend
 
 - [ ] Create endpoints for core update
-- [ ] Create module datatypes
-- [ ] Create endpoints for module CRUD
+- [x] Create module datatypes
+- [x] Create endpoints for module CRUD
 - [ ] Add testing for update backend and module CRUD
 
 ### client

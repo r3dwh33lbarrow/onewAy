@@ -128,7 +128,7 @@ async def user_modules_upload(dev_name: str, file: UploadFile = File(...), _=Dep
             )
 
         return RedirectResponse(
-            url=f"/modules/add?module_path={str(module_path)}",
+            url=f"/user/modules/add?module_path={str(module_path)}",
             status_code=status.HTTP_303_SEE_OTHER
         )
 

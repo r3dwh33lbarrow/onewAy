@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from app.dependencies import get_db
+from app.models.client import Client
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.services.password import hash_password, pwd_context
@@ -337,7 +338,7 @@ async def get_current_user(
 
         if user is None:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="User not found"
             )
 
@@ -348,6 +349,27 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get current user"
+        )
+
+
+async def get_current_client(db: AsyncSession = Depends(get_db), client_uuid: str = Depends(verify_access_token)):
+    try:
+        result = await db.execute(select(User).where(Client.uuid == uuid.UUID(client_uuid)))
+        client = result.scalar_one_or_none()
+
+        if client is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Client not found"
+            )
+
+        return client
+    except HTTPException as e:
+        raise e
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get current client"
         )
 
 

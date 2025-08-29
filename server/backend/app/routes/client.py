@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.models.client import Client
 from app.schemas.client import ClientAllResponse, BasicClientInfo
+from app.schemas.general import BasicTaskResponse
 from app.services import authentication
+from app.services.authentication import get_current_client
+from app.settings import settings
 
 router = APIRouter(prefix="/client")
 
@@ -33,3 +36,9 @@ async def client_all(db: AsyncSession = Depends(get_db), _=Depends(authenticatio
         client_list.append(client_info)
 
     return ClientAllResponse(clients=client_list)
+
+
+@router.get("/update", response_model=BasicTaskResponse)
+async def client_update(client: Client = Depends(get_current_client)):
+    if client.client_version >= settings.version:
+        return {"result": "client already updated"}
