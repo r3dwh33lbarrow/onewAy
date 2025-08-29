@@ -1,11 +1,16 @@
+import os.path
+import platform
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
 from app.dependencies import get_db
 from app.models.client import Client
 from app.schemas.client import ClientAllResponse, BasicClientInfo
-from app.schemas.general import BasicTaskResponse
 from app.services import authentication
 from app.services.authentication import get_current_client
 from app.settings import settings
@@ -38,7 +43,20 @@ async def client_all(db: AsyncSession = Depends(get_db), _=Depends(authenticatio
     return ClientAllResponse(clients=client_list)
 
 
-@router.get("/update", response_model=BasicTaskResponse)
+@router.get("/update")
 async def client_update(client: Client = Depends(get_current_client)):
     if client.client_version >= settings.version:
-        return {"result": "client already updated"}
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Client already at latest version"
+        )
+
+    client_binary_ext = ".exe" if platform.system() == "Windows" else ""
+    client_binary = Path(settings.client_directory) / "target" / f"client{client_binary_ext}"
+    if not os.path.isfile(client_binary):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to find client binary"
+        )
+
+    return FileResponse(path=client_binary, filename=f"client{client_binary_ext}", media_type="application/octet-stream")
