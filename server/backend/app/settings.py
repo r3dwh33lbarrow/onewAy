@@ -25,6 +25,7 @@ class Settings(BaseSettings):
 
     # Module settings
     module_path: Optional[str] = None
+    client_directory: str = Field("../../client", alias="CLIENT_DIRECTORY")
 
     model_config = {
         "env_file": ".env",
