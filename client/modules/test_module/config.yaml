@@ -1,6 +1,0 @@
-name: Test Module
-description: A module for testing
-binary_path: test_module.exe
-lifecycle: on-start
-path: test_module.exe
-version: "0.1.0"
