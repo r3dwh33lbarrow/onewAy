@@ -1,0 +1,7 @@
+name: Test Module
+description: A module for testing purposes
+version: 0.1.0
+
+platforms:
+  windows: N/A
+  mac: test_module
