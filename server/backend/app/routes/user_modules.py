@@ -1,5 +1,5 @@
-import hashlib
 import io
+import json
 import os
 import shutil
 import zipfile
@@ -31,8 +31,8 @@ async def user_modules_all(db: AsyncSession = Depends(get_db), _=Depends(verify_
     module_list = [
         ModuleBasicInfo(
             name=module.name,
-            path=module.path,
-            version=module.version
+            version=module.version,
+            binaries_platform=list(module.binaries.keys()) if module.binaries else []
         ) for module in modules
     ]
     return UserModuleAllResponse(modules=module_list)
@@ -55,12 +55,15 @@ async def user_modules_add(module_path: str, db: AsyncSession = Depends(get_db),
     except Exception:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error reading config.yaml")
 
+    binaries = config.get("binaries")
+    binaries = json.loads("{}") if not binaries else json.loads(binaries)
+
     try:
         module_info = ModuleInfo(
             name=config["name"],
             description=config.get("description"),
-            path=config["path"],
-            version=config["version"]
+            version=config["version"],
+            binaries=binaries
         )
     except KeyError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Missing required key in config.yaml: {e}")
@@ -69,8 +72,8 @@ async def user_modules_add(module_path: str, db: AsyncSession = Depends(get_db),
         new_module = Module(
             name=convert_to_snake_case(module_info.name),
             description=module_info.description,
-            path=module_info.path,
-            version=module_info.version
+            version=module_info.version,
+            binaries=binaries
         )
         db.add(new_module)
         await db.commit()
@@ -209,18 +212,22 @@ async def user_modules_update(
         try:
             with open(config_path) as stream:
                 config = yaml.safe_load(stream)
+
         except yaml.YAMLError as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Error parsing config.yaml: {e}"
             )
 
+        binaries = config.get("binaries")
+        binaries = json.loads("") if not binaries else json.loads(binaries)
+
         try:
             module_info = ModuleInfo(
                 name=config["name"],
                 description=config.get("description"),
-                path=config["path"],
-                version=config["version"]
+                version=config["version"],
+                binaries=binaries
             )
         except KeyError as e:
             raise HTTPException(
@@ -230,8 +237,8 @@ async def user_modules_update(
 
         existing_module.name = convert_to_snake_case(module_info.name)
         existing_module.description = module_info.description
-        existing_module.path = module_info.path
         existing_module.version = module_info.version
+        existing_module.binaries = module_info.binaries
 
         await db.commit()
         await db.refresh(existing_module)
@@ -316,6 +323,6 @@ async def user_modules_get(
     return ModuleInfo(
         name=module.name,
         description=module.description,
-        path=module.path,
-        version=module.version
+        version=module.version,
+        binaries=module.binaries
     )

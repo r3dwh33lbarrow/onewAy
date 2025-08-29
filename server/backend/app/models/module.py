@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, JSON
 
 from app.db.base import Base
 
@@ -8,5 +8,5 @@ class Module(Base):
 
     name = Column(String, primary_key=True, index=True)
     description = Column(String)
-    path = Column(String, nullable=False)
     version = Column(String, nullable=False)
+    binaries = Column(JSON)

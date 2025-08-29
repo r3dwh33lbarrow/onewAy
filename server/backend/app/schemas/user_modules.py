@@ -1,12 +1,12 @@
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 from pydantic import BaseModel, Field
 
 
 class ModuleBasicInfo(BaseModel):
     name: str = Field(min_length=1)
-    path: str = Field(min_length=1)
     version: str = Field(min_length=1)
+    binaries_platform: List[str]
 
 
 class UserModuleAllResponse(BaseModel):
@@ -16,5 +16,5 @@ class UserModuleAllResponse(BaseModel):
 class ModuleInfo(BaseModel):
     name: str = Field(min_length=1)
     description: Optional[str] = None
-    path: str = Field(min_length=1)
     version: str = Field(min_length=1)
+    binaries: Dict[str, Any]
