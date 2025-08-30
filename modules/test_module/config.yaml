@@ -3,5 +3,5 @@ description: A module for testing purposes
 version: 0.1.0
 
 binaries:
-  windows: N/A
+  windows: test_module.exe
   mac: test_module
