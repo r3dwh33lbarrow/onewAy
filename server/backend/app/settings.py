@@ -1,6 +1,4 @@
-from typing import Optional
-
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 from app.logger import get_logger
@@ -24,8 +22,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
 
     # Module settings
-    module_path: Optional[str] = None
-    client_directory: str = Field("../../client", alias="CLIENT_DIRECTORY")
+    module_path: str = Field("[ROOT]/modules", alias="MODULE_DIRECTORY")
+    client_directory: str = Field("[ROOT]/client", alias="CLIENT_DIRECTORY")
 
     model_config = {
         "env_file": ".env",
@@ -34,6 +32,13 @@ class Settings(BaseSettings):
         "extra": "ignore",
         "populate_by_name": True,
     }
+
+    @model_validator(mode="after")
+    def _resolve_paths(self) -> "Settings":
+        from app.utils import resolve_root
+        self.module_path = resolve_root(self.module_path)
+        self.client_directory = resolve_root(self.client_directory)
+        return self
 
 
 def load_test_settings(path_env_test: str = "tests/.env.test") -> Settings:

@@ -80,6 +80,14 @@ impl ApiClient {
         self.request(Method::POST, path, Some(body)).await
     }
 
+    pub async fn put<TRes, TBody>(&self, path: &str, body: &TBody) -> Result<TRes>
+    where
+        TRes: DeserializeOwned,
+        TBody: Serialize + ?Sized,
+    {
+        self.request(Method::PUT, path, Some)
+    }
+
     pub async fn get_text(&self, path: &str) -> Result<String> {
         let url = self.parse_path(path)?;
         let request = self.client.get(url);
