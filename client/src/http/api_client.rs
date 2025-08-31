@@ -29,7 +29,7 @@ impl ApiClient {
         })
     }
 
-    fn parse_path(&self, path: &str) -> Result<Url> {
+    fn parse_endpoint(&self, path: &str) -> Result<Url> {
         let mut base_clone = self.base_url.clone();
         let path = path.strip_prefix('/').unwrap_or(path);
         base_clone
@@ -42,14 +42,14 @@ impl ApiClient {
     async fn request<TRes, TBody>(
         &self,
         method: Method,
-        path: &str,
+        endpoint: &str,
         body: Option<&TBody>,
     ) -> Result<TRes>
     where
         TRes: DeserializeOwned,
         TBody: Serialize + ?Sized,
     {
-        let url = self.parse_path(path)?;
+        let url = self.parse_endpoint(endpoint)?;
         let mut request = self.client.request(method, url);
 
         if let Some(b) = body {
@@ -65,31 +65,31 @@ impl ApiClient {
         Ok(data)
     }
 
-    pub async fn get<T>(&self, path: &str) -> Result<T>
+    pub async fn get<T>(&self, endpoint: &str) -> Result<T>
     where
         T: DeserializeOwned,
     {
-        self.request(Method::GET, path, Option::<&()>::None).await
+        self.request(Method::GET, endpoint, Option::<&()>::None).await
     }
 
-    pub async fn post<TRes, TBody>(&self, path: &str, body: &TBody) -> Result<TRes>
+    pub async fn post<TRes, TBody>(&self, endpoint: &str, body: &TBody) -> Result<TRes>
     where
         TRes: DeserializeOwned,
         TBody: Serialize + ?Sized,
     {
-        self.request(Method::POST, path, Some(body)).await
+        self.request(Method::POST, endpoint, Some(body)).await
     }
 
-    pub async fn put<TRes, TBody>(&self, path: &str, body: &TBody) -> Result<TRes>
+    pub async fn put<TRes, TBody>(&self, endpoint: &str, body: &TBody) -> Result<TRes>
     where
         TRes: DeserializeOwned,
         TBody: Serialize + ?Sized,
     {
-        self.request(Method::PUT, path, Some)
+        self.request(Method::PUT, endpoint, Some(body)).await
     }
 
-    pub async fn get_text(&self, path: &str) -> Result<String> {
-        let url = self.parse_path(path)?;
+    pub async fn get_text(&self, endpoint: &str) -> Result<String> {
+        let url = self.parse_endpoint(endpoint)?;
         let request = self.client.get(url);
 
         let response = request.send().await?.error_for_status()?;
