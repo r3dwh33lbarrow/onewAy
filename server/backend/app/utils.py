@@ -1,4 +1,9 @@
 import re
+from pathlib import Path
+
+from app.logger import get_logger
+
+log = get_logger()
 
 
 def convert_to_snake_case(string: str) -> str:
@@ -9,3 +14,13 @@ def convert_to_snake_case(string: str) -> str:
 
 def hyphen_to_snake_case(string: str) -> str:
     return string.replace('-', '_').lower()
+
+
+def resolve_root(path: str) -> str:
+    try:
+        root = str(Path(__file__).resolve().parent.parent.parent.parent)
+    except Exception as e:
+        log.error("Failed to parse [ROOT] from config: " + str(e))
+        root = ""
+
+    return path.replace("[ROOT]", root)
