@@ -15,7 +15,7 @@ impl ApiClient {
     pub fn new(base_url: &str) -> Result<Self> {
         let url = Url::parse(base_url).context("invalid base URL")?;
         let client = Client::builder()
-            .user_agent("oneway-api-client/0.1")
+            .user_agent("oneway-api-client/0.1.0")
             .cookie_store(true)
             .timeout(Duration::from_secs(5))
             .tcp_keepalive(Duration::from_secs(30))

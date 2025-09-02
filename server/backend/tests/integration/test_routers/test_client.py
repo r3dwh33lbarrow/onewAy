@@ -42,6 +42,11 @@ async def test_client_get_all(client: AsyncClient):
     response = await client.post("/user/auth/login", json=auth_data)
     assert response.status_code == 200
 
+    # Get access token and set Authorization header
+    access_token = response.cookies.get("access_token")
+    assert access_token is not None
+    client.headers["Authorization"] = f"Bearer {access_token}"
+
     # Test getting all clients
     response = await client.get("/client/all")
     assert response.status_code == 200

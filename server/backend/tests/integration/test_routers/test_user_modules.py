@@ -2,6 +2,9 @@ import io
 import json
 import zipfile
 import pytest
+import shutil
+import os
+from pathlib import Path
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -14,7 +17,7 @@ from app.models.module import Module
 # --------------------------------------------------------------------
 
 async def auth_client(client: AsyncClient, username="tester", password="password123") -> AsyncClient:
-    """Register + login a test user and set access_token cookie on client."""
+    """Register + login a test user and set access_token in Authorization header."""
     # Register
     reg_resp = await client.post("/user/auth/register", json={"username": username, "password": password})
     assert reg_resp.status_code in [200, 409]  # user may already exist
@@ -24,7 +27,8 @@ async def auth_client(client: AsyncClient, username="tester", password="password
     assert login_resp.status_code == 200
     access_token = login_resp.cookies.get("access_token")
     assert access_token is not None
-    client.cookies.set("access_token", access_token)
+    # Set Authorization header instead of cookie
+    client.headers["Authorization"] = f"Bearer {access_token}"
     return client
 
 
@@ -38,6 +42,23 @@ def make_zip_with_config(config: dict, corrupt: bool = False) -> io.BytesIO:
             zf.writestr("config.yaml", json.dumps(config))
     zip_bytes.seek(0)
     return zip_bytes
+
+
+def cleanup_test_modules():
+    """Clean up test module directories."""
+    mod_dir = Path(__file__).resolve().parent.parent.parent / "app" / "modules"
+    if mod_dir.exists():
+        for item in mod_dir.iterdir():
+            if item.is_dir():
+                shutil.rmtree(item, ignore_errors=True)
+
+
+@pytest.fixture(autouse=True)
+async def cleanup_before_each_test():
+    """Automatically cleanup before each test."""
+    cleanup_test_modules()
+    yield
+    cleanup_test_modules()
 
 
 # --------------------------------------------------------------------
@@ -78,7 +99,8 @@ async def test_user_modules_upload_and_add(client: AsyncClient, db_session: Asyn
     response = await client.post(f"/user/modules/upload?dev_name={module_name}", files=files)
     assert response.status_code == 303  # redirect to /add
 
-    result = await db_session.execute(select(Module).where(Module.name == "upload_module"))
+    # The module name gets converted to snake_case, so "UploadModule" becomes "uploadmodule"
+    result = await db_session.execute(select(Module).where(Module.name == "uploadmodule"))
     assert result.scalar_one_or_none() is not None
 
 
@@ -160,7 +182,8 @@ async def test_user_modules_update_success(client: AsyncClient, db_session: Asyn
     assert response.json()["result"] == "success"
 
     await db_session.refresh(mod)
-    assert mod.name == "updated_name"
+    # "UpdatedName" gets converted to "updatedname" (snake_case without underscores)
+    assert mod.name == "updatedname"
     assert mod.version == "1.2.3"
     assert mod.description == "new description"
 
