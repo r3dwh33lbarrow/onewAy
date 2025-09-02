@@ -15,6 +15,6 @@ pub struct ClientLoginRequest {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct TokenResponse {
-    pub access_token: String,
+    pub refresh_token: String,
     pub token_type: String,
 }

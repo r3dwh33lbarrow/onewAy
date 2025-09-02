@@ -7,7 +7,7 @@ use std::time::Duration;
 #[derive(Debug, Clone)]
 pub struct ApiClient {
     base_url: Url,
-    access_token: Option<String>,
+    refresh_token: Option<String>,
     client: Client,
 }
 
@@ -24,7 +24,7 @@ impl ApiClient {
 
         Ok(Self {
             base_url: url,
-            access_token: None,
+            refresh_token: None,
             client,
         })
     }
@@ -39,15 +39,15 @@ impl ApiClient {
         Ok(base_clone)
     }
 
-    async fn request<TRes, TBody>(
+    async fn request<Request, Response>(
         &self,
         method: Method,
         endpoint: &str,
-        body: Option<&TBody>,
-    ) -> Result<TRes>
+        body: Option<&Request>,
+    ) -> Result<Response>
     where
-        TRes: DeserializeOwned,
-        TBody: Serialize + ?Sized,
+        Request: Serialize + ?Sized,
+        Response: DeserializeOwned,
     {
         let url = self.parse_endpoint(endpoint)?;
         let mut request = self.client.request(method, url);
@@ -59,7 +59,7 @@ impl ApiClient {
         let response = request.send().await.context("request failed")?;
         let response = response.error_for_status().context("non-2xx status")?;
         let data = response
-            .json::<TRes>()
+            .json::<Response>()
             .await
             .context("failed to parse JSON")?;
         Ok(data)
@@ -72,18 +72,18 @@ impl ApiClient {
         self.request(Method::GET, endpoint, Option::<&()>::None).await
     }
 
-    pub async fn post<TRes, TBody>(&self, endpoint: &str, body: &TBody) -> Result<TRes>
+    pub async fn post<Request, Response>(&self, endpoint: &str, body: &Request) -> Result<Response>
     where
-        TRes: DeserializeOwned,
-        TBody: Serialize + ?Sized,
+        Request: Serialize + ?Sized,
+        Response: DeserializeOwned,
     {
         self.request(Method::POST, endpoint, Some(body)).await
     }
 
-    pub async fn put<TRes, TBody>(&self, endpoint: &str, body: &TBody) -> Result<TRes>
+    pub async fn put<Request, Response>(&self, endpoint: &str, body: &Request) -> Result<Response>
     where
-        TRes: DeserializeOwned,
-        TBody: Serialize + ?Sized,
+        Request: Serialize + ?Sized,
+        Response: DeserializeOwned,
     {
         self.request(Method::PUT, endpoint, Some(body)).await
     }
@@ -97,7 +97,7 @@ impl ApiClient {
         Ok(body)
     }
 
-    pub fn set_access_token(&mut self, token_str: &str) {
-        self.access_token = Some(token_str.to_string());
+    pub fn set_refresh_token(&mut self, token_str: &str) {
+        self.refresh_token = Some(token_str.to_string());
     }
 }

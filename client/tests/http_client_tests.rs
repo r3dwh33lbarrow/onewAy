@@ -26,7 +26,7 @@ mod tests {
         enrollment_data.password = String::from("supersecretpass");
         enrollment_data.client_version = String::from("TESTING");
 
-        let enroll_response = api_client.post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enrollment_data)
+        let enroll_response = api_client.post::<ClientEnrollRequest, BasicTaskResponse>("/client/auth/enroll", &enrollment_data)
             .await
             .expect("failed to post /client/auth/enroll");
         assert_eq!(enroll_response.result, "success");
@@ -35,10 +35,10 @@ mod tests {
         login_data.username = String::from("testclient");
         login_data.password = String::from("supersecretpass");
 
-        let login_response = api_client.post::<TokenResponse, ClientLoginRequest>("/client/auth/login", &login_data)
+        let login_response = api_client.post::<ClientLoginRequest, TokenResponse>("/client/auth/login", &login_data)
             .await
             .expect("failed to post /client/auth/login");
-        assert!(!login_response.access_token.is_empty())
+        assert!(!login_response.refresh_token.is_empty())
     }
 
     #[tokio::test]
@@ -55,12 +55,12 @@ mod tests {
         enrollment_data_2.password = String::from("different-pass");
         enrollment_data_2.client_version = String::from("TESTING");
 
-        let login_response_1 = api_client.post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enrollment_data_1)
+        let login_response_1 = api_client.post::<ClientEnrollRequest, BasicTaskResponse>("/client/auth/enroll", &enrollment_data_1)
             .await
             .expect("failed to post /client/auth/login");
         assert_eq!(login_response_1.result, "success");
 
-        let login_response_2 = api_client.post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enrollment_data_2)
+        let login_response_2 = api_client.post::<ClientEnrollRequest, BasicTaskResponse>("/client/auth/enroll", &enrollment_data_2)
             .await;
 
         assert!(login_response_2.is_err(), "Expected error on double enroll, but got Ok");
@@ -76,7 +76,7 @@ mod tests {
         enrollment_data.password = String::from("correct_password");
         enrollment_data.client_version = String::from("TESTING");
 
-        let enroll_response = api_client.post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enrollment_data)
+        let enroll_response = api_client.post::<ClientEnrollRequest, BasicTaskResponse>("/client/auth/enroll", &enrollment_data)
             .await
             .expect("failed to enroll client");
         assert_eq!(enroll_response.result, "success");
@@ -85,7 +85,7 @@ mod tests {
         login_data.username = String::from("test_invalid_login");
         login_data.password = String::from("wrong_password");
 
-        let login_response = api_client.post::<TokenResponse, ClientLoginRequest>("/client/auth/login", &login_data)
+        let login_response = api_client.post::<ClientLoginRequest, TokenResponse>("/client/auth/login", &login_data)
             .await;
 
         assert!(login_response.is_err(), "Expected error on invalid login, but got Ok");
@@ -101,7 +101,7 @@ mod tests {
         enrollment_data.password = String::from("password123");
         enrollment_data.client_version = String::from("TESTING");
 
-        let enroll_response = api_client.post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enrollment_data)
+        let enroll_response = api_client.post::<ClientEnrollRequest, BasicTaskResponse>("/client/auth/enroll", &enrollment_data)
             .await
             .expect("failed to enroll client");
         assert_eq!(enroll_response.result, "success");
@@ -110,15 +110,15 @@ mod tests {
         login_data.username = String::from("test_refresh");
         login_data.password = String::from("password123");
 
-        let login_response = api_client.post::<TokenResponse, ClientLoginRequest>("/client/auth/login", &login_data)
+        let login_response = api_client.post::<ClientLoginRequest, TokenResponse>("/client/auth/login", &login_data)
             .await
             .expect("failed to login");
-        assert!(!login_response.access_token.is_empty());
+        assert!(!login_response.refresh_token.is_empty());
 
-        let refresh_response = api_client.post::<TokenResponse, ()>("/client/auth/refresh", &())
+        let refresh_response = api_client.post::<(), TokenResponse>("/client/auth/refresh", &())
             .await
             .expect("failed to refresh token");
-        assert!(!refresh_response.access_token.is_empty());
+        assert!(!refresh_response.refresh_token.is_empty());
     }
 
     #[tokio::test]
@@ -132,7 +132,7 @@ mod tests {
         enrollment_data.password = String::from("password456");
         enrollment_data.client_version = String::from("TESTING");
 
-        let enroll_response = api_client.post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enrollment_data)
+        let enroll_response = api_client.post::<ClientEnrollRequest, BasicTaskResponse>("/client/auth/enroll", &enrollment_data)
             .await
             .expect("failed to enroll client");
         assert_eq!(enroll_response.result, "success");
@@ -141,7 +141,7 @@ mod tests {
         login_data.username = String::from(username);
         login_data.password = String::from("password456");
 
-        api_client.post::<TokenResponse, ClientLoginRequest>("/client/auth/login", &login_data)
+        api_client.post::<ClientLoginRequest, TokenResponse>("/client/auth/login", &login_data)
             .await
             .expect("failed to login");
 
@@ -162,7 +162,7 @@ mod tests {
         enrollment_data.password = String::from("password789");
         enrollment_data.client_version = String::from("TESTING");
 
-        let enroll_response = api_client.post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enrollment_data)
+        let enroll_response = api_client.post::<ClientEnrollRequest, BasicTaskResponse>("/client/auth/enroll", &enrollment_data)
             .await
             .expect("failed to enroll client");
         assert_eq!(enroll_response.result, "success");
@@ -171,7 +171,7 @@ mod tests {
         login_data.username = String::from(username);
         login_data.password = String::from("password789");
 
-        api_client.post::<TokenResponse, ClientLoginRequest>("/client/auth/login", &login_data)
+        api_client.post::<ClientLoginRequest, TokenResponse>("/client/auth/login", &login_data)
             .await
             .expect("failed to login");
 
