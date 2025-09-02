@@ -1,3 +1,4 @@
+import os
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
@@ -22,7 +23,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
 
     # Module settings
-    module_path: str = Field("[ROOT]/modules", alias="MODULE_DIRECTORY")
+    # Production modules directory (default); tests use a separate path
+    module_path_prod: str = Field("[ROOT]/modules", alias="MODULE_DIRECTORY")
+    # Test modules directory (cleaned by tests)
+    module_path_test: str = Field("[ROOT]/server/backend/app/modules", alias="TEST_MODULE_DIRECTORY")
+    # Effective modules directory used by the app (computed in validator)
+    module_path: str = "[ROOT]/modules"
     client_directory: str = Field("[ROOT]/client", alias="CLIENT_DIRECTORY")
 
     model_config = {
@@ -36,7 +42,13 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _resolve_paths(self) -> "Settings":
         from app.utils import resolve_root
-        self.module_path = resolve_root(self.module_path)
+        prod = resolve_root(self.module_path_prod)
+        test = resolve_root(self.module_path_test)
+        # Heuristics: prefer test path when explicitly testing
+        is_pytest = bool(os.getenv("PYTEST_CURRENT_TEST"))
+        has_test_db = bool(os.getenv("TEST_DATABASE_URL"))
+        use_test = self.testing or is_pytest or has_test_db
+        self.module_path = test if use_test else prod
         self.client_directory = resolve_root(self.client_directory)
         return self
 
