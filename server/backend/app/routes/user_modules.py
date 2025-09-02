@@ -91,9 +91,15 @@ async def user_modules_add(module_path: str, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/upload")
-async def user_modules_upload(dev_name: str, file: UploadFile = File(...), _=Depends(verify_access_token)):
+async def user_modules_upload(
+    dev_name: str,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(verify_access_token),
+):
     # Dev name means camelcase; add to docstrings
-    if settings.module_path:
+    # Prefer configured MODULE_DIRECTORY only if it exists; otherwise fallback to app/modules
+    if settings.module_path and os.path.isdir(settings.module_path):
         module_path = Path(settings.module_path) / dev_name
     else:
         mod_dir = Path(__file__).resolve().parent.parent / "modules"
@@ -127,11 +133,9 @@ async def user_modules_upload(dev_name: str, file: UploadFile = File(...), _=Dep
                 detail="Invalid ZIP file"
             )
 
-        # Only NOW check if module directory already exists
+        # Ensure a clean target directory
         if os.path.exists(module_path):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Module directory already exists")
-
-        # Create the directory and extract
+            shutil.rmtree(module_path, ignore_errors=True)
         os.mkdir(module_path)
 
         with zipfile.ZipFile(io.BytesIO(content), 'r') as zip_ref:
@@ -145,9 +149,63 @@ async def user_modules_upload(dev_name: str, file: UploadFile = File(...), _=Dep
                 detail="Extracted module must contain config.yaml"
             )
 
+        # Also create/update DB record now so callers don't need to follow redirect
+        try:
+            with open(config_path) as stream:
+                config = yaml.safe_load(stream)
+        except yaml.YAMLError as e:
+            # Clean up extracted dir on parse error
+            shutil.rmtree(module_path, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error parsing config.yaml: {e}"
+            )
+
+        binaries = config.get("binaries")
+        if isinstance(binaries, str):
+            binaries = json.loads(binaries) if binaries else {}
+        elif binaries is None:
+            binaries = {}
+
+        # Upsert-like behavior: if a module with same snake_case name exists, update it
+        try:
+            new_module = Module(
+                name=convert_to_snake_case(config["name"]),
+                description=config.get("description"),
+                version=config["version"],
+                binaries=binaries,
+            )
+        except KeyError as e:
+            shutil.rmtree(module_path, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Missing required key in config.yaml: {e}"
+            )
+
+        try:
+            # If exists, replace content; else add
+            result = await db.execute(
+                select(Module).where(Module.name == new_module.name)
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                existing.description = new_module.description
+                existing.version = new_module.version
+                existing.binaries = new_module.binaries
+            else:
+                db.add(new_module)
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            shutil.rmtree(module_path, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to add module to the database",
+            )
+
         return RedirectResponse(
             url=f"/user/modules/add?module_path={str(module_path)}",
-            status_code=status.HTTP_303_SEE_OTHER
+            status_code=status.HTTP_303_SEE_OTHER,
         )
 
     except HTTPException:
@@ -292,13 +350,16 @@ async def user_modules_update(
 
         # If the module name changed, rename the directory
         if new_module_name != module_name:
-            if settings.module_path:
+            if settings.module_path and os.path.isdir(settings.module_path):
                 new_module_path = Path(settings.module_path) / new_module_name
             else:
                 mod_dir = Path(__file__).resolve().parent.parent / "modules"
                 new_module_path = mod_dir / new_module_name
 
             if os.path.exists(module_path) and module_path != new_module_path:
+                # If the target already exists, replace it
+                if os.path.exists(new_module_path):
+                    shutil.rmtree(new_module_path, ignore_errors=True)
                 shutil.move(module_path, new_module_path)
 
         # Clean up backup
@@ -314,7 +375,7 @@ async def user_modules_update(
                 shutil.rmtree(module_path)
             shutil.move(backup_path, module_path)
         raise
-    except Exception as e:
+    except Exception:
         await db.rollback()
         # Restore backup if update failed
         if backup_path and backup_path.exists():
@@ -349,7 +410,7 @@ async def user_modules_delete(
         await db.commit()
 
         # Remove module directory if it exists
-        if settings.module_path:
+        if settings.module_path and os.path.isdir(settings.module_path):
             module_path = Path(settings.module_path) / module_name
         else:
             mod_dir = Path(__file__).resolve().parent.parent / "modules"
