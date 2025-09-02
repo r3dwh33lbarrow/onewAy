@@ -326,7 +326,7 @@ async def test_client_refresh_missing_token(client: AsyncClient):
     response = await client.post("/client/auth/refresh")
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Refresh token missing"
+    assert response.json()["detail"] == "Missing refresh token"
 
 
 @pytest.mark.asyncio
@@ -488,7 +488,7 @@ async def test_client_username_check_missing_token(client: AsyncClient):
     response = await client.get("/client/auth/testuser/check")
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Refresh token missing"
+    assert response.json()["detail"] == "Missing refresh token"
 
 
 @pytest.mark.asyncio

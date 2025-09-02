@@ -56,7 +56,11 @@ async def user_modules_add(module_path: str, db: AsyncSession = Depends(get_db),
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error reading config.yaml")
 
     binaries = config.get("binaries")
-    binaries = json.loads("{}") if not binaries else json.loads(binaries)
+    if isinstance(binaries, str):
+        binaries = json.loads(binaries) if binaries else {}
+    elif binaries is None:
+        binaries = {}
+    # If binaries is already a dict, use it as-is
 
     try:
         module_info = ModuleInfo(
@@ -97,11 +101,7 @@ async def user_modules_upload(dev_name: str, file: UploadFile = File(...), _=Dep
         if not os.path.exists(mod_dir):
             os.makedirs(mod_dir)
 
-    try:
-        os.mkdir(module_path)
-    except FileExistsError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Module directory already exists")
-
+    # Validate file extension FIRST before checking directory
     if not file.filename.endswith('.zip'):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -111,15 +111,30 @@ async def user_modules_upload(dev_name: str, file: UploadFile = File(...), _=Dep
     try:
         content = await file.read()
 
-        with zipfile.ZipFile(io.BytesIO(content), 'r') as zip_ref:
-            for member in zip_ref.namelist():
-                if os.path.isabs(member) or ".." in member:
-                    os.rmdir(module_path)
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Invalid file path in archive: {member}"
-                    )
+        # Test if it's a valid ZIP file BEFORE checking directory exists
+        try:
+            with zipfile.ZipFile(io.BytesIO(content), 'r') as zip_ref:
+                # Check for path traversal attempts
+                for member in zip_ref.namelist():
+                    if os.path.isabs(member) or ".." in member:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Invalid file path in archive: {member}"
+                        )
+        except zipfile.BadZipFile:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid ZIP file"
+            )
 
+        # Only NOW check if module directory already exists
+        if os.path.exists(module_path):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Module directory already exists")
+
+        # Create the directory and extract
+        os.mkdir(module_path)
+
+        with zipfile.ZipFile(io.BytesIO(content), 'r') as zip_ref:
             zip_ref.extractall(module_path)
 
         config_path = module_path / "config.yaml"
@@ -135,13 +150,11 @@ async def user_modules_upload(dev_name: str, file: UploadFile = File(...), _=Dep
             status_code=status.HTTP_303_SEE_OTHER
         )
 
-    except zipfile.BadZipFile:
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
         if os.path.exists(module_path):
-            os.rmdir(module_path)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid ZIP file"
-        )
+            shutil.rmtree(module_path)
+        raise
     except Exception:
         if os.path.exists(module_path):
             shutil.rmtree(module_path)
@@ -149,6 +162,30 @@ async def user_modules_upload(dev_name: str, file: UploadFile = File(...), _=Dep
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to extract module"
         )
+
+
+@router.get("/{module_name}")
+async def user_modules_get(
+        module_name: str,
+        db: AsyncSession = Depends(get_db),
+        _=Depends(verify_access_token)
+):
+    module_name = hyphen_to_snake_case(module_name)
+    result = await db.execute(select(Module).where(Module.name == module_name))
+    module = result.scalar_one_or_none()
+
+    if not module:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Module not found"
+        )
+
+    return {
+        "name": module.name,
+        "description": module.description,
+        "version": module.version,
+        "binaries": module.binaries
+    }
 
 
 @router.put("/update/{module_name}", response_model=BasicTaskResponse)
@@ -192,15 +229,21 @@ async def user_modules_update(
 
         content = await file.read()
 
-        with zipfile.ZipFile(io.BytesIO(content), 'r') as zip_ref:
-            for member in zip_ref.namelist():
-                if os.path.isabs(member) or ".." in member:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Invalid file path in archive: {member}"
-                    )
-
-            zip_ref.extractall(module_path)
+        # Validate ZIP file
+        try:
+            with zipfile.ZipFile(io.BytesIO(content), 'r') as zip_ref:
+                for member in zip_ref.namelist():
+                    if os.path.isabs(member) or ".." in member:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Invalid file path in archive: {member}"
+                        )
+                zip_ref.extractall(module_path)
+        except zipfile.BadZipFile:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid ZIP file"
+            )
 
         config_path = module_path / "config.yaml"
         if not config_path.exists():
@@ -209,63 +252,82 @@ async def user_modules_update(
                 detail="Extracted module must contain config.yaml"
             )
 
+        # Parse and validate config
         try:
             with open(config_path) as stream:
                 config = yaml.safe_load(stream)
-
         except yaml.YAMLError as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Error parsing config.yaml: {e}"
             )
 
-        binaries = config.get("binaries")
-        binaries = json.loads("") if not binaries else json.loads(binaries)
-
-        try:
-            module_info = ModuleInfo(
-                name=config["name"],
-                description=config.get("description"),
-                version=config["version"],
-                binaries=binaries
-            )
-        except KeyError as e:
+        # Validate required fields
+        if "name" not in config:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required key in config.yaml: {e}"
+                detail="Missing required key in config.yaml: 'name'"
+            )
+        if "version" not in config:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing required key in config.yaml: 'version'"
             )
 
-        existing_module.name = convert_to_snake_case(module_info.name)
-        existing_module.description = module_info.description
-        existing_module.version = module_info.version
-        existing_module.binaries = module_info.binaries
+        binaries = config.get("binaries")
+        if isinstance(binaries, str):
+            binaries = json.loads(binaries) if binaries else {}
+        elif binaries is None:
+            binaries = {}
+        # If binaries is already a dict, use it as-is
+
+        # Update module in database - update all fields including name if it changed
+        new_module_name = convert_to_snake_case(config["name"])
+        existing_module.name = new_module_name
+        existing_module.description = config.get("description")
+        existing_module.version = config["version"]
+        existing_module.binaries = binaries
 
         await db.commit()
-        await db.refresh(existing_module)
 
+        # If the module name changed, rename the directory
+        if new_module_name != module_name:
+            if settings.module_path:
+                new_module_path = Path(settings.module_path) / new_module_name
+            else:
+                mod_dir = Path(__file__).resolve().parent.parent / "modules"
+                new_module_path = mod_dir / new_module_name
+
+            if os.path.exists(module_path) and module_path != new_module_path:
+                shutil.move(module_path, new_module_path)
+
+        # Clean up backup
         if backup_path and backup_path.exists():
             shutil.rmtree(backup_path)
 
         return {"result": "success"}
 
+    except HTTPException:
+        # Restore backup if update failed
+        if backup_path and backup_path.exists():
+            if os.path.exists(module_path):
+                shutil.rmtree(module_path)
+            shutil.move(backup_path, module_path)
+        raise
     except Exception as e:
         await db.rollback()
-
-        if os.path.exists(module_path):
-            shutil.rmtree(module_path)
+        # Restore backup if update failed
         if backup_path and backup_path.exists():
+            if os.path.exists(module_path):
+                shutil.rmtree(module_path)
             shutil.move(backup_path, module_path)
-
-        if isinstance(e, HTTPException):
-            raise e
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to update module: {str(e)}"
-            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update module"
+        )
 
 
-@router.delete("/delete/{module_name}")
+@router.delete("/delete/{module_name}", response_model=BasicTaskResponse)
 async def user_modules_delete(
         module_name: str,
         db: AsyncSession = Depends(get_db),
@@ -281,48 +343,26 @@ async def user_modules_delete(
             detail="Module not found"
         )
 
-    if settings.module_path:
-        module_path = Path(settings.module_path) / module.name
-    else:
-        mod_dir = Path(__file__).resolve().parent.parent / "modules"
-        module_path = mod_dir / module.name
-
     try:
+        # Remove from database
         await db.delete(module)
         await db.commit()
+
+        # Remove module directory if it exists
+        if settings.module_path:
+            module_path = Path(settings.module_path) / module_name
+        else:
+            mod_dir = Path(__file__).resolve().parent.parent / "modules"
+            module_path = mod_dir / module_name
 
         if os.path.exists(module_path):
             shutil.rmtree(module_path)
 
-        return {"result": "success", "message": f"Module '{module.name}' deleted successfully"}
+        return {"result": "success"}
 
-    except Exception as e:
+    except Exception:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete module: {str(e)}"
+            detail="Failed to delete module"
         )
-
-
-@router.get("/{module_name}", response_model=ModuleInfo)
-async def user_modules_get(
-        module_name: str,
-        db: AsyncSession = Depends(get_db),
-        _=Depends(verify_access_token)
-):
-    module_name = hyphen_to_snake_case(module_name)
-    result = await db.execute(select(Module).where(Module.name == module_name))
-    module = result.scalar_one_or_none()
-
-    if not module:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Module not found"
-        )
-
-    return ModuleInfo(
-        name=module.name,
-        description=module.description,
-        version=module.version,
-        binaries=module.binaries
-    )
