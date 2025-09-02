@@ -76,7 +76,7 @@ async def test_user_modules_all_empty(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_user_modules_add_missing_path(client: AsyncClient):
     client = await auth_client(client)
-    response = await client.post("/user/modules/add", params={"module_path": "/does/not/exist"})
+    response = await client.post("/user/modules/add", json={"module_path": "/does/not/exist"})
     assert response.status_code == 400
     assert "does not exist" in response.json()["detail"]
 
@@ -97,7 +97,8 @@ async def test_user_modules_upload_and_add(client: AsyncClient, db_session: Asyn
     files = {"file": ("module.zip", zip_bytes, "application/zip")}
 
     response = await client.post(f"/user/modules/upload?dev_name={module_name}", files=files)
-    assert response.status_code == 303  # redirect to /add
+    assert response.status_code == 200  # direct success response
+    assert response.json()["result"] == "success"
 
     # The module name gets converted to snake_case, so "UploadModule" becomes "uploadmodule"
     result = await db_session.execute(select(Module).where(Module.name == "uploadmodule"))

@@ -9,6 +9,7 @@ use crate::config::ConfigData;
 use crate::http::api_client::ApiClient;
 use crate::http::auth::{enroll, login, refresh_access_token};
 use crate::schemas::BasicTaskResponse;
+use crate::schemas::ApiError;
 
 #[derive(Serialize, Deserialize)]
 struct AddRequest {
@@ -30,13 +31,25 @@ async fn main() {
     }
 
     let add_response = AddRequest {
-        module_path: "C:/Users/morgant/Projects/onewAy/client/modules/".to_string(),
+        module_path: "C:/Users/morgant/Projects/onewAy/modules/test_module".to_string(),
     };
     let result = api_client.post::<AddRequest, AddResponse>("/user/modules/add", &add_response).await;
-    if result.unwrap().result == "success" {
-        println!("Module added successfully");
-    } else {
-        println!("Module add failed");
+    match result {
+        Ok(response) if response.result == "success" => {
+            println!("Module added successfully");
+        }
+        Ok(_) => {
+            println!("Module add failed");
+        }
+        Err(e) => {
+            // Check if this is an API error with detailed information
+            if let Some(api_error) = e.downcast_ref::<ApiError>() {
+                println!("API Error {}: {}", api_error.status_code, api_error.detail);
+            } else {
+                // Fallback for non-API errors (network issues, etc.)
+                println!("Failed to add module: {}", e);
+            }
+        }
     }
 }
 

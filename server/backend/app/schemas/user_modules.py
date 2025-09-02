@@ -18,3 +18,7 @@ class ModuleInfo(BaseModel):
     description: Optional[str] = None
     version: str = Field(min_length=1)
     binaries: Dict[str, Any]
+
+
+class ModuleAddRequest(BaseModel):
+    module_path: str = Field(min_length=1, description="Path to the module directory")

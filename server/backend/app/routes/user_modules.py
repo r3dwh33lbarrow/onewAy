@@ -15,7 +15,7 @@ from starlette.responses import RedirectResponse
 from app.dependencies import get_db
 from app.models.module import Module
 from app.schemas.general import BasicTaskResponse
-from app.schemas.user_modules import UserModuleAllResponse, ModuleBasicInfo, ModuleInfo
+from app.schemas.user_modules import UserModuleAllResponse, ModuleBasicInfo, ModuleInfo, ModuleAddRequest
 from app.services.authentication import verify_access_token
 from app.settings import settings
 from app.utils import convert_to_snake_case, hyphen_to_snake_case
@@ -39,11 +39,11 @@ async def user_modules_all(db: AsyncSession = Depends(get_db), _=Depends(verify_
 
 
 @router.post("/add", response_model=BasicTaskResponse)
-async def user_modules_add(module_path: str, db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)):
-    if not os.path.exists(module_path):
+async def user_modules_add(request: ModuleAddRequest, db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)):
+    if not os.path.exists(request.module_path):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Module path does not exist")
 
-    config_path = Path(module_path) / "config.yaml"
+    config_path = Path(request.module_path) / "config.yaml"
     if not os.path.isfile(config_path):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Module config.yaml does not exist")
 
@@ -203,10 +203,7 @@ async def user_modules_upload(
                 detail="Failed to add module to the database",
             )
 
-        return RedirectResponse(
-            url=f"/user/modules/add?module_path={str(module_path)}",
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
+        return {"result": "success"}
 
     except HTTPException:
         # Re-raise HTTP exceptions as-is
