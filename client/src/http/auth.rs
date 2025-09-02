@@ -15,7 +15,7 @@ pub async fn enroll(
     enroll_data.client_version = client_version.to_string();
 
     let response = api_client
-        .post::<BasicTaskResponse, ClientEnrollRequest>("/client/auth/enroll", &enroll_data)
+        .post::<ClientEnrollRequest, BasicTaskResponse>("/client/auth/enroll", &enroll_data)
         .await;
 
     match response {
@@ -36,12 +36,12 @@ pub async fn login(api_client: &mut ApiClient, username: &str, password: &str) -
     login_data.password = password.to_string();
 
     let response = api_client
-        .post::<TokenResponse, ClientLoginRequest>("/client/auth/login", &login_data)
+        .post::<ClientLoginRequest, TokenResponse>("/client/auth/login", &login_data)
         .await;
 
     match response {
         Ok(token) => {
-            api_client.set_access_token(&token.access_token);
+            api_client.set_refresh_token(&token.refresh_token);
             info!("Login successful");
             true
         }
@@ -54,12 +54,12 @@ pub async fn login(api_client: &mut ApiClient, username: &str, password: &str) -
 
 pub async fn refresh_access_token(api_client: &mut ApiClient) -> bool {
     let response = api_client
-        .post::<TokenResponse, ()>("/client/auth/refresh", &())
+        .post::<(), TokenResponse>("/client/auth/refresh", &())
         .await;
 
     match response {
         Ok(token) => {
-            api_client.set_access_token(&token.access_token);
+            api_client.set_refresh_token(&token.refresh_token);
             info!("Refresh success");
             true
         }

@@ -4,13 +4,44 @@ mod logger;
 mod schemas;
 
 use std::path::Path;
+use serde::{Deserialize, Serialize};
 use crate::config::ConfigData;
 use crate::http::api_client::ApiClient;
 use crate::http::auth::{enroll, login, refresh_access_token};
 use crate::schemas::BasicTaskResponse;
 
+#[derive(Serialize, Deserialize)]
+struct AddRequest {
+    module_path: String,
+}
+#[derive(Serialize, Deserialize)]
+struct AddResponse {
+    result: String,
+}
+
 #[tokio::main]
 async fn main() {
+    let config_data: ConfigData = ConfigData::load(Path::new(".env")).unwrap();
+    let mut api_client =
+        ApiClient::new("http://localhost:8000/").expect("failed to initialize ApiClient");
+
+    if !login(&mut api_client, &*config_data.username, &*config_data.password).await {
+        panic!("failed to login");
+    }
+
+    let add_response = AddRequest {
+        module_path: "C:/Users/morgant/Projects/onewAy/client/modules/".to_string(),
+    };
+    let result = api_client.post::<AddRequest, AddResponse>("/user/modules/add", &add_response).await;
+    if result.unwrap().result == "success" {
+        println!("Module added successfully");
+    } else {
+        println!("Module add failed");
+    }
+}
+
+
+async fn _main() {
     let mut config_data: ConfigData = ConfigData::load(Path::new(".env")).unwrap();
 
     let mut api_client =

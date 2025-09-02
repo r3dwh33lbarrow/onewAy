@@ -3,7 +3,7 @@ from datetime import timedelta, datetime, UTC
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import HTTPException, Request, Depends
+from fastapi import HTTPException, Request, Depends, Response
 from fastapi.security import HTTPBearer
 from jose import jwt, JWTError
 from sqlalchemy import select
@@ -14,7 +14,7 @@ from app.dependencies import get_db
 from app.models.client import Client
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
-from app.services.password import hash_password, pwd_context
+from app.services.password import pwd_context
 from app.settings import settings
 
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
@@ -109,21 +109,21 @@ async def create_refresh_token(client_uuid: uuid.UUID, db: AsyncSession) -> str:
         RuntimeError: If the database operation to store the refresh token fails.
     """
     jti = str(uuid4())
-    hashed_jti = hash_jti(jti)  # Hash the JTI for secure storage
+    hashed_jti = hash_jti(jti)
     now = datetime.now(UTC)
     expires = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
     payload = {
         "sub": str(client_uuid),
         "type": "refresh",
-        "jti": jti,  # Store plaintext JTI in the JWT payload
+        "jti": jti,
         "exp": int(expires.timestamp()),
         "iat": int(now.timestamp())
     }
 
     refresh_token = RefreshToken(
         client_uuid=client_uuid,
-        jti=hashed_jti,  # Store hashed JTI in the database
+        jti=hashed_jti,
         expires_at=expires.replace(tzinfo=None)
     )
 
@@ -136,24 +136,30 @@ async def create_refresh_token(client_uuid: uuid.UUID, db: AsyncSession) -> str:
         raise RuntimeError(f"Failed to create refresh token: {str(e)}")
 
 
-async def verify_refresh_token(token: str, db: AsyncSession) -> Optional[RefreshToken]:
+async def verify_refresh_token(request: Request, db: AsyncSession) -> Optional[RefreshToken]:
     """
-    Verify the validity of a refresh token.
+    Verify the validity of a refresh token from request cookies.
 
-    This function decodes a JSON Web Token (JWT) and validates its type, unique identifier (jti),
-    and expiration time. It also checks the database to ensure the token exists, has not been revoked,
-    and has not expired. The JTI is verified against the hashed version stored in the database.
+    This function extracts a refresh token from the request cookies, decodes the JSON Web Token (JWT)
+    and validates its type, unique identifier (jti), and expiration time. It also checks the database
+    to ensure the token exists, has not been revoked, and has not expired. The JTI is verified against
+    the hashed version stored in the database.
 
     Args:
-        token (str): The encoded JWT refresh token to be verified.
+        request (Request): The HTTP request object containing the cookies.
         db (AsyncSession): The database session used to query the refresh token.
 
     Returns:
         RefreshToken: The corresponding RefreshToken object if the token is valid.
 
     Raises:
-        HTTPException: If the token is invalid, revoked, expired, or not found in the database.
+        HTTPException: If the token is missing, invalid, revoked, expired, or not found in the database.
     """
+    token = request.cookies.get("refresh_token")
+
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "refresh":
@@ -165,7 +171,8 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> Optional[Refresh
 
         client_uuid = payload.get("sub")
         if not client_uuid:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: missing client identifier")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Invalid token: missing client identifier")
         client_uuid = uuid.UUID(client_uuid)
 
         result = await db.execute(
@@ -196,16 +203,17 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> Optional[Refresh
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Token verification failed")
 
 
-async def revoke_refresh_token(token: str, db: AsyncSession) -> bool:
+async def revoke_refresh_token(request: Request, response: Response, db: AsyncSession) -> bool:
     """
-    Revoke a refresh token.
+    Revoke a refresh token and remove the refresh token cookie.
 
     This function marks a refresh token as revoked in the database, preventing it from being used
-    for future authentication. It first verifies the validity of the token and then updates its
-    status in the database.
+    for future authentication. It first verifies the validity of the token from the request cookies,
+    updates its status in the database, and then removes the refresh token cookie from the client.
 
     Args:
-        token (str): The encoded JWT refresh token to be revoked.
+        request (Request): The HTTP request object containing the refresh token cookie.
+        response (Response): The HTTP response object used to remove the cookie.
         db (AsyncSession): The database session used to update the refresh token.
 
     Returns:
@@ -215,12 +223,19 @@ async def revoke_refresh_token(token: str, db: AsyncSession) -> bool:
         HTTPException: If the token verification or revocation process fails.
     """
     try:
-        refresh_token = await verify_refresh_token(token, db)
+        refresh_token = await verify_refresh_token(request, db)
         if not refresh_token:
             return False
 
         refresh_token.revoked = True
         await db.commit()
+
+        response.delete_cookie(
+            key="refresh_token",
+            httponly=True,
+            samesite="strict"
+        )
+
         return True
 
     except HTTPException:
@@ -231,16 +246,16 @@ async def revoke_refresh_token(token: str, db: AsyncSession) -> bool:
         raise HTTPException(status_code=500, detail="Failed to revoke token")
 
 
-async def rotate_refresh_token(token: str, db: AsyncSession) -> tuple[str, str]:
+async def rotate_refresh_token(request: Request, db: AsyncSession) -> tuple[str, str]:
     """
     Rotate a refresh token by creating new access and refresh tokens and revoking the old refresh token.
 
     This implements refresh token rotation for replay attack protection. Once a refresh token is used,
     it's immediately revoked and replaced with a new one, limiting the window of vulnerability if
-    a token is compromised.
+    a token is compromised. The refresh token is extracted from the request cookies.
 
     Args:
-        token (str): The current refresh token to be rotated.
+        request (Request): The HTTP request object containing the refresh token cookie.
         db (AsyncSession): The database session used for token operations.
 
     Returns:
@@ -250,7 +265,7 @@ async def rotate_refresh_token(token: str, db: AsyncSession) -> tuple[str, str]:
         HTTPException: If the current token is invalid, expired, or revoked, or if rotation fails.
     """
     try:
-        current_refresh_token = await verify_refresh_token(token, db)
+        current_refresh_token = await verify_refresh_token(request, db)
         if not current_refresh_token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
@@ -273,15 +288,16 @@ async def rotate_refresh_token(token: str, db: AsyncSession) -> tuple[str, str]:
 
 def verify_access_token(request: Request):
     """
-    Verify the validity of an access token provided in the request cookies.
+    Verify the validity of an access token provided in the request headers.
 
-    This function checks for the presence of an access token in the request's cookies.
-    It decodes the token using the configured secret key and algorithm, and extracts
-    the user UUID from the token payload. If the token is missing, invalid, or does not
-    contain a valid user UUID, an HTTPException is raised.
+    This function checks for the presence of an access token in the request's
+    Authorization header (Bearer token format). It decodes the token using the
+    configured secret key and algorithm, and extracts the user UUID from the
+    token payload. If the token is missing, invalid, or does not contain a
+    valid user UUID, an HTTPException is raised.
 
     Args:
-        request (Request): The HTTP request object containing the cookies.
+        request (Request): The HTTP request object containing the headers.
 
     Returns:
         str: The UUID of the user extracted from the access token.
@@ -289,9 +305,12 @@ def verify_access_token(request: Request):
     Raises:
         HTTPException: If the access token is missing, invalid, or does not contain a valid user UUID.
     """
-    access_token = None
-    if "access_token" in request.cookies:
-        access_token = request.cookies.get("access_token")
+    authorization_header = request.headers.get("Authorization")
+
+    if not authorization_header or not authorization_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid authorization header")
+
+    access_token = authorization_header[7:]
 
     if not access_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing access token")
@@ -354,7 +373,7 @@ async def get_current_user(
 
 async def get_current_client(db: AsyncSession = Depends(get_db), client_uuid: str = Depends(verify_access_token)):
     try:
-        result = await db.execute(select(User).where(Client.uuid == uuid.UUID(client_uuid)))
+        result = await db.execute(select(Client).where(Client.uuid == uuid.UUID(client_uuid)))
         client = result.scalar_one_or_none()
 
         if client is None:
