@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use reqwest::{Client, Method, Url};
+use reqwest::{Client, Method, Url, header::{HeaderMap, HeaderValue, AUTHORIZATION}};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::time::Duration;
@@ -7,7 +7,7 @@ use std::time::Duration;
 #[derive(Debug, Clone)]
 pub struct ApiClient {
     base_url: Url,
-    refresh_token: Option<String>,
+    access_token: Option<String>,
     client: Client,
 }
 
@@ -24,7 +24,7 @@ impl ApiClient {
 
         Ok(Self {
             base_url: url,
-            refresh_token: None,
+            access_token: None,
             client,
         })
     }
@@ -39,6 +39,18 @@ impl ApiClient {
         Ok(base_clone)
     }
 
+    fn build_headers(&self) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+
+        if let Some(token) = &self.access_token {
+            if let Ok(auth_value) = HeaderValue::from_str(&format!("Bearer {}", token)) {
+                headers.insert(AUTHORIZATION, auth_value);
+            }
+        }
+
+        headers
+    }
+
     async fn request<Request, Response>(
         &self,
         method: Method,
@@ -51,6 +63,8 @@ impl ApiClient {
     {
         let url = self.parse_endpoint(endpoint)?;
         let mut request = self.client.request(method, url);
+
+        request = request.headers(self.build_headers());
 
         if let Some(b) = body {
             request = request.json(b);
@@ -90,14 +104,15 @@ impl ApiClient {
 
     pub async fn get_text(&self, endpoint: &str) -> Result<String> {
         let url = self.parse_endpoint(endpoint)?;
-        let request = self.client.get(url);
+        let request = self.client.get(url).headers(self.build_headers());
 
-        let response = request.send().await?.error_for_status()?;
-        let body = response.text().await?;
+        let response = request.send().await.context("request failed")?;
+        let response = response.error_for_status().context("non-2xx status")?;
+        let body = response.text().await.context("failed to read response text")?;
         Ok(body)
     }
 
-    pub fn set_refresh_token(&mut self, token_str: &str) {
-        self.refresh_token = Some(token_str.to_string());
+    pub fn set_access_token(&mut self, token: &str) {
+        self.access_token = Some(token.to_string());
     }
 }
