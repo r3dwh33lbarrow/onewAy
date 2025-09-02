@@ -38,7 +38,7 @@ mod tests {
         let login_response = api_client.post::<ClientLoginRequest, TokenResponse>("/client/auth/login", &login_data)
             .await
             .expect("failed to post /client/auth/login");
-        assert!(!login_response.refresh_token.is_empty())
+        assert!(!login_response.access_token.is_empty())
     }
 
     #[tokio::test]
@@ -92,7 +92,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_refresh_token() {
+    async fn test_access_token() {
         let api_client = ApiClient::new("http://127.0.0.1:8000/")
             .expect("failed to create API client");
 
@@ -113,12 +113,12 @@ mod tests {
         let login_response = api_client.post::<ClientLoginRequest, TokenResponse>("/client/auth/login", &login_data)
             .await
             .expect("failed to login");
-        assert!(!login_response.refresh_token.is_empty());
+        assert!(!login_response.access_token.is_empty());
 
         let refresh_response = api_client.post::<(), TokenResponse>("/client/auth/refresh", &())
             .await
             .expect("failed to refresh token");
-        assert!(!refresh_response.refresh_token.is_empty());
+        assert!(!refresh_response.access_token.is_empty());
     }
 
     #[tokio::test]
