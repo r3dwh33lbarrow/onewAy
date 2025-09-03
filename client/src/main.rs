@@ -1,15 +1,15 @@
 mod config;
 mod http;
 mod logger;
+mod module_manager;
 mod schemas;
 mod utils;
-mod module_manager;
 
-use std::path::Path;
 use crate::config::ConfigData;
 use crate::http::api_client::ApiClient;
 use crate::http::auth::{enroll, login};
 use crate::module_manager::{ModuleManager, ModuleStart};
+use std::path::Path;
 
 #[tokio::main]
 async fn main() {
@@ -30,7 +30,9 @@ async fn main() {
             panic!("failed to enroll client");
         }
 
-        config_data.replace("enrolled", &true).expect("failed to save config data");
+        config_data
+            .replace("enrolled", &true)
+            .expect("failed to save config data");
     } else {
         debug!("Client already enrolled");
     }
@@ -51,7 +53,10 @@ async fn main() {
         eprintln!("Failed to load modules: {}", e);
     }
 
-    if let Err(e) = module_manager.start_all_modules_by_start(ModuleStart::OnStart).await {
+    if let Err(e) = module_manager
+        .start_all_modules_by_start(ModuleStart::OnStart)
+        .await
+    {
         eprintln!("Failed to start modules: {}", e);
     }
 }

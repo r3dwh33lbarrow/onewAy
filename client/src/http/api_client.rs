@@ -1,10 +1,13 @@
+use crate::schemas::{ApiError, ApiErrorResponse};
 use anyhow::{Context, Result};
-use reqwest::{Client, Method, Url, header::{HeaderMap, HeaderValue, AUTHORIZATION}};
+use reqwest::{
+    Client, Method, Url,
+    header::{AUTHORIZATION, HeaderMap, HeaderValue},
+};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use std::time::Duration;
-use crate::schemas::{ApiError, ApiErrorResponse};
 use serde_json;
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct ApiClient {
@@ -82,7 +85,10 @@ impl ApiClient {
             Ok(data)
         } else {
             let status_code = response.status().as_u16();
-            let error_text = response.text().await.context("failed to read error response")?;
+            let error_text = response
+                .text()
+                .await
+                .context("failed to read error response")?;
 
             if let Ok(api_error) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
                 return Err(anyhow::Error::new(ApiError {
@@ -102,7 +108,8 @@ impl ApiClient {
     where
         T: DeserializeOwned,
     {
-        self.request(Method::GET, endpoint, Option::<&()>::None).await
+        self.request(Method::GET, endpoint, Option::<&()>::None)
+            .await
     }
 
     pub async fn post<Request, Response>(&self, endpoint: &str, body: &Request) -> Result<Response>
@@ -128,11 +135,17 @@ impl ApiClient {
         let response = request.send().await.context("request failed")?;
 
         if response.status().is_success() {
-            let body = response.text().await.context("failed to read response text")?;
+            let body = response
+                .text()
+                .await
+                .context("failed to read response text")?;
             Ok(body)
         } else {
             let status_code = response.status().as_u16();
-            let error_text = response.text().await.context("failed to read error response")?;
+            let error_text = response
+                .text()
+                .await
+                .context("failed to read error response")?;
 
             if let Ok(api_error) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
                 return Err(anyhow::Error::new(ApiError {
