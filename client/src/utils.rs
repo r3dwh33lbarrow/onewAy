@@ -1,13 +1,15 @@
-pub fn snake_case_to_camel_case(snake_str: &str) -> String {
-    snake_str
-        .split('_')
-        .map(|word| {
-            let mut chars = word.chars();
-            match chars.next() {
-                None => String::new(),
-                Some(first) => first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
-            }
-        })
-        .collect()
-}
+pub fn str_to_snake_case(input: &str) -> String {
+    let mut result = String::new();
 
+    for (i, c) in input.chars().enumerate() {
+        if c.is_alphanumeric() {
+            result.push(c.to_ascii_lowercase());
+        } else {
+            if i > 0 && !result.ends_with("_") {
+                result.push('_');
+            }
+        }
+    }
+
+    result.trim_matches('_').to_string()
+}

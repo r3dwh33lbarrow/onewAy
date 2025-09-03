@@ -1,9 +1,10 @@
+use crate::{debug, error, info};
+use anyhow::Result;
+use serde::Deserialize;
 use std::path::Path;
 use std::sync::Arc;
-use serde::Deserialize;
-use anyhow::Result;
 use tokio::sync::Mutex;
-use crate::{debug, error, info};
+use crate::utils::str_to_snake_case;
 
 #[derive(Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -12,9 +13,15 @@ pub enum ModuleStart {
 }
 
 #[derive(Deserialize)]
+pub struct Binaries {
+    pub windows: Option<String>,
+    pub mac: Option<String>,
+}
+
+#[derive(Deserialize)]
 pub struct ModuleConfig {
     name: String,
-    binary: String,
+    binaries: Binaries,
     start: ModuleStart,
 }
 
@@ -23,9 +30,26 @@ pub struct ModuleManager {
     module_configs: Arc<Mutex<Vec<ModuleConfig>>>,
 }
 
+impl ModuleConfig {
+    pub fn resolve_binaries(&self) -> Option<&str> {
+        #[cfg(target_os = "windows")]
+        {
+            return self.binaries.windows.as_deref();
+        }
+        #[cfg(target_os = "macos")]
+        {
+            return self.binaries.mac.as_deref();
+        }
+        None
+    }
+}
+
 impl ModuleManager {
     pub fn new(modules_directory: &str) -> Self {
-        Self { module_configs: Arc::new(Mutex::new(vec![])), modules_directory: modules_directory.to_string() }
+        Self {
+            module_configs: Arc::new(Mutex::new(vec![])),
+            modules_directory: modules_directory.to_string(),
+        }
     }
 
     pub async fn load_module(&mut self, config_path: &str) -> Result<()> {
@@ -53,7 +77,9 @@ impl ModuleManager {
         }
 
         for folder in module_folders {
-            let config_path = Path::new(&self.modules_directory).join(&folder).join("config.yaml");
+            let config_path = Path::new(&self.modules_directory)
+                .join(&folder)
+                .join("config.yaml");
             let result = match tokio::fs::metadata(&config_path).await {
                 Ok(metadata) => metadata.is_file(),
                 Err(_) => false,
@@ -74,14 +100,33 @@ impl ModuleManager {
         for config in self.module_configs.lock().await.iter() {
             if config.start == ModuleStart::OnStart {
                 info!("Starting module: {}", config.name);
-                let mut command = std::process::Command::new(&config.binary);
-                let result = command.spawn();
-                if result.is_err() {
-                    error!("Failed to start module: {}", config.name);
+
+                if let Some(binary) = config.resolve_binaries() {
+                    let relative_binary_path = Path::new(&self.modules_directory)
+                        .join(str_to_snake_case(&config.name))
+                        .join(binary);
+
+                    let mut command = std::process::Command::new(&relative_binary_path);
+                    let result = command.spawn();
+
+                    if result.is_err() {
+                        let mut command = std::process::Command::new(binary);
+                        let result = command.spawn();
+                        if result.is_err() {
+                            error!(
+                                "Failed to start module {} or {}: {}",
+                                binary,
+                                relative_binary_path.to_str().unwrap().to_string(),
+                                result.err().unwrap()
+                            );
+                        }
+                    }
+                } else {
+                    error!("No compatible binary found for {}", config.name);
                 }
             }
         }
-        
+
         Ok(())
     }
 }

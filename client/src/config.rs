@@ -45,8 +45,7 @@ impl ConfigData {
                     }
                 } else if key == "version" {
                     config.version = value.to_string();
-                }
-                else if key == "modules_directory" {
+                } else if key == "modules_directory" {
                     config.modules_directory = parse_root(value);
                 } else {
                     error!(
@@ -61,7 +60,11 @@ impl ConfigData {
         Ok(config)
     }
 
-    pub fn replace<T: std::fmt::Display>(&mut self, key: &str, new_value: &T) -> anyhow::Result<()> {
+    pub fn replace<T: std::fmt::Display>(
+        &mut self,
+        key: &str,
+        new_value: &T,
+    ) -> anyhow::Result<()> {
         let file = File::open(&self.file_name)?;
         let reader = BufReader::new(file);
         let mut lines = Vec::new();
@@ -106,18 +109,13 @@ impl ConfigData {
                 } else {
                     error!(
                         "Failed to parse 'enrolled' in {}: expected 'true' or 'false', got {}",
-                        self.file_name,
-                        new_value
+                        self.file_name, new_value
                     );
                 }
-            },
+            }
             "version" => self.version = new_value.to_string(),
             _ => {
-                error!(
-                    "Invalid key found in {}: {}",
-                    self.file_name,
-                    key
-                );
+                error!("Invalid key found in {}: {}", self.file_name, key);
             }
         }
 
@@ -134,7 +132,7 @@ fn parse_root(path: &str) -> String {
         let root_dir = env_path
             .parent()
             .and_then(|p| p.parent())
-            .unwrap_or_else(|| std::path::Path::new("."));
+            .unwrap_or_else(|| Path::new("."));
 
         let path_with_root = path.replace("[ROOT]", root_dir.to_str().unwrap_or("."));
 
