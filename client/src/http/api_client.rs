@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use crate::schemas::{ApiError, ApiErrorResponse};
 use anyhow::{Context, Result};
 use reqwest::{
@@ -54,6 +55,10 @@ impl ApiClient {
         }
 
         headers
+    }
+
+    pub fn set_access_token(&mut self, token: &str) {
+        self.access_token = Some(token.to_string());
     }
 
     async fn request<Request, Response>(
@@ -152,16 +157,49 @@ impl ApiClient {
                     status_code,
                     detail: api_error.detail,
                 }));
+            } else {
+                Err(anyhow::Error::new(ApiError {
+                    status_code,
+                    detail: error_text,
+                }))
             }
-
-            Err(anyhow::Error::new(ApiError {
-                status_code,
-                detail: error_text,
-            }))
         }
     }
 
-    pub fn set_access_token(&mut self, token: &str) {
-        self.access_token = Some(token.to_string());
+    pub async fn get_file(&self, endpoint: &str, path: &PathBuf) -> Result<()> {
+        let url = self.parse_endpoint(endpoint)?;
+        let request = self.client.get(url).headers(self.build_headers());
+
+        let response = request.send().await.context("request failed")?;
+
+        if response.status().is_success() {
+            let bytes = response
+                .bytes()
+                .await
+                .context("failed to read response bytes")?;
+
+            std::fs::write(path, bytes)
+                .context("failed to write file")?;
+
+            Ok(())
+        } else {
+            let status_code = response.status().as_u16();
+            let error_text = response
+                .text()
+                .await
+                .context("failed to read error response")?;
+
+            if let Ok(api_error) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
+                Err(anyhow::Error::new(ApiError {
+                    status_code,
+                    detail: api_error.detail,
+                }))
+            } else {
+                Err(anyhow::Error::new(ApiError {
+                    status_code,
+                    detail: error_text,
+                }))
+            }
+        }
     }
 }

@@ -4,6 +4,7 @@ mod logger;
 mod module_manager;
 mod schemas;
 mod utils;
+mod update;
 
 use crate::config::ConfigData;
 use crate::http::api_client::ApiClient;
@@ -50,13 +51,13 @@ async fn main() {
     debug!("Loading modules from {}", config_data.modules_directory);
     let mut module_manager = ModuleManager::new(&config_data.modules_directory);
     if let Err(e) = module_manager.load_all_modules().await {
-        eprintln!("Failed to load modules: {}", e);
+        error!("Failed to load modules: {}", e);
     }
 
     if let Err(e) = module_manager
         .start_all_modules_by_start(ModuleStart::OnStart)
         .await
     {
-        eprintln!("Failed to start modules: {}", e);
+        error!("Failed to start modules: {}", e);
     }
 }
