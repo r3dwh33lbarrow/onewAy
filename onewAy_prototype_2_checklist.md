@@ -75,7 +75,7 @@
 
 ### client
 
-- [ ] Implement module datatypes
+- [x] Implement module datatypes
 - [ ] Implement module lifecycle
 - [ ] Add update functionality
 - [ ] Add update testing a test modules

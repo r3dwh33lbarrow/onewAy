@@ -1,6 +1,7 @@
 name: Test Module
 description: A module for testing purposes
 version: 0.1.0
+start: on_start
 
 binaries:
   windows: test_module.exe

@@ -4,7 +4,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::time::Duration;
 use crate::schemas::{ApiError, ApiErrorResponse};
-use serde_json; // Import serde_json for JSON parsing of error responses
+use serde_json;
 
 #[derive(Debug, Clone)]
 pub struct ApiClient {
@@ -74,7 +74,6 @@ impl ApiClient {
 
         let response = request.send().await.context("request failed")?;
 
-        // Check if the response is successful
         if response.status().is_success() {
             let data = response
                 .json::<Response>()
@@ -82,11 +81,9 @@ impl ApiClient {
                 .context("failed to parse JSON response")?;
             Ok(data)
         } else {
-            // Try to parse the error response to get detailed error information
             let status_code = response.status().as_u16();
             let error_text = response.text().await.context("failed to read error response")?;
 
-            // Try to parse as structured API error first
             if let Ok(api_error) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
                 return Err(anyhow::Error::new(ApiError {
                     status_code,
@@ -94,7 +91,6 @@ impl ApiClient {
                 }));
             }
 
-            // Fall back to raw error text if JSON parsing fails
             Err(anyhow::Error::new(ApiError {
                 status_code,
                 detail: error_text,

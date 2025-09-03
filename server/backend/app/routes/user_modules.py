@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
-from starlette.responses import RedirectResponse
 
 from app.dependencies import get_db
 from app.models.module import Module
@@ -67,6 +66,7 @@ async def user_modules_add(request: ModuleAddRequest, db: AsyncSession = Depends
             name=config["name"],
             description=config.get("description"),
             version=config["version"],
+            start=config["start"],
             binaries=binaries
         )
     except KeyError as e:
@@ -77,6 +77,7 @@ async def user_modules_add(request: ModuleAddRequest, db: AsyncSession = Depends
             name=convert_to_snake_case(module_info.name),
             description=module_info.description,
             version=module_info.version,
+            start=module_info.start,
             binaries=binaries
         )
         db.add(new_module)
@@ -173,6 +174,7 @@ async def user_modules_upload(
                 name=convert_to_snake_case(config["name"]),
                 description=config.get("description"),
                 version=config["version"],
+                start=config["start"],
                 binaries=binaries,
             )
         except KeyError as e:

@@ -9,4 +9,5 @@ class Module(Base):
     name = Column(String, primary_key=True, index=True)
     description = Column(String)
     version = Column(String, nullable=False)
+    start = Column(String, nullable=False)
     binaries = Column(JSON)
