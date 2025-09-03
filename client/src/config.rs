@@ -11,6 +11,7 @@ pub struct ConfigData {
     pub password: String,
     pub enrolled: bool,
     pub version: String,
+    pub modules_directory: String,
 }
 
 impl ConfigData {
@@ -44,6 +45,9 @@ impl ConfigData {
                     }
                 } else if key == "version" {
                     config.version = value.to_string();
+                }
+                else if key == "modules_directory" {
+                    config.modules_directory = parse_root(value);
                 } else {
                     error!(
                         "Invalid key found in {}: {}",
@@ -118,5 +122,33 @@ impl ConfigData {
         }
 
         Ok(())
+    }
+}
+
+fn parse_root(path: &str) -> String {
+    if path.contains("[ROOT]") {
+        let env_path = std::env::current_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+            .join(".env");
+
+        let root_dir = env_path
+            .parent()
+            .and_then(|p| p.parent())
+            .unwrap_or_else(|| std::path::Path::new("."));
+
+        let path_with_root = path.replace("[ROOT]", root_dir.to_str().unwrap_or("."));
+
+        let normalized_path = if cfg!(windows) {
+            path_with_root.replace('/', "\\")
+        } else {
+            path_with_root
+        };
+
+        std::path::PathBuf::from(normalized_path)
+            .to_str()
+            .unwrap_or(path)
+            .to_string()
+    } else {
+        path.to_string()
     }
 }
