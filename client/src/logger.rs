@@ -49,7 +49,14 @@ pub fn init_logger() {
         .name("logger-writer".into())
         .spawn(move || {
             for rec in rx.iter() {
-                println!("[{}] [{}] - {}", rec.level, rec.timestamp, rec.message);
+                match rec.level {
+                    LogLevel::Error | LogLevel::Fatal => {
+                        eprintln!("[{}] [{}] - {}", rec.level, rec.timestamp, rec.message);
+                    }
+                    _ => {
+                        println!("[{}] [{}] - {}", rec.level, rec.timestamp, rec.message);
+                    }
+                }
             }
         })
         .expect("Failed to spawn logger thread");
