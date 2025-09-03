@@ -3,11 +3,14 @@ mod http;
 mod logger;
 mod schemas;
 mod utils;
+mod module_manager;
 
 use std::path::Path;
 use crate::config::ConfigData;
 use crate::http::api_client::ApiClient;
 use crate::http::auth::{enroll, login};
+use crate::module_manager::{ModuleManager, ModuleStart};
+
 #[tokio::main]
 async fn main() {
     let mut config_data: ConfigData = ConfigData::load(Path::new(".env")).unwrap();
@@ -43,4 +46,12 @@ async fn main() {
     }
 
     debug!("Loading modules from {}", config_data.modules_directory);
+    let mut module_manager = ModuleManager::new(&config_data.modules_directory);
+    if let Err(e) = module_manager.load_all_modules().await {
+        eprintln!("Failed to load modules: {}", e);
+    }
+
+    if let Err(e) = module_manager.start_all_modules_by_start(ModuleStart::OnStart).await {
+        eprintln!("Failed to start modules: {}", e);
+    }
 }
