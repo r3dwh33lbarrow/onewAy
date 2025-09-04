@@ -10,7 +10,7 @@ from starlette import status
 
 from app.dependencies import get_db
 from app.models.client import Client
-from app.schemas.client import ClientAllResponse, BasicClientInfo
+from app.schemas.client import ClientAllResponse, BasicClientInfo, ClientUpdateInfo
 from app.services import authentication
 from app.services.authentication import get_current_client
 from app.settings import settings
@@ -60,3 +60,25 @@ async def client_update(client: Client = Depends(get_current_client)):
         )
 
     return FileResponse(path=client_binary, filename=f"client{client_binary_ext}", media_type="application/octet-stream")
+
+
+@router.post("/update-info")
+async def client_update_info(update_info: ClientUpdateInfo,
+                             client: Client = Depends(get_current_client),
+                             db: AsyncSession = Depends(get_db)):
+    if update_info.ip_address:
+        client.client_version = update_info.ip_address
+    if update_info.last_known_location:
+        client.last_known_location = update_info.last_known_location
+    if update_info.client_version:
+        client.client_version = update_info.client_version
+
+    try:
+        await db.commit()
+        await db.refresh(client)
+    except Exception:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to add updated information to the database"
+        )
