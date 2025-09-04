@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 
 class BasicClientInfo(BaseModel):
@@ -12,3 +12,9 @@ class BasicClientInfo(BaseModel):
 
 class ClientAllResponse(BaseModel):
     clients: List[BasicClientInfo]
+
+
+class ClientUpdateInfo(BaseModel):
+    ip_address: Optional[str]
+    last_known_location: Optional[str]
+    client_version: Optional[str]
