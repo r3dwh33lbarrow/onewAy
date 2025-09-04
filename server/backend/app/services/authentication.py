@@ -286,6 +286,10 @@ async def rotate_refresh_token(request: Request, db: AsyncSession) -> tuple[str,
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to rotate refresh token: {str(e)}")
 
 
+def is_client(request: Request) -> bool:
+    return "oneway" in request.headers.get("user-agent")
+
+
 def verify_access_token(request: Request):
     """
     Verify the validity of an access token provided in the request headers.
@@ -305,15 +309,21 @@ def verify_access_token(request: Request):
     Raises:
         HTTPException: If the access token is missing, invalid, or does not contain a valid user UUID.
     """
-    authorization_header = request.headers.get("Authorization")
+    if is_client(request):
+        authorization_header = request.headers.get("Authorization")
 
-    if not authorization_header or not authorization_header.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid authorization header")
+        if not authorization_header or not authorization_header.startswith("Bearer "):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid authorization header")
 
-    access_token = authorization_header[7:]
+        access_token = authorization_header[7:]
 
-    if not access_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing access token")
+        if not access_token:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing access token")
+
+    else:
+        access_token = request.cookies.get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing access token cookie")
 
     try:
         decoded_token = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
