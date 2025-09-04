@@ -29,7 +29,7 @@ export default function AuthForm({
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [apiUrl, setApiUrl] = useState('http://localhost:8000');
+  const [apiUrl, setApiUrl] = useState('http://localhost:8000/');
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: '',
