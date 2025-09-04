@@ -1,9 +1,9 @@
-import LoginPanel from "./componets/LoginPanel.tsx";
+import LoginPanel from "./components/LoginPanel.tsx";
   import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
   import { Login, Register } from "./services/authentication.ts";
-  import RegisterPanel from "./componets/RegisterPanel.tsx";
-  import Dashboard from "./componets/Dashboard.tsx";
-  import ProtectedRoute from "./componets/ProtectedRoute.tsx";
+  import RegisterPanel from "./components/RegisterPanel.tsx";
+  import Dashboard from "./components/Dashboard.tsx";
+  import ProtectedRoute from "./components/ProtectedRoute.tsx";
   import {useAuthStore} from "./stores/authStore.ts";
 
   function App() {
