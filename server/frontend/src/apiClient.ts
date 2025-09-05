@@ -3,6 +3,15 @@ export interface ApiError {
   message: string;
 }
 
+export function isApiError(obj: unknown): obj is ApiError {
+  return (
+    typeof obj === 'object' &&
+      obj !== null &&
+      'statusCode' in obj &&
+      'message' in obj
+  );
+}
+
 class ApiClient {
   private apiUrl: string | undefined;
   private readonly initializationPromise: Promise<void> | null = null;
