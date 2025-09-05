@@ -4,7 +4,7 @@ import { HiOutlineDesktopComputer } from "react-icons/hi";
 
 export default function ClientCard({ username, hostname, alive, last_contact }: BasicClientInfo) {
   return (
-    <Card className="w-full col-span-full dark:text-white">
+    <Card className="w-full col-span-full dark:text-white" href={"client/" + username}>
       <div className="flex items-center justify-between">
         <div className="flex flex-col items-center">
           <HiOutlineDesktopComputer className="text-2xl mb-1" />

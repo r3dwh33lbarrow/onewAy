@@ -1,30 +1,43 @@
 import LoginPanel from "./components/LoginPanel.tsx";
-  import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
-  import { Login, Register } from "./services/authentication.ts";
-  import RegisterPanel from "./components/RegisterPanel.tsx";
-  import Dashboard from "./components/Dashboard.tsx";
-  import ProtectedRoute from "./components/ProtectedRoute.tsx";
-  import {useAuthStore} from "./stores/authStore.ts";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { Login, Register } from "./services/authentication.ts";
+import RegisterPanel from "./components/RegisterPanel.tsx";
+import Dashboard from "./components/Dashboard.tsx";
+import ProtectedRoute from "./components/ProtectedRoute.tsx";
+import {useAuthStore} from "./stores/authStore.ts";
+import ClientPageWrapper from "./components/ClientPageWrapper.tsx";
 
-  function App() {
-    const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+export default function App() {
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
 
-    return (
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={
             <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
-          } />
-          <Route path="/login" element={<LoginPanel onSubmit={Login} />} />
-          <Route path="/register" element={<RegisterPanel onSubmit={Register} />} />
-          <Route path="/dashboard" element={
+          }
+        />
+        <Route path="/login" element={<LoginPanel onSubmit={Login} />} />
+        <Route path="/register" element={<RegisterPanel onSubmit={Register} />} />
+        <Route
+          path="/dashboard"
+          element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
-          } />
-        </Routes>
-      </BrowserRouter>
-    );
-  }
-
-  export default App;
+          }
+        />
+        <Route
+          path="/client/:username"
+          element={
+            <ProtectedRoute>
+              <ClientPageWrapper />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+}
