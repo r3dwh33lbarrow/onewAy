@@ -9,3 +9,8 @@ export interface BasicClientInfo {
 export interface ClientAllResponse {
   clients: BasicClientInfo[];
 }
+
+export interface ClientInfo extends BasicClientInfo {
+  uuid: string;
+  last_known_location: string;
+}
