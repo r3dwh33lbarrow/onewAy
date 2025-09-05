@@ -117,5 +117,9 @@ export default function Dashboard() {
     </div>
   );
 
-  return <MainSkeleton baseName="Dashboard" baseContents={dashboardContents} />;
+  return (
+    <MainSkeleton baseName="Dashboard">
+      {dashboardContents}
+    </MainSkeleton>
+  );
 }
