@@ -4,10 +4,10 @@ import React from "react";
 
 interface MainSkeletonProps {
   baseName: string;
-  baseContents: React.ReactNode;
+  children: React.ReactNode;
 }
 
-export default function MainSkeleton({ baseName, baseContents }: MainSkeletonProps) {
+export default function MainSkeleton({ baseName, children }: MainSkeletonProps) {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <aside
@@ -28,7 +28,7 @@ export default function MainSkeleton({ baseName, baseContents }: MainSkeletonPro
         </header>
 
         <main className="p-6">
-          {baseContents}
+          {children}
         </main>
       </div>
     </div>
