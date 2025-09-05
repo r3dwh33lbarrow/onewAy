@@ -27,6 +27,10 @@ export default function ClientPage({ username }: ClientPageProps) {
     fetchClientInfo();
   }, [username, navigate]);
 
-  const clientPageContents = <div>Hello World</div>
-  return <MainSkeleton baseName={"Client " + username} baseContents={clientPageContents} />;
+  const clientPageContents = <div>Hello World</div>;
+  return (
+    <MainSkeleton baseName={"Client " + username}>
+      {clientPageContents}
+    </MainSkeleton>
+  );
 }
