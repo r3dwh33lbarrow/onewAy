@@ -6,6 +6,7 @@ import Dashboard from "./components/Dashboard.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import {useAuthStore} from "./stores/authStore.ts";
 import ClientPageWrapper from "./components/ClientPageWrapper.tsx";
+import NotFound from "./components/404.tsx";
 
 export default function App() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -37,6 +38,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   );
