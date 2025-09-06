@@ -10,12 +10,35 @@ from starlette import status
 
 from app.dependencies import get_db
 from app.models.client import Client
-from app.schemas.client import ClientAllResponse, BasicClientInfo, ClientUpdateInfo
+from app.schemas.client import ClientAllResponse, BasicClientInfo, ClientUpdateInfo, ClientAllInfo
 from app.services import authentication
 from app.services.authentication import get_current_client
 from app.settings import settings
 
 router = APIRouter(prefix="/client")
+
+
+@router.get("/get/{username}", response_model=ClientAllInfo)
+async def client(username: str, db: AsyncSession = Depends(get_db), _=Depends(authentication.verify_access_token)):
+    result = await db.execute(select(Client).where(Client.username == username))
+    result = result.scalar_one_or_none()
+
+    if result:
+        return ClientAllInfo(
+            uuid=str(result.uuid),
+            username=result.username,
+            ip_address=result.ip_address,
+            hostname=result.hostname if result.hostname else "",
+            alive=result.alive,
+            last_contact=str(result.last_contact),
+            last_known_location=result.last_known_location if result.last_known_location else "",
+            client_version=result.client_version
+        )
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Client not found"
+    )
 
 
 @router.get("/all", response_model=ClientAllResponse)
