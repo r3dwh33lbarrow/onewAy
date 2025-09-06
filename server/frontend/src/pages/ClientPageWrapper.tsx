@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import ClientPage from "./ClientPage";
+import ClientPage from "./ClientPage.tsx";
 
 export default function ClientPageWrapper() {
   const { username } = useParams<{ username: string }>();
