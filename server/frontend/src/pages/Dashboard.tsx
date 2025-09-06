@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import ClientCard from "./ClientCard";
-import { apiClient } from "../apiClient";
-import type { ClientAllResponse, BasicClientInfo } from "../schemas/client";
-import type { TokenResponse } from "../schemas/authentication";
-import MainSkeleton from "./MainSkeleton";
+import ClientCard from "../components/ClientCard.tsx";
+import { apiClient } from "../apiClient.ts";
+import type { ClientAllResponse, BasicClientInfo } from "../schemas/client.ts";
+import type { TokenResponse } from "../schemas/authentication.ts";
+import MainSkeleton from "../components/MainSkeleton.tsx";
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);

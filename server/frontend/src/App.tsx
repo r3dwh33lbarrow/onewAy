@@ -2,10 +2,10 @@ import LoginPanel from "./components/LoginPanel.tsx";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Login, Register } from "./services/authentication.ts";
 import RegisterPanel from "./components/RegisterPanel.tsx";
-import Dashboard from "./components/Dashboard.tsx";
+import Dashboard from "./pages/Dashboard.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import {useAuthStore} from "./stores/authStore.ts";
-import ClientPageWrapper from "./components/ClientPageWrapper.tsx";
+import ClientPageWrapper from "./pages/ClientPageWrapper.tsx";
 import NotFound from "./components/404.tsx";
 
 export default function App() {
