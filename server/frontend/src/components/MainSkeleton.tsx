@@ -27,7 +27,7 @@ export default function MainSkeleton({ baseName, children }: MainSkeletonProps) 
           <TopIcons/>
         </header>
 
-        <main className="p-6">
+        <main className="p-6 text-gray-600 dark:text-gray-200">
           {children}
         </main>
       </div>
