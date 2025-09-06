@@ -7,6 +7,7 @@ import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import {useAuthStore} from "./stores/authStore.ts";
 import ClientPageWrapper from "./pages/ClientPageWrapper.tsx";
 import NotFound from "./pages/404.tsx";
+import ModulesPage from "./pages/ModulesPage.tsx";
 
 export default function App() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -35,6 +36,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ClientPageWrapper />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/modules"
+          element={
+            <ProtectedRoute>
+              <ModulesPage />
             </ProtectedRoute>
           }
         />

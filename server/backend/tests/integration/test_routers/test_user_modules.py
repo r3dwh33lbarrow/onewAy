@@ -91,6 +91,7 @@ async def test_user_modules_upload_and_add(client: AsyncClient, db_session: Asyn
         "name": module_name,
         "description": "Upload test module",
         "version": "1.0.0",
+        "start": "main.py",
         "binaries": json.dumps({"linux": "bin"})
     }
     zip_bytes = make_zip_with_config(config)
@@ -140,7 +141,7 @@ async def test_user_modules_upload_missing_config_yaml(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_user_modules_get_success(client: AsyncClient, db_session: AsyncSession):
     client = await auth_client(client)
-    mod = Module(name="getmod", description="desc", version="2.0", binaries={"win": "exe"})
+    mod = Module(name="getmod", description="desc", version="2.0", start="main.py", binaries={"win": "exe"})
     db_session.add(mod)
     await db_session.commit()
 
@@ -165,7 +166,7 @@ async def test_user_modules_get_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_user_modules_update_success(client: AsyncClient, db_session: AsyncSession):
     client = await auth_client(client)
-    mod = Module(name="updateme", description="old", version="0.1", binaries={})
+    mod = Module(name="updateme", description="old", version="0.1", start="old_start.py", binaries={})
     db_session.add(mod)
     await db_session.commit()
 
@@ -173,6 +174,7 @@ async def test_user_modules_update_success(client: AsyncClient, db_session: Asyn
         "name": "UpdatedName",
         "description": "new description",
         "version": "1.2.3",
+        "start": "new_start.py",
         "binaries": json.dumps({"linux": "newbin"})
     }
     zip_bytes = make_zip_with_config(new_config)
@@ -192,7 +194,7 @@ async def test_user_modules_update_success(client: AsyncClient, db_session: Asyn
 @pytest.mark.asyncio
 async def test_user_modules_update_not_found(client: AsyncClient):
     client = await auth_client(client)
-    fake_zip = make_zip_with_config({"name": "fake", "version": "1.0.0"})
+    fake_zip = make_zip_with_config({"name": "fake", "version": "1.0.0", "start": "main.py"})
     files = {"file": ("fake.zip", fake_zip, "application/zip")}
     response = await client.put("/user/modules/update/notreal", files=files)
     assert response.status_code == 404
@@ -209,7 +211,7 @@ async def test_user_modules_update_not_found(client: AsyncClient):
 )
 async def test_user_modules_update_invalid_config(client: AsyncClient, db_session: AsyncSession, config, expected_msg):
     client = await auth_client(client)
-    mod = Module(name="broken", description="old", version="0.1", binaries={})
+    mod = Module(name="broken", description="old", version="0.1", start="old.py", binaries={})
     db_session.add(mod)
     await db_session.commit()
 
@@ -224,7 +226,7 @@ async def test_user_modules_update_invalid_config(client: AsyncClient, db_sessio
 @pytest.mark.asyncio
 async def test_user_modules_update_corrupt_yaml(client: AsyncClient, db_session: AsyncSession):
     client = await auth_client(client)
-    mod = Module(name="yamlmod", description="old", version="0.1", binaries={})
+    mod = Module(name="yamlmod", description="old", version="0.1", start="old.py", binaries={})
     db_session.add(mod)
     await db_session.commit()
 
@@ -241,7 +243,7 @@ async def test_user_modules_update_corrupt_yaml(client: AsyncClient, db_session:
 @pytest.mark.asyncio
 async def test_user_modules_delete_success(client: AsyncClient, db_session: AsyncSession):
     client = await auth_client(client)
-    mod = Module(name="deleteme", description="bye", version="9.9.9", binaries={})
+    mod = Module(name="deleteme", description="bye", version="9.9.9", start="main.py", binaries={})
     db_session.add(mod)
     await db_session.commit()
 
