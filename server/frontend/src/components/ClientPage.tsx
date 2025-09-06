@@ -33,7 +33,18 @@ export default function ClientPage({ username }: ClientPageProps) {
   return (
     <MainSkeleton baseName={"Client " + username}>
       <div>
-        {clientInfo ? <p>{clientInfo.uuid}</p> : <p>Loading...</p>}
+        {clientInfo ? (
+          <div className="flex flex-col justify-center items-center text-gray-800 dark:text-gray-200 gap-2">
+            <p>{clientInfo.uuid}</p>
+            <p>{clientInfo.username}</p>
+            <p>{clientInfo.hostname}</p>
+            <p>{clientInfo.ip_address}</p>
+            <p>{String(clientInfo.alive)}</p>
+            <p>{clientInfo.last_contact}</p>
+          </div>
+        ) : (
+          <p>Loading...</p>
+        )}
       </div>
     </MainSkeleton>
   );
