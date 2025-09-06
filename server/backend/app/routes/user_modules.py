@@ -30,6 +30,7 @@ async def user_modules_all(db: AsyncSession = Depends(get_db), _=Depends(verify_
     module_list = [
         ModuleBasicInfo(
             name=module.name,
+            description=module.description,
             version=module.version,
             binaries_platform=list(module.binaries.keys()) if module.binaries else []
         ) for module in modules
