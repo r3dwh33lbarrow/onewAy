@@ -1,4 +1,4 @@
-import MainSkeleton from "./MainSkeleton.tsx";
+import MainSkeleton from "../components/MainSkeleton.tsx";
 import {useEffect, useState} from "react";
 import {apiClient, isApiError} from "../apiClient.ts";
 import type {ClientInfo} from "../schemas/client.ts";
