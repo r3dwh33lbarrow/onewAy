@@ -6,7 +6,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import {useAuthStore} from "./stores/authStore.ts";
 import ClientPageWrapper from "./pages/ClientPageWrapper.tsx";
-import NotFound from "./components/404.tsx";
+import NotFound from "./pages/404.tsx";
 
 export default function App() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
