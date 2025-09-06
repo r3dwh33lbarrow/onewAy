@@ -1,8 +1,12 @@
 import MainSkeleton from "../components/MainSkeleton.tsx";
 import type {UserModuleAllResponse} from "../services/modules.ts";
-import { getAllModules } from "../services/modules.ts";
-import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from "flowbite-react";
+import { getAllModules, uploadModule } from "../services/modules.ts";
+import {Button, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow} from "flowbite-react";
 import { useEffect, useState } from "react";
+import {snakeCaseToTitle} from "../utils.ts";
+import { HiMiniPlus } from "react-icons/hi2";
+import { HiOutlineUpload } from "react-icons/hi";
+
 
 export default function ModulesPage() {
   const [modules, setModules] = useState<UserModuleAllResponse["modules"]>([]);
@@ -33,9 +37,80 @@ export default function ModulesPage() {
     fetchModules();
   }, []);
 
+  const uploadAndAdd = () => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.zip';
+    fileInput.style.display = 'none';
+
+    fileInput.onchange = async (event) => {
+      const target = event.target as HTMLInputElement;
+      const file = target.files?.[0];
+
+      if (!file) {
+        return;
+      }
+
+      if (!file.name.toLowerCase().endsWith('.zip')) {
+        alert('Please select a .zip file');
+        return;
+      }
+
+      // Prompt for developer name after file selection
+      const devName = prompt('Enter module name: ');
+      if (!devName || devName.trim() === '') {
+        alert('Module name is required');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const result = await uploadModule(devName.trim(), file);
+
+        if ("result" in result) {
+          alert('Module uploaded successfully!');
+          // Refresh the modules list
+          const modulesResult = await getAllModules();
+          if ("modules" in modulesResult) {
+            setModules(modulesResult.modules);
+          }
+        } else {
+          // Handle ApiError
+          console.error('Upload API Error:', result);
+          alert(`Upload failed: ${result.message || 'Unknown error'}`);
+        }
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert('Upload failed. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+
+      // Clean up
+      document.body.removeChild(fileInput);
+    };
+
+    // Trigger file selection dialog immediately on user click
+    document.body.appendChild(fileInput);
+    fileInput.click();
+  }
+
   return (
     <MainSkeleton baseName="Modules">
+      { /* TODO: See if button is off center */ }
       <div className="space-y-6">
+        <div className="flex gap-4">
+          <Button color="indigo" pill className="px-6 gap-1" onClick={uploadAndAdd}>
+            <HiOutlineUpload className="h-5 w-5" />
+            Upload & Add
+          </Button>
+
+          <Button color="indigo" pill className="px-6 gap-1">
+            <HiMiniPlus className="h-5 w-5" />
+            Add
+          </Button>
+        </div>
+
         {loading && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="animate-pulse space-y-4">
@@ -59,15 +134,21 @@ export default function ModulesPage() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
             <Table>
               <TableHead>
-                <TableHeadCell>Module Name</TableHeadCell>
-                <TableHeadCell>Version</TableHeadCell>
-                <TableHeadCell>Supported Platforms</TableHeadCell>
+                <TableRow>
+                  <TableHeadCell>Module Name</TableHeadCell>
+                  <TableHeadCell>Description</TableHeadCell>
+                  <TableHeadCell>Version</TableHeadCell>
+                  <TableHeadCell>Supported Platforms</TableHeadCell>
+                </TableRow>
               </TableHead>
               <TableBody className="divide-y">
                 {modules.map((module, index) => (
                   <TableRow key={`${module.name}-${module.version}-${index}`} className="bg-white dark:border-gray-700 dark:bg-gray-800">
                     <TableCell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
-                      {module.name}
+                      {snakeCaseToTitle(module.name)}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-gray-900 dark:text-white">
+                      {module.description}
                     </TableCell>
                     <TableCell>
                       {module.version}
