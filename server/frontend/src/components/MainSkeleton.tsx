@@ -1,4 +1,4 @@
-import MainSidebar from "./MainSidebar.tsx";
+import MainSidebar from "../layout/MainSidebar.tsx";
 import TopIcons from "./TopIcons.tsx";
 import React from "react";
 
