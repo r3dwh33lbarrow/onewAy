@@ -1,5 +1,5 @@
 import MainSkeleton from "./MainSkeleton.tsx";
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {apiClient, isApiError} from "../apiClient.ts";
 import type {ClientInfo} from "../schemas/client.ts";
 import {useNavigate} from "react-router-dom";
@@ -11,9 +11,11 @@ interface ClientPageProps {
 export default function ClientPage({ username }: ClientPageProps) {
   const navigate = useNavigate();
 
+  const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
+
   useEffect(() => {
     const fetchClientInfo = async() => {
-      const response = await apiClient.get<ClientInfo>("/client/" + username);
+      const response = await apiClient.get<ClientInfo>("/client/get/" + username);
 
       if (isApiError(response)) {
         if (response.statusCode === 404) {
@@ -22,15 +24,17 @@ export default function ClientPage({ username }: ClientPageProps) {
 
         return;
       }
+      setClientInfo(response);
     };
 
     fetchClientInfo();
   }, [username, navigate]);
 
-  const clientPageContents = <div>Hello World</div>;
   return (
     <MainSkeleton baseName={"Client " + username}>
-      {clientPageContents}
+      <div>
+        {clientInfo ? <p>{clientInfo.uuid}</p> : <p>Loading...</p>}
+      </div>
     </MainSkeleton>
   );
 }
