@@ -18,7 +18,7 @@ from app.schemas.user_modules import UserModuleAllResponse, ModuleBasicInfo, Mod
     ModuleDirectoryContents
 from app.services.authentication import verify_access_token
 from app.settings import settings
-from app.utils import convert_to_snake_case, hyphen_to_snake_case
+from app.utils import convert_to_snake_case, hyphen_to_snake_case, resolve_root
 
 router = APIRouter(prefix="/user/modules")
 
@@ -41,10 +41,19 @@ async def user_modules_all(db: AsyncSession = Depends(get_db), _=Depends(verify_
 
 @router.post("/add", response_model=BasicTaskResponse)
 async def user_modules_add(request: ModuleAddRequest, db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)):
-    if not os.path.exists(request.module_path):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Module path does not exist")
+    # Try relative paths first
+    relative_module_path = Path(resolve_root("[ROOT]")) / "modules" / request.module_path
 
-    config_path = Path(request.module_path) / "config.yaml"
+    if not os.path.exists(request.module_path):
+        if not os.path.exists(relative_module_path):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Module path does not exist")
+
+        else:
+            module_path = relative_module_path
+    else:
+        module_path = request.module_path
+
+    config_path = Path(module_path) / "config.yaml"
     if not os.path.isfile(config_path):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Module config.yaml does not exist")
 

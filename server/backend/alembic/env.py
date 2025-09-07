@@ -29,6 +29,7 @@ if config.config_file_name is not None:
 from app.db.base import Base
 from app.models.client import Client
 from app.models.refresh_token import RefreshToken
+from app.models.module import Module
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

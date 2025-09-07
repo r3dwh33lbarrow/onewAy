@@ -15,9 +15,10 @@ interface ModuleAddRequest {
 interface ModuleAddModalProps {
   show: boolean;
   onClose: () => void;
+  onModuleAdded: () => void;
 }
 
-export default function ModuleAddModal({show, onClose}: ModuleAddModalProps) {
+export default function ModuleAddModal({show, onClose, onModuleAdded}: ModuleAddModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [directoryContents, setDirectoryContents] = useState<Array<Record<string, string>> | null>(null);
@@ -68,10 +69,11 @@ export default function ModuleAddModal({show, onClose}: ModuleAddModalProps) {
     }
 
     onClose();
+    onModuleAdded();
   }
 
   return (
-    <Modal show={show} onClose={onClose} size="lg">
+    <Modal show={show} onClose={onClose} size="2xl">
       <ModalHeader>Select Module from Directory</ModalHeader>
       <ModalBody className="space-y-6">
         {error && (
