@@ -18,9 +18,11 @@ def hyphen_to_snake_case(string: str) -> str:
 
 def resolve_root(path: str) -> str:
     try:
-        root = str(Path(__file__).resolve().parent.parent.parent.parent)
+        # Use pathlib for cross-platform path handling
+        root = Path(__file__).resolve().parent.parent.parent.parent
+        # Replace [ROOT] with the actual root path and normalize
+        resolved_path = path.replace("[ROOT]", str(root))
+        return str(Path(resolved_path))
     except Exception as e:
         log.error("Failed to parse [ROOT] from config: " + str(e))
-        root = ""
-
-    return path.replace("[ROOT]", root)
+        return path

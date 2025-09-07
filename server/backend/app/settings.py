@@ -24,12 +24,12 @@ class Settings(BaseSettings):
 
     # Module settings
     # Production modules directory (default); tests use a separate path
-    module_path_prod: str = Field("[ROOT]/modules", alias="MODULE_DIRECTORY")
+    module_path_prod: str = Field("[ROOT]" + os.sep + "modules", alias="MODULE_DIRECTORY")
     # Test modules directory (cleaned by tests)
-    module_path_test: str = Field("[ROOT]/server/backend/app/modules", alias="TEST_MODULE_DIRECTORY")
+    module_path_test: str = Field("[ROOT]" + os.sep + "server" + os.sep + "backend" + os.sep + "app" + os.sep + "modules", alias="TEST_MODULE_DIRECTORY")
     # Effective modules directory used by the app (computed in validator)
-    module_path: str = "[ROOT]/modules"
-    client_directory: str = Field("[ROOT]/client", alias="CLIENT_DIRECTORY")
+    module_path: str = "[ROOT]" + os.sep + "modules"
+    client_directory: str = Field("[ROOT]" + os.sep + "client", alias="CLIENT_DIRECTORY")
 
     model_config = {
         "env_file": ".env",

@@ -6,12 +6,14 @@ import { useEffect, useState } from "react";
 import {snakeCaseToTitle} from "../utils.ts";
 import { HiMiniPlus } from "react-icons/hi2";
 import { HiOutlineUpload } from "react-icons/hi";
+import ModuleAddModal from "../components/ModuleAddModal.tsx";
 
 
 export default function ModulesPage() {
   const [modules, setModules] = useState<UserModuleAllResponse["modules"]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     const fetchModules = async () => {
@@ -95,6 +97,25 @@ export default function ModulesPage() {
     fileInput.click();
   }
 
+  const refreshModules = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await getAllModules();
+
+      if ("modules" in result) {
+        setModules(result.modules);
+      } else {
+        setError(result.message || "Failed to fetch modules");
+      }
+    } catch (err) {
+      setError("An unexpected error occurred");
+      console.error("Error fetching modules:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <MainSkeleton baseName="Modules">
       { /* TODO: See if button is off center */ }
@@ -105,7 +126,7 @@ export default function ModulesPage() {
             Upload & Add
           </Button>
 
-          <Button color="indigo" pill className="px-6 gap-1">
+          <Button color="indigo" pill className="px-6 gap-1" onClick={() => setShowAddModal(true)}>
             <HiMiniPlus className="h-5 w-5" />
             Add
           </Button>
@@ -178,6 +199,12 @@ export default function ModulesPage() {
           </div>
         )}
       </div>
+
+      <ModuleAddModal
+        show={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onModuleAdded={refreshModules}
+      />
     </MainSkeleton>
   );
 }

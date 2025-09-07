@@ -14,7 +14,8 @@ from starlette import status
 from app.dependencies import get_db
 from app.models.module import Module
 from app.schemas.general import BasicTaskResponse
-from app.schemas.user_modules import UserModuleAllResponse, ModuleBasicInfo, ModuleInfo, ModuleAddRequest
+from app.schemas.user_modules import UserModuleAllResponse, ModuleBasicInfo, ModuleInfo, ModuleAddRequest, \
+    ModuleDirectoryContents
 from app.services.authentication import verify_access_token
 from app.settings import settings
 from app.utils import convert_to_snake_case, hyphen_to_snake_case
@@ -222,7 +223,7 @@ async def user_modules_upload(
         )
 
 
-@router.get("/{module_name}")
+@router.get("/get/{module_name}")
 async def user_modules_get(
         module_name: str,
         db: AsyncSession = Depends(get_db),
@@ -427,3 +428,25 @@ async def user_modules_delete(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete module"
         )
+
+
+@router.get("/query-module-dir", response_model=ModuleDirectoryContents)
+async def user_modules_query_module_dir():
+    contents_list = []
+    if settings.module_path and os.path.isdir(settings.module_path):
+        try:
+            for item in os.listdir(settings.module_path):
+                item_path = os.path.join(settings.module_path, item)
+                if os.path.isfile(item_path):
+                    contents_list.append({"file": item})
+                elif os.path.isdir(item_path):
+                    contents_list.append({"directory": item})
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to query module directory: {str(e)}"
+            )
+    else:
+        return {"contents": []}
+
+    return {"contents": contents_list}

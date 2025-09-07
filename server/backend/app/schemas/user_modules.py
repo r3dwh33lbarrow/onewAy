@@ -24,3 +24,7 @@ class ModuleInfo(BaseModel):
 
 class ModuleAddRequest(BaseModel):
     module_path: str = Field(min_length=1, description="Path to the module directory")
+
+
+class ModuleDirectoryContents(BaseModel):
+    contents: Optional[list[dict[str, str]]] = None
