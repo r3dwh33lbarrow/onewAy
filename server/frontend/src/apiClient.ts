@@ -1,6 +1,7 @@
 export interface ApiError {
   statusCode: number;
   message: string;
+  detail?: string;
 }
 
 export function isApiError(obj: unknown): obj is ApiError {
@@ -109,10 +110,21 @@ class ApiClient {
       });
 
       if (!response.ok) {
-        return {
-          statusCode: response.status,
-          message: response.statusText || `HTTP ${response.status} error`,
-        };
+        // Try to parse error response to get detail from FastAPI
+        try {
+          const errorData = await response.json();
+          return {
+            statusCode: response.status,
+            message: response.statusText || `HTTP ${response.status} error`,
+            detail: errorData.detail || undefined,
+          };
+        } catch {
+          // If parsing fails, return basic error without detail
+          return {
+            statusCode: response.status,
+            message: response.statusText || `HTTP ${response.status} error`,
+          };
+        }
       }
 
       // Check if response has content before trying to parse JSON
