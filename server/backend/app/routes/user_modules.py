@@ -114,105 +114,106 @@ async def user_modules_upload(
 
     saved = []
     dest_path = None
-    for f in files:
-        rel_path = Path(f.filename)
-        try:
-            safe_rel = Path(*rel_path.parts)
-            dest_path = Path(settings.module_path) / safe_rel
-            if not str(dest_path).startswith(settings.module_path):
+    try:
+        for f in files:
+            rel_path = Path(f.filename)
+            try:
+                safe_rel = Path(*rel_path.parts)
+                dest_path = Path(settings.module_path) / safe_rel
+                if not str(dest_path).startswith(settings.module_path):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Invalid file path"
+                    )
+            except:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid file path"
+                    detail="Unsafe file path"
                 )
-        except:
+
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+            async with aiofiles.open(dest_path, "wb") as out:
+                while True:
+                    chunk = await f.read(1024)
+                    if not chunk:
+                        break
+                    await out.write(chunk)
+
+            saved.append(str(dest_path.relative_to(settings.module_path)))
+
+        config_path = dest_path.parent / "config.yaml"
+        if not config_path.exists():
+            shutil.rmtree(dest_path.parent)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Unsafe file path"
+                detail="Extracted module must contain config.yaml"
             )
 
-        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with open(config_path) as stream:
+                config = yaml.safe_load(stream)
+        except yaml.YAMLError as e:
+            shutil.rmtree(dest_path.parent, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error parsing config.yaml: {e}"
+            )
 
-        async with aiofiles.open(dest_path, "wb") as out:
-            while True:
-                chunk = await f.read(1024)
-                if not chunk:
-                    break
-                await out.write(chunk)
+        binaries = config.get("binaries")
+        if isinstance(binaries, str):
+            binaries = json.loads(binaries) if binaries else {}
+        elif binaries is None:
+            binaries = {}
 
-        saved.append(str(dest_path.relative_to(settings.module_path)))
+        try:
+            new_module = Module(
+                name=convert_to_snake_case(config["name"]),
+                description=config.get("description"),
+                version=config["version"],
+                start=config["start"],
+                binaries=binaries
+            )
+        except KeyError as e:
+            shutil.rmtree(dest_path.parent, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Missing required key in config.yaml: {e}"
+            )
 
-    config_path = dest_path.parent / "config.yaml"
-    if not config_path.exists():
-        shutil.rmtree(dest_path.parent)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Extracted module must contain config.yaml"
-        )
+        try:
+            result = await db.execute(
+                select(Module).where(Module.name == new_module.name)
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Module already exists"
+                )
 
-    try:
-        with open(config_path) as stream:
-            config = yaml.safe_load(stream)
-    except yaml.YAMLError as e:
-        # Clean up extracted dir on parse error
-        shutil.rmtree(dest_path.parent, ignore_errors=True)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error parsing config.yaml: {e}"
-        )
-
-    binaries = config.get("binaries")
-    if isinstance(binaries, str):
-        binaries = json.loads(binaries) if binaries else {}
-    elif binaries is None:
-        binaries = {}
-
-    # Upsert-like behavior: if a module with same snake_case name exists, update it
-    try:
-        new_module = Module(
-            name=convert_to_snake_case(config["name"]),
-            description=config.get("description"),
-            version=config["version"],
-            start=config["start"],
-            binaries=binaries,
-        )
-    except KeyError as e:
-        shutil.rmtree(dest_path.parent, ignore_errors=True)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Missing required key in config.yaml: {e}"
-        )
-
-    try:
-        # If exists, replace content; else add
-        result = await db.execute(
-            select(Module).where(Module.name == new_module.name)
-        )
-        existing = result.scalar_one_or_none()
-        if existing:
-            existing.description = new_module.description
-            existing.version = new_module.version
-            existing.binaries = new_module.binaries
-        else:
             db.add(new_module)
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        shutil.rmtree(dest_path.parent, ignore_errors=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to add module to the database",
-        )
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            shutil.rmtree(dest_path.parent, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to add module to the database"
+            )
+
+        return {"result": "success"}
 
     except HTTPException:
         if os.path.exists(dest_path.parent):
-            shutil.rmtree(dest_path.parent)
+            shutil.rmtree(dest_path.parent, ignore_errors=True)
         raise
     except Exception:
         if os.path.exists(dest_path.parent):
-            shutil.rmtree(dest_path.parent)
+            shutil.rmtree(dest_path.parent, ignore_errors=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to extract module"
+            detail="Failed to extract module"
         )
 
 
