@@ -104,18 +104,15 @@ async def user_modules_add(request: ModuleAddRequest, db: AsyncSession = Depends
 
 @router.post("/upload")
 async def user_modules_upload(
-    dev_name: str,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     _=Depends(verify_access_token),
 ):
-    # Dev name means camelcase; add to docstrings
-    # Prefer configured MODULE_DIRECTORY only if it exists; otherwise fallback to app/modules
     if settings.module_path and os.path.isdir(settings.module_path):
-        module_path = Path(settings.module_path) / dev_name
+        module_path = Path(settings.module_path) / name
     else:
         mod_dir = Path(__file__).resolve().parent.parent / "modules"
-        module_path = mod_dir / dev_name
+        module_path = mod_dir / name
         if not os.path.exists(mod_dir):
             os.makedirs(mod_dir)
 

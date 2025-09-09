@@ -42,23 +42,19 @@ export default function ModulesPage() {
   const uploadAndAdd = () => {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
-    fileInput.accept = '.zip';
+    fileInput.webkitdirectory = true; // Enable directory selection
+    fileInput.multiple = true; // Required for directory uploads
     fileInput.style.display = 'none';
 
     fileInput.onchange = async (event) => {
       const target = event.target as HTMLInputElement;
-      const file = target.files?.[0];
+      const files = target.files;
 
-      if (!file) {
+      if (!files || files.length === 0) {
         return;
       }
 
-      if (!file.name.toLowerCase().endsWith('.zip')) {
-        alert('Please select a .zip file');
-        return;
-      }
-
-      // Prompt for developer name after file selection
+      // Prompt for developer name after folder selection
       const devName = prompt('Enter module name: ');
       if (!devName || devName.trim() === '') {
         alert('Module name is required');
@@ -67,7 +63,15 @@ export default function ModulesPage() {
 
       try {
         setLoading(true);
-        const result = await uploadModule(devName.trim(), file);
+
+        // Convert FileList to Array for easier handling
+        const filesArray = Array.from(files);
+
+        // You can now process the files with their relative paths
+        // files[i].webkitRelativePath contains the path relative to the selected folder
+        console.log('Selected files:', filesArray.map(f => f.webkitRelativePath));
+
+        const result = await uploadModuleFromFolder(devName.trim(), filesArray);
 
         if ("result" in result) {
           alert('Module uploaded successfully!');
@@ -92,7 +96,7 @@ export default function ModulesPage() {
       document.body.removeChild(fileInput);
     };
 
-    // Trigger file selection dialog immediately on user click
+    // Trigger folder selection dialog immediately on user click
     document.body.appendChild(fileInput);
     fileInput.click();
   }
