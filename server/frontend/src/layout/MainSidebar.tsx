@@ -15,7 +15,7 @@ export default function MainSidebar({ onNavigate }: Props) {
     <Sidebar aria-label="Main sidebar">
       <SidebarLogo
         href="/dashboard"
-        img="/onewAy_logo.webp"
+        img="/onewAy_logo.ico"
         imgAlt="onewAy Logo"
       >
         onewAy
