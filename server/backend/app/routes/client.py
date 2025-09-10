@@ -91,6 +91,8 @@ async def client_update_info(update_info: ClientUpdateInfo,
                              db: AsyncSession = Depends(get_db)):
     if update_info.ip_address:
         client.client_version = update_info.ip_address
+    if update_info.hostname:
+        client.hostname = update_info.hostname
     if update_info.last_known_location:
         client.last_known_location = update_info.last_known_location
     if update_info.client_version:

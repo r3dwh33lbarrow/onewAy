@@ -1,7 +1,8 @@
 import MainSkeleton from "../components/MainSkeleton.tsx";
-import {useEffect, useState} from "react";
+import {useEffect, useState, useRef} from "react";
 import {apiClient, isApiError} from "../apiClient.ts";
 import type {ClientInfo} from "../schemas/client.ts";
+import type {TokenResponse} from "../schemas/authentication.ts";
 import {useNavigate} from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from "flowbite-react";
 
@@ -18,10 +19,23 @@ interface InstalledModuleInfo {
 
 export default function ClientPage({ username }: ClientPageProps) {
   const navigate = useNavigate();
+  const socketRef = useRef<WebSocket | null>(null);
 
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [installedModules, setInstalledModules] = useState<InstalledModuleInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const updateClientAliveStatus = (clientUsername: string, alive: boolean) => {
+    if (clientUsername === username) {
+      setClientInfo(prevClientInfo =>
+        prevClientInfo ? {
+          ...prevClientInfo,
+          alive,
+          last_contact: new Date().toISOString()
+        } : null
+      );
+    }
+  };
 
   useEffect(() => {
     const fetchClientInfo = async() => {
@@ -64,6 +78,56 @@ export default function ClientPage({ username }: ClientPageProps) {
 
     fetchInstalledModules();
   }, [navigate, username]);
+
+  useEffect(() => {
+    const initializeWebSocket = async () => {
+      try {
+        const tokenResponse = await apiClient.post<object, TokenResponse>("/ws-token", {});
+        if ("statusCode" in tokenResponse) {
+          console.error("Failed to get WebSocket token:", tokenResponse.message);
+          return;
+        }
+
+        const wsToken = tokenResponse.access_token;
+        const socket = new WebSocket(`ws://localhost:8000/ws?token=${wsToken}`);
+        socketRef.current = socket;
+
+        socket.onopen = () => {
+          console.log("WebSocket connected");
+        };
+
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "alive_update") {
+              updateClientAliveStatus(data.data.username, data.data.alive);
+            }
+          } catch (error) {
+            console.error("Error parsing WebSocket message:", error);
+          }
+        };
+
+        socket.onerror = (error) => {
+          console.error("WebSocket error:", error);
+        };
+
+        socket.onclose = (event) => {
+          console.log("WebSocket connection closed:", event.code, event.reason);
+        };
+
+      } catch (error) {
+        console.error("Failed to initialize WebSocket:", error);
+      }
+    };
+
+    initializeWebSocket();
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.close();
+      }
+    };
+  }, []);
 
   return (
     <MainSkeleton baseName={"Client " + username}>
@@ -156,7 +220,8 @@ export default function ClientPage({ username }: ClientPageProps) {
                               {module.status}
                           </TableCell>
                           <TableCell>
-                            <button className="font-medium text-cyan-600 hover:underline dark:text-cyan-500">
+                            <button className="font-medium text-cyan-600 hover:underline dark:text-cyan-500 disabled:opacity-50 disabled:no-underline"
+                            disabled={clientInfo?.alive !== true}>
                               Run
                             </button>
                           </TableCell>

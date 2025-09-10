@@ -5,6 +5,7 @@ mod module_manager;
 mod schemas;
 mod utils;
 mod update;
+mod system_info;
 
 use crate::config::ConfigData;
 use crate::http::api_client::ApiClient;
