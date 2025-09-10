@@ -28,3 +28,9 @@ class ModuleAddRequest(BaseModel):
 
 class ModuleDirectoryContents(BaseModel):
     contents: Optional[list[dict[str, str]]] = None
+
+
+class InstalledModuleInfo(BaseModel):
+    name: str = Field(min_length=1)
+    description: Optional[str] = None
+    version: str = Field(min_length=1)

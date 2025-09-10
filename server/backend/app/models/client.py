@@ -1,5 +1,6 @@
 from uuid import uuid4
 from sqlalchemy import Column, Boolean, UUID, String, DateTime
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 from app.services.password import pwd_context
@@ -30,6 +31,8 @@ class Client(Base):
     last_contact = Column(DateTime)
     last_known_location = Column(String)
     client_version = Column(String, nullable=False)
+
+    client_modules = relationship("ClientModule", back_populates="client")
 
     def verify_password(self, password: str) -> bool:
         """

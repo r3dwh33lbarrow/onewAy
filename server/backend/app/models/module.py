@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, JSON
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 
@@ -11,3 +12,4 @@ class Module(Base):
     version = Column(String, nullable=False)
     start = Column(String, nullable=False)
     binaries = Column(JSON)
+    client_modules = relationship("ClientModule", back_populates="module")

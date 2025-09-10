@@ -3,9 +3,16 @@ import {useEffect, useState} from "react";
 import {apiClient, isApiError} from "../apiClient.ts";
 import type {ClientInfo} from "../schemas/client.ts";
 import {useNavigate} from "react-router-dom";
+import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from "flowbite-react";
 
 interface ClientPageProps {
   username: string;
+}
+
+interface ModuleInfo {
+  name: string;
+  description: string;
+  version: string;
 }
 
 export default function ClientPage({ username }: ClientPageProps) {
@@ -34,57 +41,80 @@ export default function ClientPage({ username }: ClientPageProps) {
     <MainSkeleton baseName={"Client " + username}>
       <div>
         {clientInfo ? (
-          <div className="grid grid-cols-3 gap-6 p-6">
-            {/* First column - Windows logo (full height) */}
-            <div className="flex justify-center items-center h-full min-h-96 p-4">
-              <img
-                src="/windows_default_logo.png"
-                alt="Windows Logo"
-                className="w-full h-full object-contain"
-              />
-            </div>
+          <>
+            <div className="grid grid-cols-3 gap-6 p-6">
+              {/* First column - Windows logo (full height) */}
+              <div className="flex justify-center items-center h-full min-h-96 p-4">
+                <img
+                  src="/windows_default_logo.png"
+                  alt="Windows Logo"
+                  className="w-full h-full object-contain"
+                />
+              </div>
 
-            {/* Second and third columns - Client information */}
-            <div className="col-span-2 border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800 shadow-sm">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Client Information</h2>
-              <div className="space-y-3">
-                <div>
-                  <span className="font-medium text-gray-600 dark:text-gray-300">Username:</span>
-                  <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.username}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600 dark:text-gray-300">UUID:</span>
-                  <span className="ml-2 text-gray-900 dark:text-gray-100 font-mono text-sm">{clientInfo.uuid}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600 dark:text-gray-300">IP Address:</span>
-                  <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.ip_address}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600 dark:text-gray-300">Hostname:</span>
-                  <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.hostname}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600 dark:text-gray-300">Status:</span>
-                  <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                    clientInfo.alive 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                  }`}>
-                    {clientInfo.alive ? 'Online' : 'Offline'}
-                  </span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600 dark:text-gray-300">Last Contact:</span>
-                  <span className="ml-2 text-gray-900 dark:text-gray-100">{new Date(clientInfo.last_contact).toLocaleString()}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600 dark:text-gray-300">Location:</span>
-                  <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.last_known_location}</span>
+              {/* Second and third columns - Client information */}
+              <div className="col-span-2 border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800 shadow-sm">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 text-center">Client Information</h2>
+                <div className="space-y-3">
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">Username:</span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.username}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">UUID:</span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100 font-mono text-sm">{clientInfo.uuid}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">IP Address:</span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.ip_address}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">Hostname:</span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.hostname}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">Status:</span>
+                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                      clientInfo.alive 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                    }`}>
+                      {clientInfo.alive ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">Last Contact:</span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">{new Date(clientInfo.last_contact).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">Location:</span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.last_known_location}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+
+            <div className="p-6">
+              <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-gray-100 text-center">Installed Modules</h2>
+
+              <div className="overflow-x-auto">
+                <Table striped>
+                  <TableHead>
+                    <TableHeadCell>Module Name</TableHeadCell>
+                    <TableHeadCell>Version</TableHeadCell>
+                    <TableHeadCell>Description</TableHeadCell>
+                    <TableHeadCell>Status</TableHeadCell>
+                    <TableHeadCell>
+                      <span className="sr-only">Actions</span>
+                    </TableHeadCell>
+                  </TableHead>
+                  <TableBody className="divide-y">
+
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </>
         ) : (
           <p>Loading...</p>
         )}
