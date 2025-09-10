@@ -567,7 +567,8 @@ async def user_modules_installed_client_username(
         mod_info = InstalledModuleInfo(
             name=client_mod.module.name,
             description=client_mod.module.description,
-            version=client_mod.module.version
+            version=client_mod.module.version,
+            status=client_mod.status
         )
         mod_names.append(mod_info)
 
