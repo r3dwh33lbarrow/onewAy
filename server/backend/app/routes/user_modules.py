@@ -1,22 +1,25 @@
-import io
+import json
 import json
 import os
 import shutil
-import zipfile
 from pathlib import Path
-import aiofiles
 
+import aiofiles
 import yaml
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from starlette import status
 
 from app.dependencies import get_db
+from app.models.client import Client
+from app.models.client_module import ClientModule
 from app.models.module import Module
 from app.schemas.general import BasicTaskResponse
 from app.schemas.user_modules import UserModuleAllResponse, ModuleBasicInfo, ModuleInfo, ModuleAddRequest, \
-    ModuleDirectoryContents
+    ModuleDirectoryContents, InstalledModuleInfo
 from app.services.authentication import verify_access_token
 from app.settings import settings
 from app.utils import convert_to_snake_case, hyphen_to_snake_case, resolve_root
@@ -538,3 +541,90 @@ async def user_modules_query_module_dir():
         return {"contents": []}
 
     return {"contents": contents_list}
+
+
+@router.get("/installed/{client_username}")
+async def user_modules_installed_client_username(
+        client_username: str,
+        db: AsyncSession = Depends(get_db),
+        _=Depends(verify_access_token)
+):
+    client = await db.execute(
+        select(Client)
+        .options(selectinload(Client.client_modules).selectinload(ClientModule.module))
+        .where(Client.username == client_username)
+    )
+    client = client.scalar_one_or_none()
+
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Client username not found"
+        )
+
+    mod_names = []
+    for client_mod in client.client_modules:
+        mod_info = InstalledModuleInfo(
+            name=client_mod.module.name,
+            description=client_mod.module.description,
+            version=client_mod.module.version
+        )
+        mod_names.append(mod_info)
+
+    return mod_names
+
+
+@router.post("/set-installed/{client_username}")
+async def user_modules_set_installed_client_username(
+        client_username: str,
+        module_name: str,
+        db: AsyncSession = Depends(get_db),
+        _=Depends(verify_access_token)
+):
+    client = await db.execute(
+        select(Client)
+        .options(selectinload(Client.client_modules).selectinload(ClientModule.module))
+        .where(Client.username == client_username)
+    )
+    client = client.scalar_one_or_none()
+
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Client username not found"
+        )
+
+    module = await db.execute(select(Module).where(Module.name == module_name))
+    module = module.scalar_one_or_none()
+
+    if not module:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Module not found"
+        )
+
+    for client_mod in client.client_modules:
+        if client_mod.module.name == module.name:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Module already installed on client"
+            )
+
+    client_module = ClientModule(
+        client_name=client.username,
+        module_name=module.name,
+        status="installed"
+    )
+
+    client.client_modules.append(client_module)
+    db.add(client_module)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to add installed module to the database"
+        )
+
+    return {"result": "success"}
