@@ -105,31 +105,60 @@ async def user_modules_add(request: ModuleAddRequest, db: AsyncSession = Depends
 
 @router.post("/upload")
 async def user_modules_upload(
-    files: list[UploadFile] = File(...),
-    db: AsyncSession = Depends(get_db),
-    _=Depends(verify_access_token),
+        files: list[UploadFile] = File(...),
+        db: AsyncSession = Depends(get_db),
+        _=Depends(verify_access_token),
 ):
     if not files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded")
 
     saved = []
     dest_path = None
+    module_dir = None
+
     try:
         for f in files:
+            if not f.filename:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="File must have a filename"
+                )
+
             rel_path = Path(f.filename)
+
+            # Check for path traversal attempts - allow hidden files but block traversal
+            if any(part in ['..', '.', ''] for part in rel_path.parts):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid file path - no relative path traversal allowed"
+                )
+
             try:
-                safe_rel = Path(*rel_path.parts)
-                dest_path = Path(settings.module_path) / safe_rel
-                if not str(dest_path).startswith(settings.module_path):
+                # Resolve path safely
+                dest_path = (Path(settings.module_path) / rel_path).resolve()
+
+                # Ensure the resolved path is still within module_path
+                if not str(dest_path).startswith(str(Path(settings.module_path).resolve())):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Invalid file path"
+                        detail="Invalid file path - outside allowed directory"
                     )
-            except:
+            except Exception:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Unsafe file path"
                 )
+
+            # Keep track of the module directory (parent of all files)
+            if module_dir is None:
+                module_dir = dest_path.parent
+            elif dest_path.parent != module_dir and not str(dest_path).startswith(str(module_dir)):
+                # Allow subdirectories within the same module
+                potential_module_dir = dest_path
+                while potential_module_dir.parent != Path(settings.module_path):
+                    potential_module_dir = potential_module_dir.parent
+                if module_dir != potential_module_dir:
+                    module_dir = potential_module_dir
 
             dest_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -142,9 +171,16 @@ async def user_modules_upload(
 
             saved.append(str(dest_path.relative_to(settings.module_path)))
 
-        config_path = dest_path.parent / "config.yaml"
+        # Check for config.yaml in the module directory
+        if module_dir is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No files were processed"
+            )
+
+        config_path = module_dir / "config.yaml"
         if not config_path.exists():
-            shutil.rmtree(dest_path.parent)
+            shutil.rmtree(module_dir, ignore_errors=True)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Extracted module must contain config.yaml"
@@ -154,17 +190,48 @@ async def user_modules_upload(
             with open(config_path) as stream:
                 config = yaml.safe_load(stream)
         except yaml.YAMLError as e:
-            shutil.rmtree(dest_path.parent, ignore_errors=True)
+            shutil.rmtree(module_dir, ignore_errors=True)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Error parsing config.yaml: {e}"
             )
+        except Exception as e:
+            shutil.rmtree(module_dir, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error reading config.yaml: {e}"
+            )
 
-        binaries = config.get("binaries")
+        if not isinstance(config, dict):
+            shutil.rmtree(module_dir, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="config.yaml must contain a valid configuration object"
+            )
+
+        # Parse binaries field safely
+        binaries = config.get("binaries", {})
         if isinstance(binaries, str):
-            binaries = json.loads(binaries) if binaries else {}
-        elif binaries is None:
+            try:
+                binaries = json.loads(binaries) if binaries else {}
+            except json.JSONDecodeError:
+                shutil.rmtree(module_dir, ignore_errors=True)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid JSON in binaries field"
+                )
+        elif not isinstance(binaries, dict):
             binaries = {}
+
+        # Validate required fields
+        required_fields = ["name", "version", "start"]
+        missing_fields = [field for field in required_fields if field not in config]
+        if missing_fields:
+            shutil.rmtree(module_dir, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Missing required fields in config.yaml: {', '.join(missing_fields)}"
+            )
 
         try:
             new_module = Module(
@@ -174,19 +241,21 @@ async def user_modules_upload(
                 start=config["start"],
                 binaries=binaries
             )
-        except KeyError as e:
-            shutil.rmtree(dest_path.parent, ignore_errors=True)
+        except Exception as e:
+            shutil.rmtree(module_dir, ignore_errors=True)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required key in config.yaml: {e}"
+                detail=f"Error creating module object: {e}"
             )
 
         try:
+            # Check if module already exists
             result = await db.execute(
                 select(Module).where(Module.name == new_module.name)
             )
             existing = result.scalar_one_or_none()
             if existing:
+                shutil.rmtree(module_dir, ignore_errors=True)
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Module already exists"
@@ -194,26 +263,32 @@ async def user_modules_upload(
 
             db.add(new_module)
             await db.commit()
-        except Exception:
+
+        except HTTPException:
+            # Re-raise HTTP exceptions as-is
+            raise
+        except Exception as e:
             await db.rollback()
-            shutil.rmtree(dest_path.parent, ignore_errors=True)
+            shutil.rmtree(module_dir, ignore_errors=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to add module to the database"
             )
 
-        return {"result": "success"}
+        return {"result": "success", "files_saved": saved}
 
     except HTTPException:
-        if os.path.exists(dest_path.parent):
-            shutil.rmtree(dest_path.parent, ignore_errors=True)
+        # Clean up on HTTP exceptions
+        if module_dir and module_dir.exists():
+            shutil.rmtree(module_dir, ignore_errors=True)
         raise
-    except Exception:
-        if os.path.exists(dest_path.parent):
-            shutil.rmtree(dest_path.parent, ignore_errors=True)
+    except Exception as e:
+        # Clean up on unexpected exceptions
+        if module_dir and module_dir.exists():
+            shutil.rmtree(module_dir, ignore_errors=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to extract module"
+            detail="Failed to process module upload"
         )
 
 

@@ -1,6 +1,6 @@
 import MainSkeleton from "../components/MainSkeleton.tsx";
 import type {UserModuleAllResponse} from "../services/modules.ts";
-import { getAllModules, uploadModule } from "../services/modules.ts";
+import { getAllModules, uploadModuleFolder } from "../services/modules.ts";
 import {Button, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow} from "flowbite-react";
 import { useEffect, useState } from "react";
 import {snakeCaseToTitle} from "../utils.ts";
@@ -54,13 +54,6 @@ export default function ModulesPage() {
         return;
       }
 
-      // Prompt for developer name after folder selection
-      const devName = prompt('Enter module name: ');
-      if (!devName || devName.trim() === '') {
-        alert('Module name is required');
-        return;
-      }
-
       try {
         setLoading(true);
 
@@ -71,7 +64,7 @@ export default function ModulesPage() {
         // files[i].webkitRelativePath contains the path relative to the selected folder
         console.log('Selected files:', filesArray.map(f => f.webkitRelativePath));
 
-        const result = await uploadModuleFromFolder(devName.trim(), filesArray);
+        const result = await uploadModuleFolder(filesArray);
 
         if ("result" in result) {
           alert('Module uploaded successfully!');
