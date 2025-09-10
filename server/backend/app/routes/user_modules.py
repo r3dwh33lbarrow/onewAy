@@ -319,7 +319,7 @@ async def user_modules_get(
 @router.put("/update/{module_name}", response_model=BasicTaskResponse)
 async def user_modules_update(
         module_name: str,
-        file: UploadFile = File(...),
+        files: list[UploadFile] = File(...),
         db: AsyncSession = Depends(get_db),
         _=Depends(verify_access_token)
 ):
@@ -333,54 +333,81 @@ async def user_modules_update(
             detail="Module not found"
         )
 
+    backup_path = None
+    module_dir = None
+    saved = []
+
+    # Path where the module currently lives
     if settings.module_path:
         module_path = Path(settings.module_path) / existing_module.name
     else:
         mod_dir = Path(__file__).resolve().parent.parent / "modules"
         module_path = mod_dir / existing_module.name
 
-    if not file.filename.endswith('.zip'):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must be a ZIP archive"
-        )
-
-    backup_path = None
-    if os.path.exists(module_path):
+    # Backup old module
+    if module_path.exists():
         backup_path = Path(str(module_path) + ".backup")
         if backup_path.exists():
             shutil.rmtree(backup_path)
         shutil.move(module_path, backup_path)
 
     try:
-        os.makedirs(module_path, exist_ok=True)
+        # Save new uploaded directory structure
+        for f in files:
+            if not f.filename:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="File must have a filename"
+                )
 
-        content = await file.read()
+            rel_path = Path(f.filename)
 
-        # Validate ZIP file
-        try:
-            with zipfile.ZipFile(io.BytesIO(content), 'r') as zip_ref:
-                for member in zip_ref.namelist():
-                    if os.path.isabs(member) or ".." in member:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Invalid file path in archive: {member}"
-                        )
-                zip_ref.extractall(module_path)
-        except zipfile.BadZipFile:
+            # Prevent traversal
+            if any(part in ['..', '.', ''] for part in rel_path.parts):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid file path - no relative path traversal allowed"
+                )
+
+            dest_path = (Path(settings.module_path) / rel_path).resolve()
+            if not str(dest_path).startswith(str(Path(settings.module_path).resolve())):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid file path - outside allowed directory"
+                )
+
+            if module_dir is None:
+                module_dir = dest_path.parent
+            elif dest_path.parent != module_dir and not str(dest_path).startswith(str(module_dir)):
+                potential_module_dir = dest_path
+                while potential_module_dir.parent != Path(settings.module_path):
+                    potential_module_dir = potential_module_dir.parent
+                if module_dir != potential_module_dir:
+                    module_dir = potential_module_dir
+
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            async with aiofiles.open(dest_path, "wb") as out:
+                while True:
+                    chunk = await f.read(1024)
+                    if not chunk:
+                        break
+                    await out.write(chunk)
+
+            saved.append(str(dest_path.relative_to(settings.module_path)))
+
+        if module_dir is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid ZIP file"
+                detail="No files were processed"
             )
 
-        config_path = module_path / "config.yaml"
+        config_path = module_dir / "config.yaml"
         if not config_path.exists():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Extracted module must contain config.yaml"
+                detail="Updated module must contain config.yaml"
             )
 
-        # Parse and validate config
         try:
             with open(config_path) as stream:
                 config = yaml.safe_load(stream)
@@ -390,71 +417,63 @@ async def user_modules_update(
                 detail=f"Error parsing config.yaml: {e}"
             )
 
-        # Validate required fields
-        if "name" not in config:
+        required_fields = ["name", "version", "start"]
+        missing_fields = [field for field in required_fields if field not in config]
+        if missing_fields:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Missing required key in config.yaml: 'name'"
-            )
-        if "version" not in config:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Missing required key in config.yaml: 'version'"
+                detail=f"Missing required fields in config.yaml: {', '.join(missing_fields)}"
             )
 
-        binaries = config.get("binaries")
+        binaries = config.get("binaries", {})
         if isinstance(binaries, str):
-            binaries = json.loads(binaries) if binaries else {}
-        elif binaries is None:
+            try:
+                binaries = json.loads(binaries) if binaries else {}
+            except json.JSONDecodeError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid JSON in binaries field"
+                )
+        elif not isinstance(binaries, dict):
             binaries = {}
-        # If binaries is already a dict, use it as-is
 
-        # Update module in database - update all fields including name if it changed
+        # Update DB entry
         new_module_name = convert_to_snake_case(config["name"])
         existing_module.name = new_module_name
         existing_module.description = config.get("description")
         existing_module.version = config["version"]
+        existing_module.start = config["start"]
         existing_module.binaries = binaries
 
         await db.commit()
 
-        # If the module name changed, rename the directory
+        # If module name changed, rename directory
         if new_module_name != module_name:
-            if settings.module_path and os.path.isdir(settings.module_path):
-                new_module_path = Path(settings.module_path) / new_module_name
-            else:
-                mod_dir = Path(__file__).resolve().parent.parent / "modules"
-                new_module_path = mod_dir / new_module_name
+            new_module_path = Path(settings.module_path) / new_module_name
+            if new_module_path.exists():
+                shutil.rmtree(new_module_path, ignore_errors=True)
+            shutil.move(module_dir, new_module_path)
 
-            if os.path.exists(module_path) and module_path != new_module_path:
-                # If the target already exists, replace it
-                if os.path.exists(new_module_path):
-                    shutil.rmtree(new_module_path, ignore_errors=True)
-                shutil.move(module_path, new_module_path)
-
-        # Clean up backup
         if backup_path and backup_path.exists():
             shutil.rmtree(backup_path)
 
         return {"result": "success"}
 
     except HTTPException:
-        # Restore backup if update failed
         if backup_path and backup_path.exists():
-            if os.path.exists(module_path):
-                shutil.rmtree(module_path)
+            if module_path.exists():
+                shutil.rmtree(module_path, ignore_errors=True)
             shutil.move(backup_path, module_path)
         raise
-    except Exception:
+    except Exception as e:
         await db.rollback()
-        # Restore backup if update failed
         if backup_path and backup_path.exists():
-            if os.path.exists(module_path):
-                shutil.rmtree(module_path)
+            if module_path.exists():
+                shutil.rmtree(module_path, ignore_errors=True)
             shutil.move(backup_path, module_path)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update module"
+            detail=f"Failed to update module: {e}"
         )
 
 
