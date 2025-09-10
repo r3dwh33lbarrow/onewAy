@@ -16,6 +16,7 @@ class ClientAllResponse(BaseModel):
 
 class ClientUpdateInfo(BaseModel):
     ip_address: Optional[str]
+    hostname: Optional[str]
     last_known_location: Optional[str]
     client_version: Optional[str]
 
