@@ -115,7 +115,6 @@ export default function ModulesPage() {
 
   return (
     <MainSkeleton baseName="Modules">
-      { /* TODO: See if button is off center */ }
       <div className="space-y-6">
         <div className="flex gap-4">
           <Button color="indigo" pill className="px-6 gap-1" onClick={uploadAndAdd}>
@@ -161,7 +160,11 @@ export default function ModulesPage() {
               </TableHead>
               <TableBody className="divide-y">
                 {modules.map((module, index) => (
-                  <TableRow key={`${module.name}-${module.version}-${index}`} className="bg-white dark:border-gray-700 dark:bg-gray-800">
+                  <TableRow
+                    key={`${module.name}-${module.version}-${index}`}
+                    className="bg-white dark:border-gray-700 dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                    onClick={() => window.location.href = `/modules/${module.name}`}
+                  >
                     <TableCell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
                       {snakeCaseToTitle(module.name)}
                     </TableCell>
