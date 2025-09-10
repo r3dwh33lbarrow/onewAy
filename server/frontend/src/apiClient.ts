@@ -154,6 +154,17 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  public async put<TRequest, TResponse>(endpoint: string, data: TRequest): Promise<TResponse | ApiError> {
+    return this.request<TResponse>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public async delete<T>(endpoint: string): Promise<T | ApiError> {
+    return this.request<T>(endpoint, { method: 'DELETE' });
+  }
 }
 
 export const apiClient = new ApiClient();
