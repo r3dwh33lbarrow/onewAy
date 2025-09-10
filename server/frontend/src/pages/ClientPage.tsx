@@ -9,26 +9,33 @@ interface ClientPageProps {
   username: string;
 }
 
-interface ModuleInfo {
+interface InstalledModuleInfo {
   name: string;
-  description: string;
+  description?: string;
   version: string;
+  status: string;
 }
 
 export default function ClientPage({ username }: ClientPageProps) {
   const navigate = useNavigate();
 
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
+  const [installedModules, setInstalledModules] = useState<InstalledModuleInfo[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchClientInfo = async() => {
+      setError(null);
       const response = await apiClient.get<ClientInfo>("/client/get/" + username);
 
       if (isApiError(response)) {
         if (response.statusCode === 404) {
           navigate("/404")
+        } else if (response.statusCode === 401) {
+          navigate("/login");
         }
 
+        setError(`Failed to fetch client info (${response.statusCode}): ${response.detail}`);
         return;
       }
       setClientInfo(response);
@@ -37,10 +44,36 @@ export default function ClientPage({ username }: ClientPageProps) {
     fetchClientInfo();
   }, [username, navigate]);
 
+  useEffect(() => {
+    const fetchInstalledModules = async () => {
+      setError(null);
+      const response = await apiClient.get<InstalledModuleInfo[]>("/user/modules/installed/" + username);
+      if (isApiError(response)) {
+        if (response.statusCode === 401) {
+          navigate("/login");
+        }
+
+        setError(`Failed to fetch installed modules (${response.statusCode}): ${response.detail}`);
+        return;
+      }
+
+      console.log("API Response:", response);
+      // Since response is directly an array, not an object with modules property
+      setInstalledModules(response || []);
+    }
+
+    fetchInstalledModules();
+  }, [navigate, username]);
+
   return (
     <MainSkeleton baseName={"Client " + username}>
       <div>
-        {clientInfo ? (
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            {error}
+          </div>
+        )}
+        {clientInfo && !error ? (
           <>
             <div className="grid grid-cols-3 gap-6 p-6">
               {/* First column - Windows logo (full height) */}
@@ -100,16 +133,42 @@ export default function ClientPage({ username }: ClientPageProps) {
               <div className="overflow-x-auto">
                 <Table striped>
                   <TableHead>
-                    <TableHeadCell>Module Name</TableHeadCell>
-                    <TableHeadCell>Version</TableHeadCell>
-                    <TableHeadCell>Description</TableHeadCell>
-                    <TableHeadCell>Status</TableHeadCell>
-                    <TableHeadCell>
-                      <span className="sr-only">Actions</span>
-                    </TableHeadCell>
+                    <TableRow>
+                      <TableHeadCell>Module Name</TableHeadCell>
+                      <TableHeadCell>Version</TableHeadCell>
+                      <TableHeadCell>Description</TableHeadCell>
+                      <TableHeadCell>Status</TableHeadCell>
+                      <TableHeadCell>
+                        <span className="sr-only">Actions</span>
+                      </TableHeadCell>
+                    </TableRow>
                   </TableHead>
                   <TableBody className="divide-y">
-
+                    {installedModules && installedModules.length > 0 ? (
+                      installedModules.map((module, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
+                            {module.name}
+                          </TableCell>
+                          <TableCell>{module.version}</TableCell>
+                          <TableCell>{module.description || 'No description available'}</TableCell>
+                          <TableCell>
+                              {module.status}
+                          </TableCell>
+                          <TableCell>
+                            <button className="font-medium text-cyan-600 hover:underline dark:text-cyan-500">
+                              Run
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-gray-500 dark:text-gray-400">
+                          No modules installed
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>

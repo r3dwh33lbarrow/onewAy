@@ -34,3 +34,4 @@ class InstalledModuleInfo(BaseModel):
     name: str = Field(min_length=1)
     description: Optional[str] = None
     version: str = Field(min_length=1)
+    status: Optional[str] = None
