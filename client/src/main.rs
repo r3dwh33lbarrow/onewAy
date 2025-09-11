@@ -13,6 +13,7 @@ use crate::http::auth::{enroll, login};
 use crate::module_manager::{ModuleManager, ModuleStart};
 use std::path::Path;
 use crate::http::websockets::start_websocket_client;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -51,12 +52,6 @@ async fn main() {
     }
 
     debug!("Client logged in");
-    debug!("Starting Websocket client...");
-    let api_client_clone = api_client.clone();
-    let handle = tokio::spawn(async move {
-        start_websocket_client("ws://127.0.0.1:8000/ws-client", &api_client_clone).await
-    });
-
     debug!("Loading modules from {}", config_data.modules_directory);
     let mut module_manager = ModuleManager::new(&config_data.modules_directory);
     if let Err(e) = module_manager.load_all_modules().await {
@@ -69,6 +64,15 @@ async fn main() {
     {
         error!("Failed to start modules: {}", e);
     }
+
+    let module_manager = Arc::new(module_manager);
+
+    debug!("Starting Websocket client...");
+    let api_client_clone = api_client.clone();
+    let module_manager_clone = Arc::clone(&module_manager);
+    let handle = tokio::spawn(async move {
+        start_websocket_client("ws://127.0.0.1:8000/ws-client", &api_client_clone, module_manager_clone).await
+    });
 
     handle.await.unwrap().expect("failed to start websocket client");
 }

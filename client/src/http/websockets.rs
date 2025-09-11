@@ -1,9 +1,11 @@
+use std::sync::Arc;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use anyhow::Result;
 use crate::http::api_client::ApiClient;
 use crate::info;
+use crate::module_manager::ModuleManager;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct WebsocketMessage {
@@ -17,7 +19,8 @@ struct AccessTokenResponse {
     token_type: String,
 }
 
-pub async fn start_websocket_client(url: &str, api_client: &ApiClient) -> Result<()> {
+
+pub async fn start_websocket_client(url: &str, api_client: &ApiClient, module_manager: Arc<ModuleManager>) -> Result<()> {
     // Get websocket token from API
     let access_token = api_client.post::<(), AccessTokenResponse>("/ws-client-token", &()).await?;
     let access_token = access_token.access_token;
@@ -40,7 +43,7 @@ pub async fn start_websocket_client(url: &str, api_client: &ApiClient) -> Result
                     Ok(ws_msg) => {
                         println!("Received message: {:?}", ws_msg);
                         // Handle the parsed message here
-                        handle_websocket_message(ws_msg).await;
+                        handle_websocket_message(ws_msg, Arc::clone(&module_manager)).await;
                     }
                     Err(e) => {
                         eprintln!("Failed to parse message as JSON: {}. Raw message: {}", e, text);
@@ -78,7 +81,7 @@ pub async fn start_websocket_client(url: &str, api_client: &ApiClient) -> Result
     Ok(())
 }
 
-async fn handle_websocket_message(message: WebsocketMessage) {
+async fn handle_websocket_message(message: WebsocketMessage, module_manager: Arc<ModuleManager>) {
     match message.message_type.as_str() {
         "module_run" => {
             info!("Running module: {}", message.module_name);
