@@ -417,12 +417,12 @@ def verify_websocket_access_token(token: str) -> str:
     """
     try:
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_uuid = decoded_token.get("sub")
+        some_uuid = decoded_token.get("sub")
 
-        if user_uuid is None:
+        if some_uuid is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-        return user_uuid
+        return some_uuid
 
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
