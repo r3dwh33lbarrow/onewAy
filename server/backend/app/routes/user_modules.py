@@ -21,6 +21,7 @@ from app.schemas.general import BasicTaskResponse
 from app.schemas.user_modules import UserModuleAllResponse, ModuleBasicInfo, ModuleInfo, ModuleAddRequest, \
     ModuleDirectoryContents, InstalledModuleInfo
 from app.services.authentication import verify_access_token
+from app.services.client_websockets import client_websocket_manager
 from app.settings import settings
 from app.utils import convert_to_snake_case, hyphen_to_snake_case, resolve_root
 
@@ -668,5 +669,12 @@ async def user_modules_run_module_name(
             detail="Module not installed on client"
         )
 
-    # TODO: Implement module execution logic
+    await client_websocket_manager.send_to_client(
+        client_uuid=client.uuid,
+        message=json.dumps({
+            "type": "run",
+            "module_name": module.name
+        })
+    )
+
     return {"result": "success"}
