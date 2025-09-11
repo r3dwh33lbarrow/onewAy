@@ -12,7 +12,7 @@ from app.schemas.general import BasicTaskResponse, TokenResponse
 from app.services.authentication import create_access_token, create_refresh_token, rotate_refresh_token, \
     verify_refresh_token
 from app.services.password import hash_password
-from app.services.user_websockets import websocket_manager
+from app.services.user_websockets import user_websocket_manager
 
 router = APIRouter(prefix="/client/auth")
 
