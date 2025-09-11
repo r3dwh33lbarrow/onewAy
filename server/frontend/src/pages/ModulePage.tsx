@@ -120,13 +120,13 @@ export default function ModulePage({ name }: ModulePageProps) {
       {error && <p>{error}</p>}
       {moduleInfo && (
         <div className="flex flex-col items-center justify-center">
-          <p className="text-2xl font-bold mb-1 text-gray-800">{snakeCaseToTitle(moduleInfo.name)}</p>
-          <div className="border-t w-3/4 border-gray-700 text-gray-900">
-            <p className="dark:text-gray-300 mt-4 mb-0.5">Description</p>
+          <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-gray-200">{snakeCaseToTitle(moduleInfo.name)}</h2>
+          <div className="border-t w-3/4 border-gray-700 text-gray-900 dark:text-gray-200">
+            <p className="mt-4 mb-0.5">Description</p>
             <p className="border rounded border-gray-600 p-3 mb-3">{moduleInfo.description}</p>
-            <p className="dark:text-gray-300 mb-0.5">Version</p>
+            <p className="mb-0.5">Version</p>
             <p className="border rounded border-gray-600 p-3 mb-3">{moduleInfo.version}</p>
-            <p className="dark:text-gray-300 mb-0.5">Binaries</p>
+            <p className="mb-0.5">Binaries</p>
             <div className="flex flex-wrap gap-2 mb-5">
               {Object.entries(moduleInfo.binaries).map(([platform]) => (
                 <span
