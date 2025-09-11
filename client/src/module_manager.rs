@@ -6,19 +6,19 @@ use tokio::sync::Mutex;
 use crate::utils::str_to_snake_case;
 use crate::{debug, error, info};
 
-#[derive(Deserialize, PartialEq)]
+#[derive(Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ModuleStart {
     OnStart,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Binaries {
     pub windows: Option<String>,
     pub mac: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct ModuleConfig {
     name: String,
     binaries: Binaries,
@@ -128,5 +128,10 @@ impl ModuleManager {
         }
 
         Ok(())
+    }
+
+    pub async fn get_module(&self, name: &str) -> Option<ModuleConfig> {
+        let configs = self.module_configs.lock().await;
+        configs.iter().find(|config| config.name == name).cloned()
     }
 }

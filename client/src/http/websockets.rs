@@ -85,6 +85,19 @@ async fn handle_websocket_message(message: WebsocketMessage, module_manager: Arc
     match message.message_type.as_str() {
         "module_run" => {
             info!("Running module: {}", message.module_name);
+            let module = module_manager.get_module(&*message.module_name).await;
+            if module.is_none() {
+                println!("Module {} not found", message.module_name);
+                return;
+            }
+
+            let module = module.unwrap();
+            let binary = module.resolve_binaries().unwrap();
+            let mut command = std::process::Command::new(binary);
+            let result = command.spawn();
+            if result.is_err() {
+                println!("Failed to start module {}: {}", binary, result.err().unwrap());
+            }
         }
         _ => {
             println!("Unknown message type: {} for module: {}", message.message_type, message.module_name);
