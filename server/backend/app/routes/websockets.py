@@ -54,7 +54,7 @@ async def websocket_token(user: User = Depends(get_current_user)):
 async def websocket_client(websocket: WebSocket, token: str = Query(..., description="Authentication token")):
     try:
         client_uuid = verify_websocket_access_token(token)
-        await client_websocket_manager(websocket, client_uuid)
+        await client_websocket_manager.connect(websocket, client_uuid)
 
         try:
             while True:

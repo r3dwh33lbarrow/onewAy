@@ -1,5 +1,4 @@
 import json
-import json
 import os
 import shutil
 from pathlib import Path
@@ -661,7 +660,7 @@ async def user_modules_run_module_name(
             detail="Client is not alive"
         )
 
-    client_module = await db.execute(select(ClientModule).where(ClientModule.client_name == client.username and ClientModule.module_name == module.name))
+    client_module = await db.execute(select(ClientModule).where(ClientModule.client_name == client_username and ClientModule.module_name == module.name))
     client_module = client_module.scalar_one_or_none()
     if not client_module:
         raise HTTPException(
@@ -670,11 +669,11 @@ async def user_modules_run_module_name(
         )
 
     await client_websocket_manager.send_to_client(
-        client_uuid=client.uuid,
-        message=json.dumps({
-            "type": "run",
+        client_uuid=str(client.uuid),
+        message={
+            "message_type": "run",
             "module_name": module.name
-        })
+        }
     )
 
     return {"result": "success"}

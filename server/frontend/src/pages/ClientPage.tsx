@@ -1,5 +1,5 @@
 import MainSkeleton from "../components/MainSkeleton.tsx";
-import {useEffect, useState, useRef} from "react";
+import {useEffect, useState, useRef, useCallback} from "react";
 import {apiClient, isApiError} from "../apiClient.ts";
 import type {ClientInfo} from "../schemas/client.ts";
 import type {TokenResponse} from "../schemas/authentication.ts";
@@ -7,6 +7,7 @@ import {useNavigate} from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Button } from "flowbite-react";
 import { MdInstallDesktop } from "react-icons/md";
 import InstallModuleModal from "../components/InstallModuleModal.tsx";
+import type {BasicTaskResponse} from "../schemas/general.ts";
 
 interface ClientPageProps {
   username: string;
@@ -28,7 +29,7 @@ export default function ClientPage({ username }: ClientPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [showInstallModal, setShowInstallModal] = useState(false);
 
-  const updateClientAliveStatus = (clientUsername: string, alive: boolean) => {
+  const updateClientAliveStatus = useCallback((clientUsername: string, alive: boolean) => {
     if (clientUsername === username) {
       setClientInfo(prevClientInfo =>
         prevClientInfo ? {
@@ -38,7 +39,7 @@ export default function ClientPage({ username }: ClientPageProps) {
         } : null
       );
     }
-  };
+  }, [username]);
 
   useEffect(() => {
     const fetchClientInfo = async() => {
@@ -144,6 +145,13 @@ export default function ClientPage({ username }: ClientPageProps) {
       setInstalledModules(refresh || []);
     }
   };
+
+  const handleRunModule = async (moduleName: string) => {
+    const response = await apiClient.get<BasicTaskResponse>("/user/modules/run/"+ moduleName + "?client_username=" + username);
+    if (isApiError(response)) {
+      setError(`Failed to run module: ${response.detail}`);
+    }
+  }
 
   return (
     <MainSkeleton baseName={"Client " + username}>
@@ -252,7 +260,7 @@ export default function ClientPage({ username }: ClientPageProps) {
                           </TableCell>
                           <TableCell>
                             <button className="font-medium text-cyan-600 hover:underline dark:text-cyan-500 disabled:opacity-50 disabled:no-underline"
-                            disabled={clientInfo?.alive !== true}>
+                            disabled={clientInfo?.alive !== true} onClick={() => handleRunModule(module.name)}>
                               Run
                             </button>
                           </TableCell>

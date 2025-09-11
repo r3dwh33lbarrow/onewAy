@@ -153,10 +153,10 @@ impl ApiClient {
                 .context("failed to read error response")?;
 
             if let Ok(api_error) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
-                return Err(anyhow::Error::new(ApiError {
+                Err(anyhow::Error::new(ApiError {
                     status_code,
                     detail: api_error.detail,
-                }));
+                }))
             } else {
                 Err(anyhow::Error::new(ApiError {
                     status_code,
