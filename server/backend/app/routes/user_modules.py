@@ -629,3 +629,44 @@ async def user_modules_set_installed_client_username(
         )
 
     return {"result": "success"}
+
+
+@router.get("/run/{module_name}")
+async def user_modules_run_module_name(
+        module_name: str,
+        client_username: str,
+        db: AsyncSession = Depends(get_db),
+        _=Depends(verify_access_token)
+):
+    module = await db.execute(select(Module).where(Module.name == module_name))
+    module = module.scalar_one_or_none()
+    if not module:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Module not found"
+        )
+
+    client = await db.execute(select(Client).where(Client.username == client_username))
+    client = client.scalar_one_or_none()
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found"
+        )
+
+    if not client.alive:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Client is not alive"
+        )
+
+    client_module = await db.execute(select(ClientModule).where(ClientModule.client_name == client.username and ClientModule.module_name == module.name))
+    client_module = client_module.scalar_one_or_none()
+    if not client_module:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Module not installed on client"
+        )
+
+    # TODO: Implement module execution logic
+    return {"result": "success"}

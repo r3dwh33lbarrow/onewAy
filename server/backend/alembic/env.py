@@ -28,6 +28,7 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 from app.db.base import Base
 from app.models.client import Client
+from app.models.client_module import ClientModule
 from app.models.refresh_token import RefreshToken
 from app.models.module import Module
 from app.models.user import User

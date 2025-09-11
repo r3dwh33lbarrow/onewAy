@@ -12,7 +12,7 @@ from app.schemas.general import BasicTaskResponse, TokenResponse
 from app.services.authentication import create_access_token, create_refresh_token, rotate_refresh_token, \
     verify_refresh_token
 from app.services.password import hash_password
-from app.services.websockets import websocket_manager
+from app.services.user_websockets import websocket_manager
 
 router = APIRouter(prefix="/client/auth")
 
@@ -96,11 +96,6 @@ async def client_auth_login(login_request: ClientLoginRequest, request: Request,
         refresh_token = await create_refresh_token(client.uuid, db)
         await db.commit()
 
-        alive_dict = {
-            "username": client.username,
-            "alive": True
-        }
-        asyncio.create_task(websocket_manager.send_client_alive_update(alive_dict))
         response.set_cookie(key="refresh_token", value=refresh_token,
                             httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
 

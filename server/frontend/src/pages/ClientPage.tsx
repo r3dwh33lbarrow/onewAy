@@ -4,7 +4,9 @@ import {apiClient, isApiError} from "../apiClient.ts";
 import type {ClientInfo} from "../schemas/client.ts";
 import type {TokenResponse} from "../schemas/authentication.ts";
 import {useNavigate} from "react-router-dom";
-import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from "flowbite-react";
+import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Button } from "flowbite-react";
+import { MdInstallDesktop } from "react-icons/md";
+import InstallModuleModal from "../components/InstallModuleModal.tsx";
 
 interface ClientPageProps {
   username: string;
@@ -24,6 +26,7 @@ export default function ClientPage({ username }: ClientPageProps) {
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [installedModules, setInstalledModules] = useState<InstalledModuleInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showInstallModal, setShowInstallModal] = useState(false);
 
   const updateClientAliveStatus = (clientUsername: string, alive: boolean) => {
     if (clientUsername === username) {
@@ -127,7 +130,20 @@ export default function ClientPage({ username }: ClientPageProps) {
         socketRef.current.close();
       }
     };
-  }, []);
+  }, [updateClientAliveStatus]);
+
+  const handleInstallModule = async (moduleName: string) => {
+    const response = await apiClient.post<object, { message: string }>("/user/modules/set-installed/" + username + "?module_name=" + moduleName, {});
+    if (isApiError(response)) {
+      setError(`Failed to install module: ${response.detail}`);
+      return;
+    }
+
+    const refresh = await apiClient.get<InstalledModuleInfo[]>("/user/modules/installed/" + username);
+    if (!isApiError(refresh)) {
+      setInstalledModules(refresh || []);
+    }
+  };
 
   return (
     <MainSkeleton baseName={"Client " + username}>
@@ -139,18 +155,19 @@ export default function ClientPage({ username }: ClientPageProps) {
         )}
         {clientInfo && !error ? (
           <>
-            <div className="grid grid-cols-3 gap-6 p-6">
-              {/* First column - Windows logo (full height) */}
-              <div className="flex justify-center items-center h-full min-h-96 p-4">
+            <div className="flex gap-6 p-6 items-start">
+              {/* First column - Windows logo (height matches client info) */}
+              <div className="flex-shrink-0">
                 <img
                   src="/windows_default_logo.png"
                   alt="Windows Logo"
-                  className="w-full h-full object-contain"
+                  className="object-contain max-w-none"
+                  style={{ height: 'calc(2.5rem + 7 * 1.75rem + 6 * 0.75rem + 3rem)' }}
                 />
               </div>
 
-              {/* Second and third columns - Client information */}
-              <div className="col-span-2 border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800 shadow-sm">
+              {/* Second column - Client information (determines the height) */}
+              <div className="flex-1 border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800 shadow-sm">
                 <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 text-center">Client Information</h2>
                 <div className="space-y-3">
                   <div>
@@ -192,7 +209,21 @@ export default function ClientPage({ username }: ClientPageProps) {
             </div>
 
             <div className="p-6">
-              <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-gray-100 text-center">Installed Modules</h2>
+              <div className="flex items-center justify-between mb-6">
+                <Button
+                  pill
+                  color="indigo"
+                  className="px-6 gap-1"
+                  onClick={() => setShowInstallModal(true)}
+                  disabled={clientInfo?.alive !== true}
+                >
+                  <MdInstallDesktop className="h-5 w-5" />
+                  Install
+                </Button>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 flex-1 text-center">Installed Modules</h2>
+                <div className="w-24"></div>
+              </div>
+
 
               <div className="overflow-x-auto">
                 <Table striped>
@@ -239,9 +270,15 @@ export default function ClientPage({ username }: ClientPageProps) {
               </div>
             </div>
           </>
-        ) : (
+        ) : !error ? (
           <p>Loading...</p>
-        )}
+        ) : null}
+
+        <InstallModuleModal
+          show={showInstallModal}
+          onClose={() => setShowInstallModal(false)}
+          onInstall={handleInstallModule}
+        />
       </div>
     </MainSkeleton>
   );

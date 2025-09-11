@@ -3,9 +3,9 @@ import json
 from fastapi import APIRouter, WebSocket, Query, WebSocketDisconnect, HTTPException, Depends
 
 from app.models.user import User
-from app.schemas.general import BasicTaskResponse, TokenResponse
+from app.schemas.general import TokenResponse
 from app.services.authentication import verify_websocket_access_token, get_current_user, create_access_token
-from app.services.websockets import websocket_manager
+from app.services.user_websockets import user_websocket_manager
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(..., descr
     """
     try:
         user_uuid = verify_websocket_access_token(token)
-        await websocket_manager.connect(websocket, user_uuid)
+        await user_websocket_manager.connect(websocket, user_uuid)
 
         try:
             while True:
@@ -33,7 +33,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(..., descr
         except WebSocketDisconnect:
             pass
         finally:
-            await websocket_manager.disconnect(websocket, user_uuid)
+            await user_websocket_manager.disconnect(websocket, user_uuid)
 
     except HTTPException as e:
         await websocket.close(code=e.status_code, reason=e.detail)
