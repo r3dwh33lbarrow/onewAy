@@ -3,22 +3,22 @@ use serde::Deserialize;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::utils::str_to_snake_case;
+use crate::utils::{str_to_snake_case, title_case_to_camel_case};
 use crate::{debug, error, info};
 
-#[derive(Deserialize, PartialEq, Clone)]
+#[derive(Debug, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ModuleStart {
     OnStart,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Binaries {
     pub windows: Option<String>,
     pub mac: Option<String>,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ModuleConfig {
     name: String,
     binaries: Binaries,
@@ -58,8 +58,8 @@ impl ModuleManager {
         let name = config.name.clone();
 
         let mut configs = self.module_configs.lock().await;
+        debug!("Loaded module: {:?}", config);
         configs.push(config);
-        debug!("Loaded module: {}", name);
         Ok(())
     }
 
@@ -132,6 +132,6 @@ impl ModuleManager {
 
     pub async fn get_module(&self, name: &str) -> Option<ModuleConfig> {
         let configs = self.module_configs.lock().await;
-        configs.iter().find(|config| config.name == name).cloned()
+        configs.iter().find(|config| config.name == name || title_case_to_camel_case(&*config.name) == name).cloned()
     }
 }

@@ -13,3 +13,11 @@ pub fn str_to_snake_case(input: &str) -> String {
 
     result.trim_matches('_').to_string()
 }
+
+pub fn title_case_to_camel_case(input: &str) -> String {
+    input
+        .split_whitespace()
+        .map(|word| word.to_lowercase())
+        .collect::<Vec<String>>()
+        .join("_")
+}

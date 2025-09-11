@@ -671,7 +671,7 @@ async def user_modules_run_module_name(
     await client_websocket_manager.send_to_client(
         client_uuid=str(client.uuid),
         message={
-            "message_type": "run",
+            "message_type": "module_run",
             "module_name": module.name
         }
     )
