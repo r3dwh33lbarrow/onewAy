@@ -23,6 +23,7 @@ pub struct ModuleConfig {
     name: String,
     binaries: Binaries,
     start: ModuleStart,
+    pub parent_directory: Option<String>,
 }
 
 pub struct ModuleManager {
@@ -52,10 +53,10 @@ impl ModuleManager {
         }
     }
 
-    pub async fn load_module(&mut self, config_path: &str) -> Result<()> {
+    pub async fn load_module(&mut self, config_path: &str, parent_dir: Option<String>) -> Result<()> {
         let config_content = tokio::fs::read_to_string(config_path).await?;
-        let config: ModuleConfig = serde_yaml::from_str(&config_content)?;
-        let name = config.name.clone();
+        let mut config: ModuleConfig = serde_yaml::from_str(&config_content)?;
+        config.parent_directory = parent_dir;
 
         let mut configs = self.module_configs.lock().await;
         debug!("Loaded module: {:?}", config);
@@ -76,6 +77,7 @@ impl ModuleManager {
             }
         }
 
+        // TODO: Add support for base YAML files
         for folder in module_folders {
             let config_path = Path::new(&self.modules_directory)
                 .join(&folder)
@@ -90,7 +92,7 @@ impl ModuleManager {
                 continue;
             }
 
-            self.load_module(config_path.to_str().unwrap()).await?
+            self.load_module(config_path.to_str().unwrap(), Some(folder)).await?
         }
 
         Ok(())
@@ -133,5 +135,9 @@ impl ModuleManager {
     pub async fn get_module(&self, name: &str) -> Option<ModuleConfig> {
         let configs = self.module_configs.lock().await;
         configs.iter().find(|config| config.name == name || title_case_to_camel_case(&*config.name) == name).cloned()
+    }
+
+    pub fn get_modules_directory(&self) -> String {
+        self.modules_directory.clone()
     }
 }
