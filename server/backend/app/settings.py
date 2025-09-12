@@ -33,6 +33,8 @@ class Settings(BaseSettings):
 
     default_avatar: str = Field("[ROOT]" + os.sep + "server" + os.sep + "backend" + os.sep + "assets" + os.sep + "default_avatar.png", alias="DEFAULT_AVATAR")
 
+    max_avatar_size: int = Field(5 * 1024 * 1024, alias="MAX_AVATAR_SIZE")
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
@@ -52,6 +54,7 @@ class Settings(BaseSettings):
         use_test = self.testing or is_pytest or has_test_db
         self.module_path = test if use_test else prod
         self.client_directory = resolve_root(self.client_directory)
+        self.default_avatar = resolve_root(self.default_avatar)
         return self
 
 
