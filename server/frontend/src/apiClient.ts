@@ -165,6 +165,49 @@ class ApiClient {
   public async delete<T>(endpoint: string): Promise<T | ApiError> {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }
+
+  public async requestBytes(endpoint: string, options: RequestInit = {}): Promise<ArrayBuffer | ApiError> {
+    if (!this.apiUrl) {
+      return {
+        statusCode: -1,
+        message: 'API URL not configured. Please set a valid API URL first.',
+      };
+    }
+
+    try {
+      const url = `${this.apiUrl}${endpoint}`;
+      const response = await fetch(url, {
+        headers: {
+          ...options.headers,
+        },
+        credentials: 'include',
+        ...options,
+      });
+
+      if (!response.ok) {
+        try {
+          const errorData = await response.json();
+          return {
+            statusCode: response.status,
+            message: response.statusText || `HTTP ${response.status} error`,
+            detail: errorData.detail || undefined,
+          };
+        } catch {
+          return {
+            statusCode: response.status,
+            message: response.statusText || `HTTP ${response.status} error`,
+          };
+        }
+      }
+
+      return await response.arrayBuffer();
+    } catch (error) {
+      return {
+        statusCode: -1,
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
 }
 
 export const apiClient = new ApiClient();

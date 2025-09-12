@@ -7,6 +7,7 @@ from starlette.responses import Response
 
 from app.dependencies import get_db
 from app.models.user import User
+from app.schemas.general import BasicTaskResponse
 from app.services.authentication import get_current_user
 from app.settings import settings
 
@@ -53,27 +54,26 @@ async def user_get_avatar(user: User = Depends(get_current_user)):
         )
 
 
-@router.post("/update-avatar")
+@router.post("/update-avatar", response_model=BasicTaskResponse)
 async def user_update_avatar(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """
     Update the avatar for the currently authenticated user.
 
     This endpoint allows the user to upload a new avatar image. The uploaded file
-    is validated to ensure it meets the size and format requirements. If the file
-    is valid, it is saved as the user's new avatar.
+    must be a PNG image and adhere to the size restrictions defined in the settings.
 
     Args:
         file (UploadFile): The uploaded file containing the new avatar image.
+                           Must be provided as a form-data file.
         db (AsyncSession): The database session, injected via dependency.
         user (User): The currently authenticated user, injected via dependency.
 
     Returns:
-        dict: A dictionary containing the result of the operation.
+        dict: A dictionary containing the result of the operation (e.g., {"result": "success"}).
 
     Raises:
-        HTTPException: If the file size cannot be read, if the file exceeds the
-        maximum allowed size, if the file is not a PNG image, or if there is an
-        error saving the avatar to the database.
+        HTTPException: If the uploaded file is not a PNG, exceeds the maximum size,
+                       or if there is an error during file processing or database operations.
     """
     if file.content_type is not "image/png":
         raise HTTPException(

@@ -1,6 +1,7 @@
 import { Avatar, Dropdown, DropdownItem, DropdownHeader, DropdownDivider, Button } from "flowbite-react";
 import { HiOutlineCog, HiOutlineBell } from "react-icons/hi";
 import {useNavigate} from "react-router-dom";
+import {useEffect} from "react";
 
 const customDropdownTheme = {
   "arrowIcon": "ml-2 h-4 w-4 dark:fill-gray-200",
@@ -38,6 +39,14 @@ const customDropdownTheme = {
 
 export default function TopIcons() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchUserIcon = async () => {
+
+    };
+
+    fetchUserIcon();
+  }, []);
 
   return (
     <div className="flex items-center gap-3">
