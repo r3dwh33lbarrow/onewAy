@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     module_path: str = "[ROOT]" + os.sep + "modules"
     client_directory: str = Field("[ROOT]" + os.sep + "client", alias="CLIENT_DIRECTORY")
 
+    default_avatar: str = Field("[ROOT]" + os.sep + "server" + os.sep + "backend" + os.sep + "assets" + os.sep + "default_avatar.png", alias="DEFAULT_AVATAR")
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
