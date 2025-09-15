@@ -3,7 +3,6 @@ from datetime import datetime, UTC
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette import status
 
 from app.dependencies import get_db
 from app.models.user import User
@@ -31,7 +30,7 @@ async def user_auth_register(signup_request: UserSignupRequest, db: AsyncSession
     """
     existing_user = await db.execute(select(User).where(User.username == signup_request.username))
     if existing_user.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
+        raise HTTPException(status_code=409, detail="Username already exists")
 
     new_user = User(
         username=signup_request.username,
@@ -45,7 +44,7 @@ async def user_auth_register(signup_request: UserSignupRequest, db: AsyncSession
 
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise HTTPException(status_code=500,
                             detail="Failed to add user to the database")
 
 
@@ -71,7 +70,7 @@ async def user_auth_login(signin_request: UserSigninRequest, response: Response,
     user = user.scalar_one_or_none()
 
     if not user or not user.verify_password(signin_request.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
+        raise HTTPException(status_code=401, detail="Invalid username or password")
 
     try:
         access_token = create_access_token(user.uuid, True)
@@ -85,7 +84,7 @@ async def user_auth_login(signin_request: UserSigninRequest, response: Response,
         raise e
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise HTTPException(status_code=500,
                             detail="Failed to sign in user")
 
 
