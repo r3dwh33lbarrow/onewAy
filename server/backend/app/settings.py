@@ -31,9 +31,7 @@ class Settings(BaseSettings):
     module_path: str = "[ROOT]" + os.sep + "modules"
     client_directory: str = Field("[ROOT]" + os.sep + "client", alias="CLIENT_DIRECTORY")
 
-    default_avatar: str = Field("[ROOT]" + os.sep + "server" + os.sep + "backend" + os.sep + "assets" + os.sep + "default_avatar.png", alias="DEFAULT_AVATAR")
-
-    max_avatar_size: int = Field(5 * 1024 * 1024, alias="MAX_AVATAR_SIZE")
+    avatar_directory: str = Field("[ROOT]" + os.sep + "server" + os.sep + "backend" + os.sep + "app" + os.sep + "resources" + os.sep + "avatars", alias="AVATAR_DIRECTORY")
 
     model_config = {
         "env_file": ".env",
@@ -54,7 +52,7 @@ class Settings(BaseSettings):
         use_test = self.testing or is_pytest or has_test_db
         self.module_path = test if use_test else prod
         self.client_directory = resolve_root(self.client_directory)
-        self.default_avatar = resolve_root(self.default_avatar)
+        self.avatar_directory = resolve_root(self.avatar_directory)
         return self
 
 
