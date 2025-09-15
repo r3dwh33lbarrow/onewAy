@@ -1,7 +1,8 @@
 import { Avatar, Dropdown, DropdownItem, DropdownHeader, DropdownDivider, Button } from "flowbite-react";
 import { HiOutlineCog, HiOutlineBell } from "react-icons/hi";
 import {useNavigate} from "react-router-dom";
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
+import {apiClient, isApiError} from "../apiClient.ts";
 
 const customDropdownTheme = {
   "arrowIcon": "ml-2 h-4 w-4 dark:fill-gray-200",
@@ -40,9 +41,17 @@ const customDropdownTheme = {
 export default function TopIcons() {
   const navigate = useNavigate();
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchUserIcon = async () => {
-
+      setError(null);
+      const avatarData = await apiClient.requestBytes(
+        "/user/get-avatar", {method: "GET" },
+      );
+      if (isApiError(avatarData)) {
+        setError(`Failed to fetch user icon (${avatarData.statusCode}): ${avatarData.detail}`);
+      }
     };
 
     fetchUserIcon();
