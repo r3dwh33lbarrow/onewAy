@@ -5,7 +5,6 @@ from typing import Dict, Set
 from fastapi import WebSocket
 
 from app.logger import get_logger
-from app.routes.user_auth import user_auth_login
 
 log = get_logger()
 

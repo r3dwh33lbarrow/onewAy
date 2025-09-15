@@ -1,9 +1,6 @@
-import asyncio
-
 from fastapi import APIRouter, Depends, Request, Response, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette import status
 
 from app.dependencies import get_db
 from app.models.client import Client
@@ -12,7 +9,6 @@ from app.schemas.general import BasicTaskResponse, TokenResponse
 from app.services.authentication import create_access_token, create_refresh_token, rotate_refresh_token, \
     verify_refresh_token
 from app.services.password import hash_password
-from app.services.user_websockets import user_websocket_manager
 
 router = APIRouter(prefix="/client/auth")
 
@@ -40,7 +36,7 @@ async def client_auth_enroll(enroll_request: ClientEnrollRequest,
     """
     existing_client = await db.execute(select(Client).where(Client.username == enroll_request.username))
     if existing_client.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
+        raise HTTPException(status_code=409, detail="Username already exists")
 
     new_client = Client(
         username=enroll_request.username,
@@ -56,7 +52,7 @@ async def client_auth_enroll(enroll_request: ClientEnrollRequest,
 
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise HTTPException(status_code=500,
                             detail="Failed to add client to the database")
 
 
@@ -86,7 +82,7 @@ async def client_auth_login(login_request: ClientLoginRequest, request: Request,
     client = client.scalar_one_or_none()
 
     if not client or not client.verify_password(login_request.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
+        raise HTTPException(status_code=401, detail="Invalid username or password")
 
     client.ip_address = request.client.host
     client.alive = True
@@ -104,7 +100,7 @@ async def client_auth_login(login_request: ClientLoginRequest, request: Request,
         raise e
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise HTTPException(status_code=500,
                             detail="Login failed due to database error")
 
 
@@ -141,7 +137,7 @@ async def client_auth_refresh(request: Request,
         raise e
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise HTTPException(status_code=500,
                             detail="Token refresh failed due to database error")
 
 
@@ -173,11 +169,11 @@ async def client_auth_username_check(username: str,
         client = client.scalar_one_or_none()
 
         if not client:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+            raise HTTPException(status_code=401,
                                 detail="Invalid token")
 
         if client.username != username:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+            raise HTTPException(status_code=403,
                                 detail="Username mismatch")
 
         return {"result": "success"}
@@ -186,5 +182,5 @@ async def client_auth_username_check(username: str,
         raise e
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise HTTPException(status_code=500,
                             detail="Check failed due to server error")
