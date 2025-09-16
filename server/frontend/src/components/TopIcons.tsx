@@ -1,8 +1,10 @@
-import { Avatar, Dropdown, DropdownItem, DropdownHeader, DropdownDivider, Button } from "flowbite-react";
+import { Avatar, Dropdown, DropdownItem, Button } from "flowbite-react";
 import { HiOutlineCog, HiOutlineBell } from "react-icons/hi";
-import {useNavigate} from "react-router-dom";
-import {useEffect} from "react";
-import {useAvatarStore} from "../stores/useAvatarStore.ts";
+import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useAvatarStore } from "../stores/useAvatarStore.ts";
+import { useAuthStore } from "../stores/authStore.ts";
+import { apiClient, isApiError } from "../apiClient.ts";
 
 const customDropdownTheme = {
   "arrowIcon": "ml-2 h-4 w-4 dark:fill-gray-200",
@@ -42,6 +44,11 @@ const customDropdownTheme = {
 export default function TopIcons() {
   const navigate = useNavigate();
   const { avatarUrl, fetchAvatar } = useAvatarStore();
+  const clearUser = useAuthStore(state => state.clearUser);
+  const clearAvatar = useAvatarStore(state => state.clearAvatar);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifBtnRef = useRef<HTMLButtonElement | null>(null);
+  const notifPanelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!avatarUrl) {
@@ -49,11 +56,82 @@ export default function TopIcons() {
     }
   }, [avatarUrl, fetchAvatar]);
 
+  const handleLogout = async () => {
+    try {
+      const resp = await apiClient.post<object, { result: string }>("/user/auth/logout", {});
+      if (isApiError(resp)) {
+        console.error("Logout failed:", resp.detail || resp.message);
+      }
+    } catch (e) {
+      console.error("Logout error:", e);
+    } finally {
+      clearUser();
+      clearAvatar();
+      navigate("/login");
+    }
+  };
+
+  // Close notifications panel on outside click / Escape
+  useEffect(() => {
+    if (!notifOpen) return;
+
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        notifPanelRef.current && !notifPanelRef.current.contains(target) &&
+        notifBtnRef.current && !notifBtnRef.current.contains(target)
+      ) {
+        setNotifOpen(false);
+      }
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setNotifOpen(false);
+    };
+
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [notifOpen]);
+
   return (
     <div className="flex items-center gap-3">
-      <Button color="gray" pill size="sm" aria-label="Notifications">
-        <HiOutlineBell className="h-5 w-5" />
-      </Button>
+      <div className="relative">
+        <Button
+          ref={notifBtnRef}
+          color="gray"
+          pill
+          size="sm"
+          aria-label="Notifications"
+          onClick={() => setNotifOpen(v => !v)}
+          className="relative"
+        >
+          <HiOutlineBell className="h-5 w-5" />
+          {/* Unread dot scaffold: enable when you have unread */}
+          {/* <span className="absolute -top-0.5 -right-0.5 inline-flex h-2 w-2 rounded-full bg-red-500" /> */}
+        </Button>
+
+        {notifOpen && (
+          <div
+            ref={notifPanelRef}
+            className="absolute right-0 mt-2 w-72 z-40"
+            style={{}}
+          >
+            {/* Arrow */}
+            <div className="relative">
+              <div className="absolute right-4 -top-0.5 h-3 w-3 rotate-45 bg-white border-l border-t border-gray-200 dark:bg-gray-700 dark:border-gray-600"></div>
+              <div className="rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-600 dark:bg-gray-700 overflow-hidden">
+                <div className="p-3 text-sm text-gray-500 dark:text-gray-300">
+                  No notifications
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       <Button
         onClick={() => navigate("/settings")}
@@ -76,12 +154,7 @@ export default function TopIcons() {
         }
         theme={customDropdownTheme}
       >
-        <DropdownHeader>
-          <span className="block text-sm">John Doe</span>
-        </DropdownHeader>
-        <DropdownItem>Profile</DropdownItem>
-        <DropdownDivider />
-        <DropdownItem>Sign out</DropdownItem>
+        <DropdownItem onClick={handleLogout}>Sign out</DropdownItem>
       </Dropdown>
     </div>
   );

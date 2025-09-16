@@ -8,8 +8,32 @@ interface AvatarState {
   clearAvatar: () => void;
 }
 
+function getCachedAvatar(): string | null {
+  try {
+    return localStorage.getItem("avatarDataUrl");
+  } catch {
+    return null;
+  }
+}
+
+function cacheAvatar(dataUrl: string) {
+  try {
+    localStorage.setItem("avatarDataUrl", dataUrl);
+  } catch {
+    // Ignore quota or privacy mode errors
+  }
+}
+
+function clearCachedAvatar() {
+  try {
+    localStorage.removeItem("avatarDataUrl");
+  } catch {
+    // ignore
+  }
+}
+
 export const useAvatarStore = create<AvatarState>((set) => ({
-  avatarUrl: null,
+  avatarUrl: getCachedAvatar(),
   error: null,
 
   fetchAvatar: async () => {
@@ -26,21 +50,24 @@ export const useAvatarStore = create<AvatarState>((set) => ({
         return;
       }
 
-      const blob = new Blob([avatarData], { type: "image/png" });
-      const url = URL.createObjectURL(blob);
+      // Convert to base64 data URL for stable caching across navigations
+      const bytes = new Uint8Array(avatarData as ArrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
+      const dataUrl = `data:image/png;base64,${base64}`;
 
-      set({ avatarUrl: url, error: null });
+      cacheAvatar(dataUrl);
+      set({ avatarUrl: dataUrl, error: null });
     } catch {
       set({ error: "Unexpected error fetching avatar", avatarUrl: null });
     }
   },
 
   clearAvatar: () => {
-    set((state) => {
-      if (state.avatarUrl) {
-        URL.revokeObjectURL(state.avatarUrl);
-      }
-      return { avatarUrl: null, error: null };
-    });
+    clearCachedAvatar();
+    set({ avatarUrl: null, error: null });
   },
 }));
