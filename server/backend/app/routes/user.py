@@ -3,12 +3,14 @@ import uuid
 
 import magic
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import FileResponse
 
 from app.dependencies import get_db
 from app.models.user import User
 from app.schemas.general import BasicTaskResponse
+from app.schemas.user import UserInfoResponse, UserUpdateRequest
 from app.services.authentication import get_current_user
 from app.settings import settings
 
@@ -99,3 +101,53 @@ async def user_update_avatar(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+
+@router.get("/me", response_model=UserInfoResponse)
+async def user_get_me(user: User = Depends(get_current_user)):
+    """
+    Get the current authenticated user's public profile information.
+
+    Returns username, admin flag, timestamps, and avatar presence.
+    """
+    return UserInfoResponse(
+        username=user.username,
+        is_admin=bool(user.is_admin),
+        last_login=user.last_login,
+        created_at=user.created_at,
+        avatar_set=bool(user.avatar_path)
+    )
+
+
+@router.put("/me", response_model=BasicTaskResponse)
+async def user_update_me(
+    payload: UserUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Update current user's editable fields.
+
+    Currently supports updating username (must be unique).
+    """
+    try:
+        if payload.username is not None:
+            new_username = payload.username.strip()
+            if len(new_username) == 0:
+                raise HTTPException(status_code=400, detail="Username cannot be empty")
+
+            if new_username != user.username:
+                existing = await db.execute(select(User).where(User.username == new_username))
+                if existing.scalar_one_or_none():
+                    raise HTTPException(status_code=409, detail="Username already exists")
+                user.username = new_username
+
+        await db.commit()
+        return {"result": "success"}
+
+    except HTTPException as e:
+        await db.rollback()
+        raise e
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update user: {e}")

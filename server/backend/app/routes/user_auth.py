@@ -111,3 +111,4 @@ async def user_auth_logout(response: Response):
 @router.post("/ws-token", response_model=TokenResponse)
 async def user_auth_ws_token(user: User = Depends(get_current_user)):
     ws_token = create_access_token(user.uuid, is_ws=True)
+    return {"access_token": ws_token, "token_type": "websocket"}

@@ -53,7 +53,16 @@ export default function Dashboard() {
         }
 
         const wsToken = tokenResponse.access_token;
-        const socket = new WebSocket(`ws://localhost:8000/ws?token=${wsToken}`);
+        const baseUrl = apiClient.getApiUrl();
+        if (!baseUrl) {
+          console.error("API URL not configured for WebSocket");
+          return;
+        }
+        const url = new URL(baseUrl);
+        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        url.pathname = '/ws';
+        url.search = `token=${encodeURIComponent(wsToken)}`;
+        const socket = new WebSocket(url.toString());
         socketRef.current = socket;
 
         socket.onopen = () => {
