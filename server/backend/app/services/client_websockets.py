@@ -5,6 +5,7 @@ from typing import Dict, Set
 from fastapi import WebSocket
 
 from app.logger import get_logger
+from app.services.user_websockets import user_websocket_manager
 
 log = get_logger()
 
@@ -54,6 +55,16 @@ class ClientWebSocketManager:
                 self.active_connections[client_uuid].difference_update(connections_to_remove)
                 if not self.active_connections[client_uuid]:
                     del self.active_connections[client_uuid]
+
+    @staticmethod
+    async def broadcast_client_alive_status(username: str, alive: bool):
+        """
+        Broadcast a client's alive status to all connected users.
+        """
+        await user_websocket_manager.send_client_alive_update({
+            "username": username,
+            "alive": alive
+        })
 
 
 client_websocket_manager = ClientWebSocketManager()

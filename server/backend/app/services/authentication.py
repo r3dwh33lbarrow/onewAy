@@ -326,6 +326,10 @@ def verify_access_token(request: Request):
 
     try:
         decoded_token = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
+        
+        if decoded_token.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+            
         user_uuid = decoded_token.get("sub")
 
         if user_uuid is None:
@@ -401,6 +405,19 @@ async def get_current_client(db: AsyncSession = Depends(get_db), client_uuid: st
         )
 
 
+async def get_client_by_uuid(db: AsyncSession, client_uuid: str) -> Client:
+    result = await db.execute(select(Client).where(Client.uuid == uuid.UUID(client_uuid)))
+    client = result.scalar_one_or_none()
+
+    if client is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Client not found"
+        )
+
+    return client
+
+
 def verify_websocket_access_token(token: str) -> str:
     """
     Verify access token for WebSocket connections.
@@ -416,6 +433,10 @@ def verify_websocket_access_token(token: str) -> str:
     """
     try:
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        
+        if decoded_token.get("type") != "websocket":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+            
         some_uuid = decoded_token.get("sub")
 
         if some_uuid is None:
