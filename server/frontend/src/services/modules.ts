@@ -4,6 +4,7 @@ export interface ModuleBasicInfo {
   name: string;
   description: string;
   version: string;
+  start: string;
   binaries_platform: string[];
 }
 

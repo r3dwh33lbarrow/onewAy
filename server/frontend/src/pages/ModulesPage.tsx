@@ -155,6 +155,7 @@ export default function ModulesPage() {
                   <TableHeadCell>Module Name</TableHeadCell>
                   <TableHeadCell>Description</TableHeadCell>
                   <TableHeadCell>Version</TableHeadCell>
+                  <TableHeadCell>Start</TableHeadCell>
                   <TableHeadCell>Supported Platforms</TableHeadCell>
                 </TableRow>
               </TableHead>
@@ -173,6 +174,9 @@ export default function ModulesPage() {
                     </TableCell>
                     <TableCell>
                       {module.version}
+                    </TableCell>
+                    <TableCell>
+                      {module.start}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
