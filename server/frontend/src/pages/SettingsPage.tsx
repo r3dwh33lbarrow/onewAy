@@ -29,20 +29,43 @@ export default function SettingsPage() {
     fetchUserIcon();
   }, []);
 
+  const changeAvatar = () => {
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/png";
+    fileInput.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) {
+        setError("No file selected");
+      }
+    }
+
+    fileInput.click();
+  }
+
   return (
     <MainSkeleton baseName="Settings">
-      <div className="flex flex-col items-center justify-center min-h-[60v] gap-4">
-        <button className="relative flex items-center justify-center p-2 w-32 h-32 hover:cursor-pointer group overflow-hidden rounded-lg">
-          {avatarUrl ? (
-            <>
-              <img src={avatarUrl} alt="User Avatar" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-50 transition-opacity duration-200 flex items-center justify-center">
-                <HiOutlineCamera className="text-white text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-              </div>
-            </>
-          ) : <></>}
-        </button>
-      </div>
+      {!(error) ? (
+        <div className="flex min-h-[60vh] gap-4">
+          <div className="flex flex-col items-center min-h-[60vh] gap-4 pt-3 w-full">
+            <button className="relative flex items-center justify-center p-2 w-32 h-32 hover:cursor-pointer group overflow-hidden rounded-lg" onClick={changeAvatar}>
+              {avatarUrl ? (
+                <>
+                  <img src={avatarUrl} alt="User Avatar" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-50 transition-opacity duration-200 flex items-center justify-center">
+                    <HiOutlineCamera className="text-white text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                  </div>
+                </>
+              ) : <></>}
+            </button>
+            <p className="self-start">Name</p>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+          <p className="text-red-800 dark:text-red-200">{error}</p>
+        </div>
+      )}
     </MainSkeleton>
   );
 }
