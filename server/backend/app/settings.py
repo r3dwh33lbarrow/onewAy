@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     module_path: str = "[ROOT]" + os.sep + "modules"
     client_directory: str = Field("[ROOT]" + os.sep + "client", alias="CLIENT_DIRECTORY")
 
+    avatar_directory: str = Field("[ROOT]" + os.sep + "server" + os.sep + "backend" + os.sep + "app" + os.sep + "resources" + os.sep + "avatars", alias="AVATAR_DIRECTORY")
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
@@ -50,6 +52,7 @@ class Settings(BaseSettings):
         use_test = self.testing or is_pytest or has_test_db
         self.module_path = test if use_test else prod
         self.client_directory = resolve_root(self.client_directory)
+        self.avatar_directory = resolve_root(self.avatar_directory)
         return self
 
 

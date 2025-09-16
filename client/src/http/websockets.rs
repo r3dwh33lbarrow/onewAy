@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::path::PathBuf;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -93,7 +94,14 @@ async fn handle_websocket_message(message: WebsocketMessage, module_manager: Arc
 
             let module = module.unwrap();
             let binary = module.resolve_binaries().unwrap();
-            let mut command = std::process::Command::new(binary);
+            // Construct path using PathBuf for cross-platform compatibility
+            let parent_dir = module.parent_directory.clone().unwrap();
+            let mut path = PathBuf::from(module_manager.get_modules_directory());
+            path.push(&parent_dir);
+            path.push(binary);
+            info!("Executing binary at path: {}", path.display());
+
+            let mut command = std::process::Command::new(&path);
             let result = command.spawn();
             if result.is_err() {
                 println!("Failed to start module {}: {}", binary, result.err().unwrap());

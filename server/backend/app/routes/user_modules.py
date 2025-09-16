@@ -10,7 +10,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from starlette import status
 
 from app.dependencies import get_db
 from app.models.client import Client
@@ -50,7 +49,7 @@ async def user_modules_add(request: ModuleAddRequest, db: AsyncSession = Depends
 
     if not os.path.exists(request.module_path):
         if not os.path.exists(relative_module_path):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Module path does not exist")
+            raise HTTPException(status_code=400, detail="Module path does not exist")
 
         else:
             module_path = relative_module_path
@@ -59,15 +58,15 @@ async def user_modules_add(request: ModuleAddRequest, db: AsyncSession = Depends
 
     config_path = Path(module_path) / "config.yaml"
     if not os.path.isfile(config_path):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Module config.yaml does not exist")
+        raise HTTPException(status_code=400, detail="Module config.yaml does not exist")
 
     try:
         with open(config_path) as stream:
             config = yaml.safe_load(stream)
     except yaml.YAMLError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error parsing config.yaml: {e}")
+        raise HTTPException(status_code=400, detail=f"Error parsing config.yaml: {e}")
     except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error reading config.yaml")
+        raise HTTPException(status_code=500, detail=f"Error reading config.yaml")
 
     binaries = config.get("binaries")
     if isinstance(binaries, str):
@@ -85,7 +84,7 @@ async def user_modules_add(request: ModuleAddRequest, db: AsyncSession = Depends
             binaries=binaries
         )
     except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Missing required key in config.yaml: {e}")
+        raise HTTPException(status_code=400, detail=f"Missing required key in config.yaml: {e}")
 
     try:
         new_module = Module(
@@ -103,7 +102,7 @@ async def user_modules_add(request: ModuleAddRequest, db: AsyncSession = Depends
 
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add module to the database")
+        raise HTTPException(status_code=500, detail="Failed to add module to the database")
 
 
 @router.post("/upload")
@@ -113,7 +112,7 @@ async def user_modules_upload(
         _=Depends(verify_access_token),
 ):
     if not files:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded")
+        raise HTTPException(status_code=400, detail="No files uploaded")
 
     saved = []
     dest_path = None
@@ -123,7 +122,7 @@ async def user_modules_upload(
         for f in files:
             if not f.filename:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=400,
                     detail="File must have a filename"
                 )
 
@@ -132,7 +131,7 @@ async def user_modules_upload(
             # Check for path traversal attempts - allow hidden files but block traversal
             if any(part in ['..', '.', ''] for part in rel_path.parts):
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=400,
                     detail="Invalid file path - no relative path traversal allowed"
                 )
 
@@ -143,12 +142,12 @@ async def user_modules_upload(
                 # Ensure the resolved path is still within module_path
                 if not str(dest_path).startswith(str(Path(settings.module_path).resolve())):
                     raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
+                        status_code=400,
                         detail="Invalid file path - outside allowed directory"
                     )
             except Exception:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=400,
                     detail="Unsafe file path"
                 )
 
@@ -177,7 +176,7 @@ async def user_modules_upload(
         # Check for config.yaml in the module directory
         if module_dir is None:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail="No files were processed"
             )
 
@@ -185,7 +184,7 @@ async def user_modules_upload(
         if not config_path.exists():
             shutil.rmtree(module_dir, ignore_errors=True)
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail="Extracted module must contain config.yaml"
             )
 
@@ -195,20 +194,20 @@ async def user_modules_upload(
         except yaml.YAMLError as e:
             shutil.rmtree(module_dir, ignore_errors=True)
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail=f"Error parsing config.yaml: {e}"
             )
         except Exception as e:
             shutil.rmtree(module_dir, ignore_errors=True)
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail=f"Error reading config.yaml: {e}"
             )
 
         if not isinstance(config, dict):
             shutil.rmtree(module_dir, ignore_errors=True)
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail="config.yaml must contain a valid configuration object"
             )
 
@@ -220,7 +219,7 @@ async def user_modules_upload(
             except json.JSONDecodeError:
                 shutil.rmtree(module_dir, ignore_errors=True)
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=400,
                     detail="Invalid JSON in binaries field"
                 )
         elif not isinstance(binaries, dict):
@@ -232,7 +231,7 @@ async def user_modules_upload(
         if missing_fields:
             shutil.rmtree(module_dir, ignore_errors=True)
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail=f"Missing required fields in config.yaml: {', '.join(missing_fields)}"
             )
 
@@ -247,7 +246,7 @@ async def user_modules_upload(
         except Exception as e:
             shutil.rmtree(module_dir, ignore_errors=True)
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail=f"Error creating module object: {e}"
             )
 
@@ -260,7 +259,7 @@ async def user_modules_upload(
             if existing:
                 shutil.rmtree(module_dir, ignore_errors=True)
                 raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
+                    status_code=409,
                     detail="Module already exists"
                 )
 
@@ -274,7 +273,7 @@ async def user_modules_upload(
             await db.rollback()
             shutil.rmtree(module_dir, ignore_errors=True)
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=500,
                 detail="Failed to add module to the database"
             )
 
@@ -290,7 +289,7 @@ async def user_modules_upload(
         if module_dir and module_dir.exists():
             shutil.rmtree(module_dir, ignore_errors=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Failed to process module upload"
         )
 
@@ -307,7 +306,7 @@ async def user_modules_get(
 
     if not module:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Module not found"
         )
 
@@ -332,7 +331,7 @@ async def user_modules_update(
 
     if not existing_module:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Module not found"
         )
 
@@ -359,7 +358,7 @@ async def user_modules_update(
         for f in files:
             if not f.filename:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=400,
                     detail="File must have a filename"
                 )
 
@@ -368,14 +367,14 @@ async def user_modules_update(
             # Prevent traversal
             if any(part in ['..', '.', ''] for part in rel_path.parts):
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=400,
                     detail="Invalid file path - no relative path traversal allowed"
                 )
 
             dest_path = (Path(settings.module_path) / rel_path).resolve()
             if not str(dest_path).startswith(str(Path(settings.module_path).resolve())):
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=400,
                     detail="Invalid file path - outside allowed directory"
                 )
 
@@ -400,14 +399,14 @@ async def user_modules_update(
 
         if module_dir is None:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail="No files were processed"
             )
 
         config_path = module_dir / "config.yaml"
         if not config_path.exists():
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail="Updated module must contain config.yaml"
             )
 
@@ -416,7 +415,7 @@ async def user_modules_update(
                 config = yaml.safe_load(stream)
         except yaml.YAMLError as e:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail=f"Error parsing config.yaml: {e}"
             )
 
@@ -424,7 +423,7 @@ async def user_modules_update(
         missing_fields = [field for field in required_fields if field not in config]
         if missing_fields:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail=f"Missing required fields in config.yaml: {', '.join(missing_fields)}"
             )
 
@@ -434,7 +433,7 @@ async def user_modules_update(
                 binaries = json.loads(binaries) if binaries else {}
             except json.JSONDecodeError:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=400,
                     detail="Invalid JSON in binaries field"
                 )
         elif not isinstance(binaries, dict):
@@ -475,7 +474,7 @@ async def user_modules_update(
                 shutil.rmtree(module_path, ignore_errors=True)
             shutil.move(backup_path, module_path)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail=f"Failed to update module: {e}"
         )
 
@@ -492,7 +491,7 @@ async def user_modules_delete(
 
     if not module:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Module not found"
         )
 
@@ -516,7 +515,7 @@ async def user_modules_delete(
     except Exception:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Failed to delete module"
         )
 
@@ -534,7 +533,7 @@ async def user_modules_query_module_dir():
                     contents_list.append({"directory": item})
         except Exception as e:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=500,
                 detail=f"Failed to query module directory: {str(e)}"
             )
     else:
@@ -558,7 +557,7 @@ async def user_modules_installed_client_username(
 
     if not client:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail="Client username not found"
         )
 
@@ -591,7 +590,7 @@ async def user_modules_set_installed_client_username(
 
     if not client:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail="Client username not found"
         )
 
@@ -600,14 +599,14 @@ async def user_modules_set_installed_client_username(
 
     if not module:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail="Module not found"
         )
 
     for client_mod in client.client_modules:
         if client_mod.module.name == module.name:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+                status_code=409,
                 detail="Module already installed on client"
             )
 
@@ -624,7 +623,7 @@ async def user_modules_set_installed_client_username(
     except IntegrityError:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Failed to add installed module to the database"
         )
 
@@ -642,7 +641,7 @@ async def user_modules_run_module_name(
     module = module.scalar_one_or_none()
     if not module:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Module not found"
         )
 
@@ -650,13 +649,13 @@ async def user_modules_run_module_name(
     client = client.scalar_one_or_none()
     if not client:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Client not found"
         )
 
     if not client.alive:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail="Client is not alive"
         )
 
@@ -664,7 +663,7 @@ async def user_modules_run_module_name(
     client_module = client_module.scalar_one_or_none()
     if not client_module:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail="Module not installed on client"
         )
 

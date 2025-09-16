@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette import status
 
 from app.dependencies import get_db
 from app.models.client import Client
@@ -36,7 +35,7 @@ async def client(username: str, db: AsyncSession = Depends(get_db), _=Depends(au
         )
 
     raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
+        status_code=404,
         detail="Client not found"
     )
 
@@ -70,7 +69,7 @@ async def client_all(db: AsyncSession = Depends(get_db), _=Depends(authenticatio
 async def client_update(client: Client = Depends(get_current_client)):
     if client.client_version >= settings.version:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail="Client already at latest version"
         )
 
@@ -78,7 +77,7 @@ async def client_update(client: Client = Depends(get_current_client)):
     client_binary = Path(settings.client_directory) / "target" / f"client{client_binary_ext}"
     if not os.path.isfile(client_binary):
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Unable to find client binary"
         )
 
@@ -104,6 +103,6 @@ async def client_update_info(update_info: ClientUpdateInfo,
     except Exception:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Failed to add updated information to the database"
         )

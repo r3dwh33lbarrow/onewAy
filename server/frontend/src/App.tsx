@@ -9,6 +9,7 @@ import ClientPageWrapper from "./pages/ClientPageWrapper.tsx";
 import NotFound from "./pages/404.tsx";
 import ModulesPage from "./pages/ModulesPage.tsx";
 import ModulePageWrapper from "./pages/ModulePageWrapper.tsx";
+import SettingsPage from "./pages/SettingsPage.tsx";
 
 export default function App() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -53,6 +54,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ModulesPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />

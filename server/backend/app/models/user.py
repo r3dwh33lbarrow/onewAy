@@ -28,6 +28,7 @@ class User(Base):
     is_admin = Column(Boolean, nullable=False, default=False)
     last_login = Column(DateTime, nullable=False, default=lambda : datetime.now(UTC).replace(tzinfo=None))
     created_at = Column(DateTime, nullable=False, default=lambda : datetime.now(UTC).replace(tzinfo=None))
+    avatar_path = Column(String)
 
     def verify_password(self, password: str) -> bool:
         """
