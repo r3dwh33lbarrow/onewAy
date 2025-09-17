@@ -660,7 +660,12 @@ async def user_modules_run_module_name(
             detail="Client is not alive"
         )
 
-    client_module = await db.execute(select(ClientModule).where(ClientModule.client_name == client_username and ClientModule.module_name == module.name))
+    # Ensure module is installed for this client
+    client_module = await db.execute(
+        select(ClientModule).where(
+            (ClientModule.client_name == client_username) & (ClientModule.module_name == module.name)
+        )
+    )
     client_module = client_module.scalar_one_or_none()
     if not client_module:
         raise HTTPException(
@@ -668,10 +673,49 @@ async def user_modules_run_module_name(
             detail="Module not installed on client"
         )
 
+    # Only allow manual start modules to be started explicitly
+    if (module.start or "").lower() != "manual":
+        raise HTTPException(
+            status_code=400,
+            detail="Module is not configured for manual start"
+        )
+
     await client_websocket_manager.send_to_client(
         client_uuid=str(client.uuid),
         message={
             "message_type": "module_run",
+            "module_name": module.name
+        }
+    )
+
+    return {"result": "success"}
+
+
+@router.get("/cancel/{module_name}")
+async def user_modules_cancel_module_name(
+        module_name: str,
+        client_username: str,
+        db: AsyncSession = Depends(get_db),
+        _=Depends(verify_access_token)
+):
+    module = await db.execute(select(Module).where(Module.name == module_name))
+    module = module.scalar_one_or_none()
+    if not module:
+        raise HTTPException(status_code=404, detail="Module not found")
+
+    client = await db.execute(select(Client).where(Client.username == client_username))
+    client = client.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    if not client.alive:
+        raise HTTPException(status_code=400, detail="Client is not alive")
+
+    # Send cancel command to client
+    await client_websocket_manager.send_to_client(
+        client_uuid=str(client.uuid),
+        message={
+            "message_type": "module_cancel",
             "module_name": module.name
         }
     )

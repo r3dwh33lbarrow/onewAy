@@ -69,8 +69,37 @@ async def websocket_client(
             while True:
                 data = await websocket.receive_text()
                 message = json.loads(data)
+                # Handle ping/pong from client
                 if message.get("type") == "ping":
                     await websocket.send_text(json.dumps({"type": "pong"}))
+                    continue
+
+                # Forward module output/events from client to all connected users
+                msg_type = message.get("message_type")
+                if msg_type == "module_output":
+                    # Expected: module_name, stream, line
+                    payload = {
+                        "type": "console_output",
+                        "data": {
+                            "username": client.username,
+                            "module_name": message.get("module_name"),
+                            "stream": message.get("stream"),
+                            "line": message.get("line"),
+                        },
+                    }
+                    await user_websocket_manager.broadcast_to_all(payload)
+                elif msg_type in {"module_started", "module_exit", "module_canceled"}:
+                    payload = {
+                        "type": "console_event",
+                        "data": {
+                            "username": client.username,
+                            "module_name": message.get("module_name"),
+                            "event": msg_type,
+                            "code": message.get("code"),
+                        },
+                    }
+                    await user_websocket_manager.broadcast_to_all(payload)
+                # Ignore other message types for now
 
         except WebSocketDisconnect:
             pass

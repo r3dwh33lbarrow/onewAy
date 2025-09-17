@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::path::PathBuf;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -7,6 +6,13 @@ use anyhow::Result;
 use crate::http::api_client::ApiClient;
 use crate::info;
 use crate::module_manager::ModuleManager;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender, UnboundedReceiver};
+use tokio_tungstenite::tungstenite::Bytes;
+
+pub enum OutgoingMessage {
+    Text(String),
+    Pong(Bytes),
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct WebsocketMessage {
@@ -34,6 +40,30 @@ pub async fn start_websocket_client(url: &str, api_client: &ApiClient, module_ma
 
     let (mut write, mut read) = ws_stream.split();
 
+    // Writer task and channels
+    let (tx, mut rx): (UnboundedSender<OutgoingMessage>, UnboundedReceiver<OutgoingMessage>) = unbounded_channel();
+    tokio::spawn(async move {
+        while let Some(msg) = rx.recv().await {
+            let send_res = match msg {
+                OutgoingMessage::Text(txt) => write.send(Message::Text(txt.into())).await,
+                OutgoingMessage::Pong(data) => write.send(Message::Pong(data)).await,
+            };
+            if let Err(e) = send_res {
+                eprintln!("Failed to send message over WebSocket: {}", e);
+                break;
+            }
+        }
+    });
+
+    // Text forwarding channel for module manager
+    let (text_tx, mut text_rx) = unbounded_channel::<String>();
+    let tx_clone_for_forward = tx.clone();
+    tokio::spawn(async move {
+        while let Some(s) = text_rx.recv().await {
+            let _ = tx_clone_for_forward.send(OutgoingMessage::Text(s));
+        }
+    });
+
     println!("WebSocket connection established");
 
     while let Some(message) = read.next().await {
@@ -44,7 +74,7 @@ pub async fn start_websocket_client(url: &str, api_client: &ApiClient, module_ma
                     Ok(ws_msg) => {
                         println!("Received message: {:?}", ws_msg);
                         // Handle the parsed message here
-                        handle_websocket_message(ws_msg, Arc::clone(&module_manager)).await;
+                        handle_websocket_message(ws_msg, Arc::clone(&module_manager), text_tx.clone()).await;
                     }
                     Err(e) => {
                         eprintln!("Failed to parse message as JSON: {}. Raw message: {}", e, text);
@@ -61,9 +91,7 @@ pub async fn start_websocket_client(url: &str, api_client: &ApiClient, module_ma
             }
             Ok(Message::Ping(data)) => {
                 println!("Received ping, sending pong");
-                if let Err(e) = write.send(Message::Pong(data)).await {
-                    eprintln!("Failed to send pong: {}", e);
-                }
+                let _ = tx.send(OutgoingMessage::Pong(data));
             }
             Ok(Message::Pong(_)) => {
                 println!("Received pong");
@@ -82,7 +110,7 @@ pub async fn start_websocket_client(url: &str, api_client: &ApiClient, module_ma
     Ok(())
 }
 
-async fn handle_websocket_message(message: WebsocketMessage, module_manager: Arc<ModuleManager>) {
+async fn handle_websocket_message(message: WebsocketMessage, module_manager: Arc<ModuleManager>, tx: UnboundedSender<String>) {
     match message.message_type.as_str() {
         "module_run" => {
             info!("Running module: {}", message.module_name);
@@ -92,19 +120,26 @@ async fn handle_websocket_message(message: WebsocketMessage, module_manager: Arc
                 return;
             }
 
-            let module = module.unwrap();
-            let binary = module.resolve_binaries().unwrap();
-            // Construct path using PathBuf for cross-platform compatibility
-            let parent_dir = module.parent_directory.clone().unwrap();
-            let mut path = PathBuf::from(module_manager.get_modules_directory());
-            path.push(&parent_dir);
-            path.push(binary);
-            info!("Executing binary at path: {}", path.display());
-
-            let mut command = std::process::Command::new(&path);
-            let result = command.spawn();
-            if result.is_err() {
-                println!("Failed to start module {}: {}", binary, result.err().unwrap());
+            // Start and stream output back to server
+            if let Err(e) = module_manager.start_module_streaming(&message.module_name, tx.clone()).await {
+                eprintln!("Failed to run and stream module {}: {}", message.module_name, e);
+            }
+        }
+        "module_cancel" => {
+            info!("Cancel requested for module: {}", message.module_name);
+            match module_manager.cancel_module(&message.module_name).await {
+                Ok(true) => {
+                    let _ = tx.send(serde_json::json!({
+                        "message_type": "module_canceled",
+                        "module_name": message.module_name
+                    }).to_string());
+                }
+                Ok(false) => {
+                    // Not running; optionally emit an event
+                }
+                Err(e) => {
+                    eprintln!("Failed to cancel module {}: {}", message.module_name, e);
+                }
             }
         }
         _ => {

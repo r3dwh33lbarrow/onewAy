@@ -16,6 +16,17 @@ export async function getAllModules(): Promise<UserModuleAllResponse | ApiError>
   return await apiClient.get<UserModuleAllResponse>("/user/modules/all");
 }
 
+export interface InstalledModuleInfo {
+  name: string;
+  description: string;
+  version: string;
+  status: string;
+}
+
+export async function getInstalledModules(clientUsername: string): Promise<InstalledModuleInfo[] | ApiError> {
+  return await apiClient.get<InstalledModuleInfo[]>(`/user/modules/installed/${encodeURIComponent(clientUsername)}`);
+}
+
 export interface UploadModuleResponse {
   result: string;
 }
@@ -140,4 +151,14 @@ export async function uploadModuleFolder(files: File[]): Promise<UploadModuleRes
       message: error instanceof Error ? error.message : 'Unknown error occurred',
     };
   }
+}
+
+export interface BasicTaskResponse { result: string }
+
+export async function runModule(clientUsername: string, moduleName: string): Promise<BasicTaskResponse | ApiError> {
+  return await apiClient.get<BasicTaskResponse>(`/user/modules/run/${encodeURIComponent(moduleName)}?client_username=${encodeURIComponent(clientUsername)}`);
+}
+
+export async function cancelModule(clientUsername: string, moduleName: string): Promise<BasicTaskResponse | ApiError> {
+  return await apiClient.get<BasicTaskResponse>(`/user/modules/cancel/${encodeURIComponent(moduleName)}?client_username=${encodeURIComponent(clientUsername)}`);
 }

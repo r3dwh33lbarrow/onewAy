@@ -173,14 +173,24 @@ export default function ClientPage({ username }: ClientPageProps) {
         {clientInfo && !error ? (
           <>
             <div className="flex gap-6 p-6 items-start">
-              {/* First column - Windows logo (height matches client info) */}
-              <div className="flex-shrink-0">
+              {/* First column - Windows logo with overlay button */}
+              <div className="relative flex-shrink-0">
                 <img
                   src="/windows_default_logo.png"
                   alt="Windows Logo"
                   className="object-contain max-w-none"
                   style={{ height: 'calc(2.5rem + 7 * 1.75rem + 6 * 0.75rem + 3rem)' }}
                 />
+                <Button
+                  pill
+                  color="dark"
+                  size="sm"
+                  className="absolute bottom-5 right-5"
+                  onClick={() => navigate(`/console/${encodeURIComponent(username)}`)}
+                  disabled={clientInfo?.alive !== true}
+                >
+                  Open Console
+                </Button>
               </div>
 
               {/* Second column - Client information (determines the height) */}
@@ -225,18 +235,20 @@ export default function ClientPage({ username }: ClientPageProps) {
               </div>
             </div>
 
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <Button
-                  pill
-                  color="indigo"
-                  className="px-6 gap-1"
-                  onClick={() => setShowInstallModal(true)}
-                  disabled={clientInfo?.alive !== true}
-                >
-                  <MdInstallDesktop className="h-5 w-5" />
-                  Install
-                </Button>
+              <div className="p-6">
+              <div className="flex items-center justify-between mb-6 gap-3">
+                <div className="flex gap-3">
+                  <Button
+                    pill
+                    color="indigo"
+                    className="px-6 gap-1"
+                    onClick={() => setShowInstallModal(true)}
+                    disabled={clientInfo?.alive !== true}
+                  >
+                    <MdInstallDesktop className="h-5 w-5" />
+                    Install
+                  </Button>
+                </div>
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 flex-1 text-center">Installed Modules</h2>
                 <div className="w-24"></div>
               </div>
