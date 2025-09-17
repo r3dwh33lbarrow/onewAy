@@ -10,6 +10,7 @@ import NotFound from "./pages/404.tsx";
 import ModulesPage from "./pages/ModulesPage.tsx";
 import ModulePageWrapper from "./pages/ModulePageWrapper.tsx";
 import SettingsPage from "./pages/SettingsPage.tsx";
+import ConsolePageWrapper from "./pages/ConsolePageWrapper.tsx";
 
 export default function App() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -64,6 +65,15 @@ export default function App() {
             <ProtectedRoute>
               <SettingsPage />
             </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/console/:username"
+          element={
+          <ProtectedRoute>
+            <ConsolePageWrapper />
+          </ProtectedRoute>
           }
         />
         <Route path="*" element={<NotFound />} />
