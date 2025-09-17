@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 from app.utils import resolve_root
 
 
-def toml_settings(settings: BaseSettings) -> dict:
+def toml_settings(_settings: BaseSettings) -> dict:
     try:
         with open("config.toml", "rb") as file:
             return tomllib.load(file)
@@ -51,6 +51,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _resolve_paths(self) -> "Settings":
+        """Resolve [ROOT] placeholders in path settings to actual paths."""
         self.paths.client_dir = resolve_root(self.paths.client_dir)
         self.paths.module_dir = resolve_root(self.paths.module_dir)
         return self
