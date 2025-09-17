@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 from app.utils import resolve_root
 
 
-def toml_settings(settings: BaseSettings) -> dict:
+def toml_settings(_settings: BaseSettings) -> dict:
     try:
         with open("config.toml", "rb") as file:
             return tomllib.load(file)
