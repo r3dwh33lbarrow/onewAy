@@ -1,79 +1,56 @@
-import os
+import tomllib
+
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
-from app.logger import get_logger
+from app.utils import resolve_root
 
-log = get_logger()
+
+def toml_settings(settings: BaseSettings) -> dict:
+    try:
+        with open("config.toml", "rb") as file:
+            return tomllib.load(file)
+    except FileNotFoundError:
+        raise RuntimeError("Could not find config.toml")
+
+
+class DatabaseSettings(BaseSettings):
+    url: str = Field(min_length=1)
+    pool_size: int = Field(10)
+    pool_timeout: int = Field(30)
+    echo_sql: bool = Field(False)
+
+
+class SecuritySettings(BaseSettings):
+    secret_key: str = Field(min_length=1)
+    algorithm: str = Field("HS256")
+    access_token_expires_minutes: int = Field(15)
+    refresh_token_expires_days: int = Field(7)
+
+
+class PathSettings(BaseSettings):
+    client_dir: str = Field("[ROOT]/client")
+    module_dir: str = Field("[ROOT]/modules")
 
 
 class Settings(BaseSettings):
-    # Database settings
-    database_url: str = Field(..., alias="DATABASE_URL")
+    debug: bool = Field(False)
+    database: DatabaseSettings
+    security: SecuritySettings
+    paths: PathSettings
 
-    # Security settings
-    secret_key: str = Field(..., alias="SECRET_KEY")
-
-    # Testing settings
-    testing: bool = Field(False, alias="TESTING")
-
-    # JWT settings
-    access_token_expire_minutes: int = 15
-    refresh_token_expire_days: int = 7
-    jwt_algorithm: str = "HS256"
-
-    # Module settings
-    # Production modules directory (default); tests use a separate path
-    module_path_prod: str = Field("[ROOT]" + os.sep + "modules", alias="MODULE_DIRECTORY")
-    # Test modules directory (cleaned by tests)
-    module_path_test: str = Field("[ROOT]" + os.sep + "server" + os.sep + "backend" + os.sep + "app" + os.sep + "modules", alias="TEST_MODULE_DIRECTORY")
-    # Effective modules directory used by the app (computed in validator)
-    module_path: str = "[ROOT]" + os.sep + "modules"
-    client_directory: str = Field("[ROOT]" + os.sep + "client", alias="CLIENT_DIRECTORY")
-
-    avatar_directory: str = Field("[ROOT]" + os.sep + "server" + os.sep + "backend" + os.sep + "app" + os.sep + "resources" + os.sep + "avatars", alias="AVATAR_DIRECTORY")
-
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "case_sensitive": True,
-        "extra": "ignore",
-        "populate_by_name": True,
-    }
+    class Config:
+        @classmethod
+        def customise_sources(cls, init_settings, env_settings, file_secret_settings):
+            return (
+                init_settings,
+                toml_settings,
+                env_settings,
+                file_secret_settings
+            )
 
     @model_validator(mode="after")
     def _resolve_paths(self) -> "Settings":
-        from app.utils import resolve_root
-        prod = resolve_root(self.module_path_prod)
-        test = resolve_root(self.module_path_test)
-        # Heuristics: prefer test path when explicitly testing
-        is_pytest = bool(os.getenv("PYTEST_CURRENT_TEST"))
-        has_test_db = bool(os.getenv("TEST_DATABASE_URL"))
-        use_test = self.testing or is_pytest or has_test_db
-        self.module_path = test if use_test else prod
-        self.client_directory = resolve_root(self.client_directory)
-        self.avatar_directory = resolve_root(self.avatar_directory)
+        self.paths.client_dir = resolve_root(self.paths.client_dir)
+        self.paths.module_dir = resolve_root(self.paths.module_dir)
         return self
-
-
-def load_test_settings(path_env_test: str = "tests/.env.test") -> Settings:
-    """Return a new Settings instance with test configuration"""
-    log.info("Loading test settings")
-
-    # Create a new settings object with test values
-    test_settings = Settings()
-
-    with open(path_env_test, "r") as env_file:
-        for line in env_file:
-            if "=" in line and not line.startswith("#"):
-                key, value = line.strip().split("=", 1)
-                if key == "TEST_DATABASE_URL":
-                    test_settings.database_url = value
-                if key == "SECRET_KEY":
-                    test_settings.secret_key = value
-
-    test_settings.testing = True
-    return test_settings
-
-
-settings = Settings()
