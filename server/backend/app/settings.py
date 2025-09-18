@@ -1,14 +1,17 @@
 import tomllib
+from pathlib import Path
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 from app.utils import resolve_root
 
+CONFIG_PATH = Path(resolve_root("[ROOT]")) / "server" / "backend" / "config.toml"
+
 
 def toml_settings(_settings: BaseSettings) -> dict:
     try:
-        with open("config.toml", "rb") as file:
+        with open(CONFIG_PATH, "rb") as file:
             return tomllib.load(file)
     except FileNotFoundError:
         raise RuntimeError("Could not find config.toml")
