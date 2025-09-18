@@ -96,16 +96,22 @@ class Settings(BaseSettings):
     def _testing_check(self) -> "Settings":
         """Validates all required fields are filled if testing"""
         if self.testing.testing and not self.testing.database.url:
-            raise RuntimeError("[ERROR in config.yaml] You must provide a testing database URL if testing")
+            raise RuntimeError(
+                "[ERROR in config.yaml] You must provide a testing database URL if testing"
+            )
         if self.testing.testing and not self.testing.security.algorithm:
-            raise RuntimeError("[ERROR in config.yaml] You must provide a testing secret key if testing")
+            raise RuntimeError(
+                "[ERROR in config.yaml] You must provide a testing secret key if testing"
+            )
 
         return self
 
     @model_validator(mode="after")
     def _check_required(self) -> "Settings":
         if not self.app.client_version.strip():
-            raise RuntimeError("[ERROR in config.yaml] You must provide a client version")
+            raise RuntimeError(
+                "[ERROR in config.yaml] You must provide a client version"
+            )
         return self
 
 

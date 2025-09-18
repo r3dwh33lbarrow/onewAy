@@ -17,6 +17,7 @@ class Client(Base):
     Linked to installed modules through the ClientModule association table.
     Provides a method to verify a plaintext password against the stored hash.
     """
+
     __tablename__ = "clients"
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     username = Column(String, nullable=False, unique=True, index=True)

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.models.client import Client
-from app.schemas.client_auth import ClientEnrollRequest, ClientLoginRequest
+from app.schemas.client_auth import *
 from app.schemas.general import BasicTaskResponse, TokenResponse
 from app.services.authentication import (
     create_access_token,

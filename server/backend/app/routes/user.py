@@ -157,10 +157,11 @@ async def user_put_avatar(
     if magic.from_buffer(contents, mime=True) != "image/png":
         raise HTTPException(status_code=400, detail="Avatar must be a PNG file")
 
-
     avatar_path = f"{user.uuid}.png"
     try:
-        async with aiofiles.open(Path(settings.paths.avatar_dir) / avatar_path, "wb") as f:
+        async with aiofiles.open(
+            Path(settings.paths.avatar_dir) / avatar_path, "wb"
+        ) as f:
             await f.write(contents)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save avatar: {e}")

@@ -35,16 +35,18 @@ def verify_jti(jti: str, hashed_jti: str) -> bool:
     return pwd_context.verify(jti, hashed_jti)
 
 
-def create_access_token(
-    account_uuid: uuid.UUID, token_type: TokenType
-) -> str:
+def create_access_token(account_uuid: uuid.UUID, token_type: TokenType) -> str:
     now = datetime.now(UTC)
     if token_type == TokenType.USER:
-        expires = now + timedelta(minutes=settings.security.access_token_expires_minutes + 15)
+        expires = now + timedelta(
+            minutes=settings.security.access_token_expires_minutes + 15
+        )
     elif token_type == TokenType.WEBSOCKET:
         expires = now + timedelta(minutes=15)
     elif token_type == TokenType.CLIENT:
-        expires = now + timedelta(minutes=settings.security.access_token_expires_minutes)
+        expires = now + timedelta(
+            minutes=settings.security.access_token_expires_minutes
+        )
     else:
         raise RuntimeError(f"Incorrect token type {token_type.name}")
 
@@ -57,7 +59,9 @@ def create_access_token(
         "iat": int(now.timestamp()),
     }
 
-    return jwt.encode(payload, settings.security.secret_key, settings.security.algorithm)
+    return jwt.encode(
+        payload, settings.security.secret_key, settings.security.algorithm
+    )
 
 
 async def create_refresh_token(client_uuid: uuid.UUID, db: AsyncSession) -> str:
@@ -81,7 +85,9 @@ async def create_refresh_token(client_uuid: uuid.UUID, db: AsyncSession) -> str:
     try:
         db.add(refresh_token)
         await db.commit()
-        return jwt.encode(payload, settings.security.secret_key, settings.security.algorithm)
+        return jwt.encode(
+            payload, settings.security.secret_key, settings.security.algorithm
+        )
     except Exception as e:
         await db.rollback()
         raise RuntimeError(f"Failed to create refresh token: {str(e)}")
@@ -96,7 +102,11 @@ async def verify_refresh_token(
         raise HTTPException(status_code=401, detail="Missing refresh token")
 
     try:
-        payload = jwt.decode(token, settings.security.secret_key, algorithms=[settings.security.algorithm])
+        payload = jwt.decode(
+            token,
+            settings.security.secret_key,
+            algorithms=[settings.security.algorithm],
+        )
         if payload.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Invalid token type")
 
@@ -205,7 +215,11 @@ def verify_access_token(request: Request):
             raise HTTPException(status_code=401, detail="Missing access token cookie")
 
     try:
-        decoded_token = jwt.decode(access_token, settings.security.secret_key, algorithms=[settings.security.algorithm])
+        decoded_token = jwt.decode(
+            access_token,
+            settings.security.secret_key,
+            algorithms=[settings.security.algorithm],
+        )
         if decoded_token.get("type") != "access":
             raise HTTPException(status_code=401, detail="Invalid token type")
 
@@ -255,7 +269,11 @@ async def get_current_client(
 
 def verify_websocket_access_token(token: str) -> str:
     try:
-        decoded_token = jwt.decode(token, settings.security.secret_key, algorithms=[settings.security.algorithm])
+        decoded_token = jwt.decode(
+            token,
+            settings.security.secret_key,
+            algorithms=[settings.security.algorithm],
+        )
         if decoded_token.get("type") != "websocket":
             raise HTTPException(status_code=401, detail="Invalid token type")
 

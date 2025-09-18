@@ -9,13 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.models.client import Client
-from app.schemas.client import (
-    BasicClientInfo,
-    ClientAllInfo,
-    ClientAllResponse,
-    ClientUpdateInfo,
-    ClientMeResponse,
-)
+from app.schemas.client import *
 from app.schemas.general import BasicTaskResponse
 from app.services import authentication
 from app.services.authentication import get_current_client, get_current_user
@@ -77,9 +71,7 @@ async def client_get_username(
 
 
 @router.get("/all", response_model=ClientAllResponse)
-async def client_all(
-    db: AsyncSession = Depends(get_db), _=Depends(get_current_user)
-):
+async def client_all(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """
     Retrieve a list of all registered clients with basic information.
 

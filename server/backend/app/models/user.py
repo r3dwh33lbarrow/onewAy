@@ -15,6 +15,7 @@ class User(Base):
     account creation and last login, and an optional avatar path.
     Provides a method to verify a plaintext password against the stored hash.
     """
+
     __tablename__ = "users"
 
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)

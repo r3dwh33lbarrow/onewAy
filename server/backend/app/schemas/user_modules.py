@@ -1,14 +1,14 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 
 class ModuleBasicInfo(BaseModel):
     name: str = Field(min_length=1)
-    description: Optional[str] = None
+    description: str | None = None
     version: str = Field(min_length=1)
     start: str = Field(min_length=1)
-    binaries_platform: List[str]
+    binaries_platform: list[str]
 
 
 class UserModuleAllResponse(BaseModel):
@@ -17,22 +17,22 @@ class UserModuleAllResponse(BaseModel):
 
 class ModuleInfo(BaseModel):
     name: str = Field(min_length=1)
-    description: Optional[str] = None
+    description: str | None = None
     version: str = Field(min_length=1)
     start: str = Field(min_length=1)
-    binaries: Dict[str, Any]
+    binaries: dict[str, Any]
 
 
 class ModuleAddRequest(BaseModel):
-    module_path: str = Field(min_length=1, description="Path to the module directory")
+    module_path: str = Field(min_length=1)
 
 
 class ModuleDirectoryContents(BaseModel):
-    contents: Optional[list[dict[str, str]]] = None
+    contents: list[dict[str, str]] | None = None
 
 
 class InstalledModuleInfo(BaseModel):
     name: str = Field(min_length=1)
-    description: Optional[str] = None
+    description: str | None = None
     version: str = Field(min_length=1)
-    status: Optional[str] = None
+    status: str | None = None

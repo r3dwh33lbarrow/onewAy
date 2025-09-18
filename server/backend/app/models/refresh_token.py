@@ -14,6 +14,7 @@ class RefreshToken(Base):
     expiration timestamps, and revocation status. Tokens are cascaded on
     client deletion.
     """
+
     __tablename__ = "refresh_tokens"
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     client_uuid = Column(

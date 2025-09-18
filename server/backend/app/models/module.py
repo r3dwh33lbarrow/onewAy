@@ -12,6 +12,7 @@ class Module(Base):
     startup command, and associated binaries. Modules can be linked to clients
     through the ClientModule association table.
     """
+
     __tablename__ = "modules"
 
     name = Column(String, primary_key=True, index=True)
