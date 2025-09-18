@@ -1,14 +1,17 @@
-from typing import List, Optional
+from datetime import datetime
+from typing import List
+from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pydantic import IPvAnyAddress
 
 
 class BasicClientInfo(BaseModel):
     username: str
-    ip_address: str
-    hostname: str
+    ip_address: IPvAnyAddress
+    hostname: str | None = None
     alive: bool
-    last_contact: str
+    last_contact: datetime
 
 
 class ClientAllResponse(BaseModel):
@@ -16,18 +19,13 @@ class ClientAllResponse(BaseModel):
 
 
 class ClientUpdateInfo(BaseModel):
-    ip_address: Optional[str]
-    hostname: Optional[str]
-    last_known_location: Optional[str]
-    client_version: Optional[str]
+    ip_address: IPvAnyAddress | None = None
+    hostname: str | None = None
+    last_known_location: str | None = None
+    client_version: str | None = None
 
 
-class ClientAllInfo(BaseModel):
-    uuid: str
-    username: str
-    ip_address: str
-    hostname: str
-    alive: bool
-    last_contact: str
-    last_known_location: str
-    client_version: str
+class ClientAllInfo(BasicClientInfo):
+    uuid: UUID
+    last_known_location: str | None = None
+    client_version: str = Field(min_length=1)

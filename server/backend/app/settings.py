@@ -18,6 +18,11 @@ def toml_settings() -> dict:
         raise RuntimeError("Could not find config.toml")
 
 
+class AppSettings(BaseSettings):
+    debug: bool = Field(False)
+    client_version: str = Field("")
+
+
 class CorsSettings(BaseSettings):
     allow_origins: List[str] = Field(["http://localhost:5173", "http://127.0.0.1:5173"])
 
@@ -62,7 +67,7 @@ class PathSettings(BaseSettings):
 
 
 class Settings(BaseSettings):
-    debug: bool = Field(False)
+    app: AppSettings
     cors: CorsSettings
     database: DatabaseSettings
     security: SecuritySettings
@@ -82,10 +87,16 @@ class Settings(BaseSettings):
     def _testing_check(self) -> "Settings":
         """Validates all required fields are filled if testing"""
         if self.testing.testing and not self.testing.database.url:
-            raise RuntimeError("You must provide a testing database URL if testing")
+            raise RuntimeError("[ERROR in config.yaml] You must provide a testing database URL if testing")
         if self.testing.testing and not self.testing.security.algorithm:
-            raise RuntimeError("You must provide a testing secret key if testing")
+            raise RuntimeError("[ERROR in config.yaml] You must provide a testing secret key if testing")
 
+        return self
+
+    @model_validator(mode="after")
+    def _check_required(self) -> "Settings":
+        if not self.app.client_version.strip():
+            raise RuntimeError("[ERROR in config.yaml] You must provide a client version")
         return self
 
 
