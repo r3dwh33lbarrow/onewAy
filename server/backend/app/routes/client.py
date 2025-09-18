@@ -14,6 +14,7 @@ from app.schemas.client import (
     ClientAllInfo,
     ClientAllResponse,
     ClientUpdateInfo,
+    ClientMeResponse,
 )
 from app.schemas.general import BasicTaskResponse
 from app.services import authentication
@@ -21,6 +22,20 @@ from app.services.authentication import get_current_client, get_current_user
 from app.settings import settings
 
 router = APIRouter(prefix="/client")
+
+
+@router.get("/me", response_model=ClientMeResponse)
+async def client_me(client: Client = Depends(authentication.get_current_client)):
+    """
+    Get username from the currently authenticated client.
+
+    Args:
+        client: Currently authenticated client
+
+    Returns:
+        Basic client username
+    """
+    return ClientMeResponse(username=client.username)
 
 
 @router.get("/get/{username}", response_model=ClientAllInfo)

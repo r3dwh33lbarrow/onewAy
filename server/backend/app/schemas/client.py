@@ -29,3 +29,7 @@ class ClientAllInfo(BasicClientInfo):
     uuid: UUID
     last_known_location: str | None = None
     client_version: str = Field(min_length=1)
+
+
+class ClientMeResponse(BaseModel):
+    username: str = Field(min_length=1)
