@@ -9,10 +9,12 @@ from app.services.password import pwd_context
 
 class Client(Base):
     """
-    Represents an enrolled client
+    Represents an enrolled client in the system.
 
-    Tracks authentication info, IP address, hostname,
-    last contact, last known location and the client version
+    Stores authentication details, network identity, operational status,
+    and metadata such as hostname, location, and client version.
+    Linked to installed modules through the ClientModule association table.
+    Provides a method to verify a plaintext password against the stored hash.
     """
     __tablename__ = "clients"
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
