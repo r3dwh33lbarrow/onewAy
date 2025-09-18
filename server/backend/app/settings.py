@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     security: SecuritySettings
     testing: TestingSettings
     paths: PathSettings
-    other: OtherSettings
+    other: OtherSettings | None = None
 
     model_config = {"extra": "ignore", "frozen": True}
 
@@ -89,7 +89,7 @@ class Settings(BaseSettings):
         """Resolve [ROOT] placeholders in path settings to actual paths."""
         self.paths.client_dir = resolve_root(self.paths.client_dir)
         self.paths.module_dir = resolve_root(self.paths.module_dir)
-        self.paths.default_avatar = resolve_root(self.paths.default_avatar)
+        self.paths.avatar_dir = resolve_root(self.paths.avatar_dir)
         return self
 
     @model_validator(mode="after")
