@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.models.user import User
 from app.schemas.general import BasicTaskResponse, TokenResponse
-from app.schemas.user_auth import UserSigninRequest, UserSignupRequest
-from app.services.authentication import create_access_token, get_current_user
+from app.schemas.user_auth import UserLoginRequest, UserRegisterRequest
+from app.services.authentication import create_access_token, get_current_user, TokenType
 from app.services.password import hash_password
 
 router = APIRouter(prefix="/user/auth")
@@ -16,29 +16,17 @@ router = APIRouter(prefix="/user/auth")
 
 @router.post("/register", response_model=BasicTaskResponse)
 async def user_auth_register(
-    signup_request: UserSignupRequest, db: AsyncSession = Depends(get_db)
+    user_register_request: UserRegisterRequest, db: AsyncSession = Depends(get_db)
 ):
-    """
-    Handles user registration by creating a new user in the database.
-
-    Args:
-        signup_request (UserSignupRequest): The request body containing the username and password for the new user.
-        db (AsyncSession): The database session dependency, provided by FastAPI's `Depends`.
-
-    Raises:
-        HTTPException:
-            - 409 Conflict: If a user with the given username already exists.
-            - 500 Internal Server Error: If there is an error while adding the user to the database.
-    """
     existing_user = await db.execute(
-        select(User).where(User.username == signup_request.username)
+        select(User).where(User.username == user_register_request.username)
     )
     if existing_user.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Username already exists")
 
     new_user = User(
-        username=signup_request.username,
-        hashed_password=hash_password(signup_request.password),
+        username=user_register_request.username,
+        hashed_password=hash_password(user_register_request.password),
     )
 
     try:
@@ -55,37 +43,21 @@ async def user_auth_register(
 
 @router.post("/login", response_model=BasicTaskResponse)
 async def user_auth_login(
-    signin_request: UserSigninRequest,
+    user_login_request: UserLoginRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Handles user login by verifying credentials and generating an access token.
-
-    Args:
-        signin_request (UserSigninRequest): The request body containing the username and password for authentication.
-        response (Response): The HTTP response object used to set cookies.
-        db (AsyncSession): The database session dependency, provided by FastAPI's `Depends`.
-
-    Raises:
-        HTTPException:
-            - 401 Unauthorized: If the username or password is invalid.
-            - 500 Internal Server Error: If there is an error during the login process.
-
-    Returns:
-        dict: A response indicating the success of the operation, with the key "result" set to "success".
-    """
     user = await db.execute(
-        select(User).where(User.username == signin_request.username)
+        select(User).where(User.username == user_login_request.username)
     )
     user = user.scalar_one_or_none()
 
-    if not user or not user.verify_password(signin_request.password):
+    if not user or not user.verify_password(user_login_request.password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     try:
         access_token = create_access_token(user.uuid, True)
-        user.last_login = datetime.now(UTC).replace(tzinfo=None)
+        user.last_login = datetime.now(UTC)
         await db.commit()
 
         response.set_cookie(
@@ -105,21 +77,11 @@ async def user_auth_login(
 
 @router.post("/logout", response_model=BasicTaskResponse)
 async def user_auth_logout(response: Response):
-    """
-    Handles user logout by clearing the access token cookie.
-
-    Args:
-        response (Response): The HTTP response object used to delete cookies.
-
-    Returns:
-        dict: A response indicating the success of the logout operation,
-              with the key "result" set to "success".
-    """
     response.delete_cookie(key="access_token", httponly=True, samesite="lax")
     return {"result": "success"}
 
 
 @router.post("/ws-token", response_model=TokenResponse)
 async def user_auth_ws_token(user: User = Depends(get_current_user)):
-    ws_token = create_access_token(user.uuid, is_ws=True)
+    ws_token = create_access_token(user.uuid, TokenType.WEBSOCKET)
     return {"access_token": ws_token, "token_type": "websocket"}
