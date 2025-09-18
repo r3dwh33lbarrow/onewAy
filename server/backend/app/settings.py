@@ -42,12 +42,7 @@ class Settings(BaseSettings):
     class Config:
         @classmethod
         def customise_sources(cls, init_settings, env_settings, file_secret_settings):
-            return (
-                init_settings,
-                toml_settings,
-                env_settings,
-                file_secret_settings
-            )
+            return init_settings, toml_settings, env_settings, file_secret_settings
 
     @model_validator(mode="after")
     def _resolve_paths(self) -> "Settings":
