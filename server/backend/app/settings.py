@@ -50,3 +50,6 @@ class Settings(BaseSettings):
         self.paths.client_dir = resolve_root(self.paths.client_dir)
         self.paths.module_dir = resolve_root(self.paths.module_dir)
         return self
+
+
+settings = Settings()  # type: ignore
