@@ -1,5 +1,6 @@
 import tomllib
 from pathlib import Path
+from typing import List
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
@@ -24,6 +25,10 @@ class DatabaseSettings(BaseSettings):
     echo_sql: bool = Field(False)
 
 
+class CorsSettings(BaseSettings):
+    allow_origins: List[str] = Field(["http://localhost:5173", "http://127.0.0.1:5173"])
+
+
 class SecuritySettings(BaseSettings):
     secret_key: str = Field(min_length=1)
     algorithm: str = Field("HS256")
@@ -39,6 +44,7 @@ class PathSettings(BaseSettings):
 class Settings(BaseSettings):
     debug: bool = Field(False)
     database: DatabaseSettings
+    cors: CorsSettings
     security: SecuritySettings
     paths: PathSettings
 
