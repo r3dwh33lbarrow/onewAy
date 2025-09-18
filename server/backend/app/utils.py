@@ -13,6 +13,10 @@ def hyphen_to_snake_case(string: str) -> str:
 
 
 def resolve_root(path: str) -> str:
+    """Replace [ROOT] placeholder with the project root directory path.
+
+    The root directory is four levels up from this file's location.
+    """
     try:
         root = Path(__file__).resolve().parent.parent.parent.parent
         resolved_path = path.replace("[ROOT]", str(root))
