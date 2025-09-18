@@ -1,5 +1,4 @@
 import asyncio
-# Import settings from app
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -15,7 +14,7 @@ from app.settings import settings
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", settings.database.url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -27,11 +26,11 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from app.db.base import Base
-from app.models.client import Client
-from app.models.client_module import ClientModule
-from app.models.refresh_token import RefreshToken
-from app.models.module import Module
-from app.models.user import User
+from app.models.client import Client  # noqa
+from app.models.client_module import ClientModule  # noqa
+from app.models.refresh_token import RefreshToken  # noqa
+from app.models.module import Module  # noqa
+from app.models.user import User  # noqa
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
