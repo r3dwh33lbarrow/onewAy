@@ -14,11 +14,11 @@ from app.settings import settings
 
 log = get_logger()
 test_engine: AsyncEngine | None = None
-TestAsyncSessionLocal: AsyncSession | None = None
+TestAsyncSessionLocal: async_sessionmaker[AsyncSession] | None = None
 
 
 async def get_db():
-    if settings.testing:
+    if settings.testing.testing:
         async for session in _get_db_testing():
             yield session
     else:
@@ -41,9 +41,10 @@ async def _get_db_testing() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
+    """Creates DB tables for the testing database"""
     global test_engine, TestAsyncSessionLocal
     if test_engine is None and TestAsyncSessionLocal is None:
-        test_engine = create_async_engine(settings.database_url)
+        test_engine = create_async_engine(settings.testing.testing_db_url)
         TestAsyncSessionLocal = async_sessionmaker(
             test_engine, class_=AsyncSession, expire_on_commit=False
         )
@@ -54,6 +55,7 @@ async def init_db() -> None:
 
 
 async def cleanup_db() -> None:
+    """Drops all DB tables from the testing database"""
     if test_engine and TestAsyncSessionLocal:
         async with test_engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
