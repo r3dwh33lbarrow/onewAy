@@ -34,6 +34,8 @@ async def client_get_username(
 
     Args:
         username: The unique username of the client to retrieve
+        db: Database session for executing queries
+        _: Current authenticated user (required for authorization)
 
     Returns:
         Complete client information including UUID, network details, and status
@@ -66,6 +68,10 @@ async def client_all(
     """
     Retrieve a list of all registered clients with basic information.
 
+    Args:
+        db: Database session for executing queries
+        _: Current authenticated user (required for authorization)
+
     Returns:
         List of clients with basic info (username, IP, hostname, status, last contact)
     """
@@ -90,6 +96,9 @@ async def client_all(
 async def client_update(client: Client = Depends(get_current_client)):
     """
     Download the latest client binary for updating.
+
+    Args:
+        client: Currently authenticated client requesting the update
 
     Returns:
         Client binary file appropriate for the client's platform
@@ -125,6 +134,8 @@ async def client_update_info(
 
     Args:
         update_info: Client data to update (only provided fields will be updated)
+        client: Currently authenticated client to update
+        db: Database session for executing queries
 
     Returns:
         Success status of the update operation

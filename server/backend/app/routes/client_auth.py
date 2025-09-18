@@ -10,7 +10,6 @@ from app.services.authentication import (
     create_access_token,
     create_refresh_token,
     rotate_refresh_token,
-    verify_refresh_token,
 )
 from app.services.password import hash_password
 
@@ -23,6 +22,20 @@ async def client_auth_enroll(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Register a new client in the system.
+
+    Args:
+        enroll_request: Client registration data including username, password, and version
+        request: HTTP request object containing client IP address
+        db: Database session for executing queries
+
+    Returns:
+        Success confirmation upon successful registration
+
+    Raises:
+        HTTPException: 409 if username already exists, 500 if database error occurs
+    """
     existing_client = await db.execute(
         select(Client).where(Client.username == enroll_request.username)
     )
@@ -55,6 +68,24 @@ async def client_auth_login(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Authenticate a client and provide access tokens.
+
+    Args:
+        login_request: Client credentials (username and password)
+        request: HTTP request object containing client IP address
+        response: HTTP response object for setting cookies
+        db: Database session for executing queries
+
+    Returns:
+        Access token and token type for authenticated requests
+
+    Raises:
+        HTTPException: 401 if credentials invalid, 500 if database error occurs
+
+    Note:
+        Sets refresh token as httpOnly cookie and updates client status to alive
+    """
     client = await db.execute(
         select(Client).where(Client.username == login_request.username)
     )
@@ -94,22 +125,21 @@ async def client_auth_refresh(
     request: Request, response: Response, db: AsyncSession = Depends(get_db)
 ):
     """
-    Refresh the access token using a valid refresh token.
-
-    This endpoint extracts the refresh token from the HTTP-only cookie, verifies it,
-    and issues a new access token and refresh token. The old refresh token is revoked
-    to prevent replay attacks.
+    Refresh client access token using refresh token from cookies.
 
     Args:
-        request (Request): The HTTP request object containing the refresh token cookie.
-        response (Response): The FastAPI response object for setting cookies.
-        db (AsyncSession): The database session.
+        request: HTTP request object containing refresh token cookie
+        response: HTTP response object for setting new cookie
+        db: Database session for executing queries
 
     Returns:
-        TokenResponse: A response containing the new access token.
+        New access token and token type
 
     Raises:
-        HTTPException: If the refresh token is missing, invalid, or expired.
+        HTTPException: 401 if refresh token invalid, 500 if database error occurs
+
+    Note:
+        Rotates refresh token and updates cookie with new value
     """
     try:
         new_access_token, new_refresh_token = await rotate_refresh_token(request, db)
@@ -130,47 +160,3 @@ async def client_auth_refresh(
         raise HTTPException(
             status_code=500, detail="Token refresh failed due to database error"
         )
-
-
-@router.get("/{username}/check", response_model=BasicTaskResponse)
-async def client_auth_username_check(
-    username: str, request: Request, db: AsyncSession = Depends(get_db)
-):
-    """
-    Check if the provided username matches the client associated with the refresh token.
-
-    This endpoint verifies that the refresh token is valid and belongs to the client
-    with the specified username. This can be used for additional security checks.
-    The refresh token is extracted from the request cookies.
-
-    Args:
-        username (str): The username to verify against the token.
-        request (Request): The HTTP request object containing the refresh token cookie.
-        db (AsyncSession): The database session dependency.
-
-    Returns:
-        BasicTaskResponse: A response indicating the success of the check.
-
-    Raises:
-        HTTPException: If the refresh token is missing, invalid, or the username doesn't match.
-    """
-    try:
-        refresh_token_obj = await verify_refresh_token(request, db)
-        client = await db.execute(
-            select(Client).where(Client.uuid == refresh_token_obj.client_uuid)
-        )
-        client = client.scalar_one_or_none()
-
-        if not client:
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-        if client.username != username:
-            raise HTTPException(status_code=403, detail="Username mismatch")
-
-        return {"result": "success"}
-
-    except HTTPException as e:
-        raise e
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="Check failed due to server error")
