@@ -81,9 +81,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _testing_check(self) -> "Settings":
         """Validates all required fields are filled if testing"""
-        if self.testing.testing and not self.testing.testing_db_url:
+        if self.testing.testing and not self.testing.database.url:
             raise RuntimeError("You must provide a testing database URL if testing")
-        if self.testing.testing and not self.testing.testing_db_secret_key:
+        if self.testing.testing and not self.testing.security.algorithm:
             raise RuntimeError("You must provide a testing secret key if testing")
 
         return self

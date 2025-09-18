@@ -44,7 +44,13 @@ async def init_db() -> None:
     """Creates DB tables for the testing database"""
     global test_engine, TestAsyncSessionLocal
     if test_engine is None and TestAsyncSessionLocal is None:
-        test_engine = create_async_engine(settings.testing.testing_db_url)
+        test_engine = create_async_engine(
+            settings.testing.testing_db_url,
+            echo=settings.testing.database.echo,
+            future=True,
+            pool_size=settings.testing.database.pool_size,
+            pool_timeout=settings.testing.database.pool_timeout,
+        )
         TestAsyncSessionLocal = async_sessionmaker(
             test_engine, class_=AsyncSession, expire_on_commit=False
         )
