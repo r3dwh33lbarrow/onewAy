@@ -1,14 +1,26 @@
 import json
 
-from fastapi import APIRouter, WebSocket, Query, WebSocketDisconnect, HTTPException, Depends
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.models.client import Client
 from app.models.user import User
 from app.schemas.general import TokenResponse
-from app.services.authentication import verify_websocket_access_token, get_current_user, create_access_token, \
-    get_current_client, get_client_by_uuid
+from app.services.authentication import (
+    create_access_token,
+    get_client_by_uuid,
+    get_current_client,
+    get_current_user,
+    verify_websocket_access_token,
+)
 from app.services.client_websockets import client_websocket_manager
 from app.services.user_websockets import user_websocket_manager
 
@@ -16,7 +28,9 @@ router = APIRouter()
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str = Query(..., description="Authentication token")):
+async def websocket_endpoint(
+    websocket: WebSocket, token: str = Query(..., description="Authentication token")
+):
     """
     WebSocket endpoint for real-time client status updates.
 
@@ -54,16 +68,18 @@ async def websocket_token(user: User = Depends(get_current_user)):
 
 @router.websocket("/ws-client")
 async def websocket_client(
-        websocket: WebSocket,
-        token: str = Query(..., description="Authentication token"),
-        db: AsyncSession = Depends(get_db)
+    websocket: WebSocket,
+    token: str = Query(..., description="Authentication token"),
+    db: AsyncSession = Depends(get_db),
 ):
     try:
         client_uuid = verify_websocket_access_token(token)
         client = await get_client_by_uuid(db, client_uuid)
 
         await client_websocket_manager.connect(websocket, client_uuid)
-        await client_websocket_manager.broadcast_client_alive_status(client.username, alive=True)
+        await client_websocket_manager.broadcast_client_alive_status(
+            client.username, alive=True
+        )
 
         try:
             while True:
@@ -106,7 +122,9 @@ async def websocket_client(
         finally:
             await client_websocket_manager.disconnect(websocket, client_uuid)
             if client:
-                await client_websocket_manager.broadcast_client_alive_status(client.username, alive=False)
+                await client_websocket_manager.broadcast_client_alive_status(
+                    client.username, alive=False
+                )
 
     except HTTPException as e:
         await websocket.close(code=e.status_code, reason=e.detail)

@@ -1,7 +1,7 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import Column, UUID, ForeignKey, DateTime, String, Boolean
+from sqlalchemy import UUID, Boolean, Column, DateTime, ForeignKey, String
 
 from app.db.base import Base
 
@@ -18,11 +18,18 @@ class RefreshToken(Base):
         expires_at (datetime): The timestamp when the token expires. This field is required.
         revoked (bool): Indicates whether the token has been revoked. Defaults to False.
     """
+
     __tablename__ = "refresh_tokens"
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    client_uuid = Column(UUID(as_uuid=True), ForeignKey("clients.uuid", ondelete="CASCADE"),
-                         nullable=False, index=True)
+    client_uuid = Column(
+        UUID(as_uuid=True),
+        ForeignKey("clients.uuid", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     jti = Column(String, nullable=False, unique=True)
-    issued_at = Column(DateTime, nullable=False, default=lambda : datetime.now(UTC).replace(tzinfo=None))
+    issued_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
     expires_at = Column(DateTime, nullable=False)
     revoked = Column(Boolean, nullable=False, default=False)

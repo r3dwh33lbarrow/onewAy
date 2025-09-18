@@ -52,7 +52,9 @@ class ClientWebSocketManager:
         # Clean up failed connections
         if connections_to_remove:
             async with self._lock:
-                self.active_connections[client_uuid].difference_update(connections_to_remove)
+                self.active_connections[client_uuid].difference_update(
+                    connections_to_remove
+                )
                 if not self.active_connections[client_uuid]:
                     del self.active_connections[client_uuid]
 
@@ -61,10 +63,9 @@ class ClientWebSocketManager:
         """
         Broadcast a client's alive status to all connected users.
         """
-        await user_websocket_manager.send_client_alive_update({
-            "username": username,
-            "alive": alive
-        })
+        await user_websocket_manager.send_client_alive_update(
+            {"username": username, "alive": alive}
+        )
 
 
 client_websocket_manager = ClientWebSocketManager()

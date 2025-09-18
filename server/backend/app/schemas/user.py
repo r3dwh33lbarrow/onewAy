@@ -14,4 +14,3 @@ class UserInfoResponse(BaseModel):
 
 class UserUpdateRequest(BaseModel):
     username: Optional[str] = Field(None, min_length=1)
-

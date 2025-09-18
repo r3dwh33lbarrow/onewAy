@@ -76,7 +76,9 @@ class UserWebSocketManager:
         # Clean up failed connections
         if connections_to_remove:
             async with self._lock:
-                self.active_connections[user_uuid].difference_update(connections_to_remove)
+                self.active_connections[user_uuid].difference_update(
+                    connections_to_remove
+                )
                 if not self.active_connections[user_uuid]:
                     del self.active_connections[user_uuid]
 
@@ -97,10 +99,7 @@ class UserWebSocketManager:
         Args:
             alive_dict: Dictionary containing client information
         """
-        message = {
-            "type": "alive_update",
-            "data": alive_dict
-        }
+        message = {"type": "alive_update", "data": alive_dict}
         await self.broadcast_to_all(message)
 
 

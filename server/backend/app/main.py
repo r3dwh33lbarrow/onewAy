@@ -1,17 +1,17 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-from alembic import command
-from alembic.config import Config
 from fastapi import FastAPI
 from sqlalchemy import update
 from starlette.middleware.cors import CORSMiddleware
 
-from app.dependencies import get_db, cleanup_db, init_db
+from alembic import command
+from alembic.config import Config
+from app.dependencies import cleanup_db, get_db, init_db
 from app.logger import get_logger
 from app.models.client import Client
-from app.routes import client_auth, user_auth, client, websockets, user_modules, user
-from app.settings import settings, load_test_settings
+from app.routes import client, client_auth, user, user_auth, user_modules, websockets
+from app.settings import load_test_settings, settings
 
 if settings.testing:
     settings = load_test_settings()
@@ -57,10 +57,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-    ],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,6 +68,7 @@ app.include_router(client.router)
 app.include_router(websockets.router)
 app.include_router(user_modules.router)
 app.include_router(user.router)
+
 
 @app.get("/")
 async def root():

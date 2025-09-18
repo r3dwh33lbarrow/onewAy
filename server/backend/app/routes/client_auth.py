@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Response, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,16 +6,23 @@ from app.dependencies import get_db
 from app.models.client import Client
 from app.schemas.client_auth import ClientEnrollRequest, ClientLoginRequest
 from app.schemas.general import BasicTaskResponse, TokenResponse
-from app.services.authentication import create_access_token, create_refresh_token, rotate_refresh_token, \
-    verify_refresh_token
+from app.services.authentication import (
+    create_access_token,
+    create_refresh_token,
+    rotate_refresh_token,
+    verify_refresh_token,
+)
 from app.services.password import hash_password
 
 router = APIRouter(prefix="/client/auth")
 
 
 @router.post("/enroll", response_model=BasicTaskResponse)
-async def client_auth_enroll(enroll_request: ClientEnrollRequest,
-                             request: Request, db: AsyncSession = Depends(get_db)):
+async def client_auth_enroll(
+    enroll_request: ClientEnrollRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Enroll a new client by creating an account in the database.
 
@@ -34,7 +41,9 @@ async def client_auth_enroll(enroll_request: ClientEnrollRequest,
     Raises:
         HTTPException: If the username already exists or if a database error occurs.
     """
-    existing_client = await db.execute(select(Client).where(Client.username == enroll_request.username))
+    existing_client = await db.execute(
+        select(Client).where(Client.username == enroll_request.username)
+    )
     if existing_client.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Username already exists")
 
@@ -42,7 +51,7 @@ async def client_auth_enroll(enroll_request: ClientEnrollRequest,
         username=enroll_request.username,
         hashed_password=hash_password(enroll_request.password),
         ip_address=request.client.host,
-        client_version=enroll_request.client_version
+        client_version=enroll_request.client_version,
     )
 
     try:
@@ -52,13 +61,18 @@ async def client_auth_enroll(enroll_request: ClientEnrollRequest,
 
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=500,
-                            detail="Failed to add client to the database")
+        raise HTTPException(
+            status_code=500, detail="Failed to add client to the database"
+        )
 
 
 @router.post("/login", response_model=TokenResponse)
-async def client_auth_login(login_request: ClientLoginRequest, request: Request,
-                            response: Response, db: AsyncSession = Depends(get_db)):
+async def client_auth_login(
+    login_request: ClientLoginRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Authenticate a client and issue access and refresh tokens.
 
@@ -78,7 +92,9 @@ async def client_auth_login(login_request: ClientLoginRequest, request: Request,
     Raises:
         HTTPException: If the username or password is invalid, or if a database error occurs.
     """
-    client = await db.execute(select(Client).where(Client.username == login_request.username))
+    client = await db.execute(
+        select(Client).where(Client.username == login_request.username)
+    )
     client = client.scalar_one_or_none()
 
     if not client or not client.verify_password(login_request.password):
@@ -92,22 +108,28 @@ async def client_auth_login(login_request: ClientLoginRequest, request: Request,
         refresh_token = await create_refresh_token(client.uuid, db)
         await db.commit()
 
-        response.set_cookie(key="refresh_token", value=refresh_token,
-                            httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            samesite="lax",
+            max_age=60 * 60 * 24 * 7,
+        )
 
         return {"access_token": access_token, "token_type": "Bearer"}
     except HTTPException as e:
         raise e
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=500,
-                            detail="Login failed due to database error")
+        raise HTTPException(
+            status_code=500, detail="Login failed due to database error"
+        )
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def client_auth_refresh(request: Request,
-                              response: Response,
-                              db: AsyncSession = Depends(get_db)):
+async def client_auth_refresh(
+    request: Request, response: Response, db: AsyncSession = Depends(get_db)
+):
     """
     Refresh the access token using a valid refresh token.
 
@@ -128,8 +150,13 @@ async def client_auth_refresh(request: Request,
     """
     try:
         new_access_token, new_refresh_token = await rotate_refresh_token(request, db)
-        response.set_cookie(key="refresh_token", value=new_refresh_token,
-                            httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh_token,
+            httponly=True,
+            samesite="lax",
+            max_age=60 * 60 * 24 * 7,
+        )
 
         return {"access_token": new_access_token, "token_type": "Bearer"}
 
@@ -137,14 +164,15 @@ async def client_auth_refresh(request: Request,
         raise e
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=500,
-                            detail="Token refresh failed due to database error")
+        raise HTTPException(
+            status_code=500, detail="Token refresh failed due to database error"
+        )
 
 
 @router.get("/{username}/check", response_model=BasicTaskResponse)
-async def client_auth_username_check(username: str,
-                                     request: Request,
-                                     db: AsyncSession = Depends(get_db)):
+async def client_auth_username_check(
+    username: str, request: Request, db: AsyncSession = Depends(get_db)
+):
     """
     Check if the provided username matches the client associated with the refresh token.
 
@@ -165,16 +193,16 @@ async def client_auth_username_check(username: str,
     """
     try:
         refresh_token_obj = await verify_refresh_token(request, db)
-        client = await db.execute(select(Client).where(Client.uuid == refresh_token_obj.client_uuid))
+        client = await db.execute(
+            select(Client).where(Client.uuid == refresh_token_obj.client_uuid)
+        )
         client = client.scalar_one_or_none()
 
         if not client:
-            raise HTTPException(status_code=401,
-                                detail="Invalid token")
+            raise HTTPException(status_code=401, detail="Invalid token")
 
         if client.username != username:
-            raise HTTPException(status_code=403,
-                                detail="Username mismatch")
+            raise HTTPException(status_code=403, detail="Username mismatch")
 
         return {"result": "success"}
 
@@ -182,5 +210,4 @@ async def client_auth_username_check(username: str,
         raise e
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=500,
-                            detail="Check failed due to server error")
+        raise HTTPException(status_code=500, detail="Check failed due to server error")

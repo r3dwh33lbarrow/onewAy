@@ -1,6 +1,6 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, ForeignKey, String, DateTime
+from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -14,8 +14,12 @@ class ClientModule(Base):
 
     # Relationship-specific fields
     status = Column(String, nullable=False, default="installed")
-    installed_at = Column(DateTime, default=lambda : datetime.now(UTC).replace(tzinfo=None))
-    last_updated = Column(DateTime, onupdate=lambda : datetime.now(UTC).replace(tzinfo=None))
+    installed_at = Column(
+        DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
+    last_updated = Column(
+        DateTime, onupdate=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
 
     # Relationships back to Client and Module
     client = relationship("Client", back_populates="client_modules")

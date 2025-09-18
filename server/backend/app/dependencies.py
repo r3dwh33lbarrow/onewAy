@@ -1,6 +1,11 @@
 from typing import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker, AsyncEngine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.db.base import Base
 from app.db.session import AsyncSessionLocal
@@ -39,7 +44,9 @@ async def init_db() -> None:
     global test_engine, TestAsyncSessionLocal
     if test_engine is None and TestAsyncSessionLocal is None:
         test_engine = create_async_engine(settings.database_url)
-        TestAsyncSessionLocal = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+        TestAsyncSessionLocal = async_sessionmaker(
+            test_engine, class_=AsyncSession, expire_on_commit=False
+        )
 
         async with test_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)

@@ -1,11 +1,11 @@
 import uuid
-from datetime import timedelta, datetime, UTC
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import HTTPException, Request, Depends, Response
+from fastapi import Depends, HTTPException, Request, Response
 from fastapi.security import HTTPBearer
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,7 +54,9 @@ def verify_jti(jti: str, hashed_jti: str) -> bool:
     return pwd_context.verify(jti, hashed_jti)
 
 
-def create_access_token(user_or_client_uuid: uuid.UUID, is_user: bool = False, is_ws: bool = False) -> str:
+def create_access_token(
+    user_or_client_uuid: uuid.UUID, is_user: bool = False, is_ws: bool = False
+) -> str:
     """
     Create a new access token for a user or client.
 
@@ -83,7 +85,7 @@ def create_access_token(user_or_client_uuid: uuid.UUID, is_user: bool = False, i
         "sub": str(user_or_client_uuid),
         "type": token_type,
         "exp": int(expires.timestamp()),
-        "iat": int(now.timestamp())
+        "iat": int(now.timestamp()),
     }
 
     return jwt.encode(payload, SECRET_KEY, ALGORITHM)
@@ -117,13 +119,11 @@ async def create_refresh_token(client_uuid: uuid.UUID, db: AsyncSession) -> str:
         "type": "refresh",
         "jti": jti,
         "exp": int(expires.timestamp()),
-        "iat": int(now.timestamp())
+        "iat": int(now.timestamp()),
     }
 
     refresh_token = RefreshToken(
-        client_uuid=client_uuid,
-        jti=hashed_jti,
-        expires_at=expires.replace(tzinfo=None)
+        client_uuid=client_uuid, jti=hashed_jti, expires_at=expires.replace(tzinfo=None)
     )
 
     try:
@@ -135,7 +135,9 @@ async def create_refresh_token(client_uuid: uuid.UUID, db: AsyncSession) -> str:
         raise RuntimeError(f"Failed to create refresh token: {str(e)}")
 
 
-async def verify_refresh_token(request: Request, db: AsyncSession) -> Optional[RefreshToken]:
+async def verify_refresh_token(
+    request: Request, db: AsyncSession
+) -> Optional[RefreshToken]:
     """
     Verify the validity of a refresh token from request cookies.
 
@@ -170,15 +172,16 @@ async def verify_refresh_token(request: Request, db: AsyncSession) -> Optional[R
 
         client_uuid = payload.get("sub")
         if not client_uuid:
-            raise HTTPException(status_code=401,
-                                detail="Invalid token: missing client identifier")
+            raise HTTPException(
+                status_code=401, detail="Invalid token: missing client identifier"
+            )
         client_uuid = uuid.UUID(client_uuid)
 
         result = await db.execute(
             select(RefreshToken).where(
                 RefreshToken.client_uuid == client_uuid,
                 RefreshToken.revoked == False,
-                RefreshToken.expires_at > datetime.now().replace(tzinfo=None)
+                RefreshToken.expires_at > datetime.now().replace(tzinfo=None),
             )
         )
         refresh_tokens = result.scalars().all()
@@ -202,7 +205,9 @@ async def verify_refresh_token(request: Request, db: AsyncSession) -> Optional[R
         raise HTTPException(status_code=500, detail="Token verification failed")
 
 
-async def revoke_refresh_token(request: Request, response: Response, db: AsyncSession) -> bool:
+async def revoke_refresh_token(
+    request: Request, response: Response, db: AsyncSession
+) -> bool:
     """
     Revoke a refresh token and remove the refresh token cookie.
 
@@ -229,11 +234,7 @@ async def revoke_refresh_token(request: Request, response: Response, db: AsyncSe
         refresh_token.revoked = True
         await db.commit()
 
-        response.delete_cookie(
-            key="refresh_token",
-            httponly=True,
-            samesite="strict"
-        )
+        response.delete_cookie(key="refresh_token", httponly=True, samesite="strict")
 
         return True
 
@@ -282,7 +283,9 @@ async def rotate_refresh_token(request: Request, db: AsyncSession) -> tuple[str,
         raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to rotate refresh token: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to rotate refresh token: {str(e)}"
+        )
 
 
 def is_client(request: Request) -> bool:
@@ -312,7 +315,9 @@ def verify_access_token(request: Request):
         authorization_header = request.headers.get("Authorization")
 
         if not authorization_header or not authorization_header.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+            raise HTTPException(
+                status_code=401, detail="Missing or invalid authorization header"
+            )
 
         access_token = authorization_header[7:]
 
@@ -326,10 +331,10 @@ def verify_access_token(request: Request):
 
     try:
         decoded_token = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        
+
         if decoded_token.get("type") != "access":
             raise HTTPException(status_code=401, detail="Invalid token type")
-            
+
         user_uuid = decoded_token.get("sub")
 
         if user_uuid is None:
@@ -342,8 +347,7 @@ def verify_access_token(request: Request):
 
 
 async def get_current_user(
-        db: AsyncSession = Depends(get_db),
-        user_uuid: str = Depends(verify_access_token)
+    db: AsyncSession = Depends(get_db), user_uuid: str = Depends(verify_access_token)
 ) -> User:
     """
     Retrieve the current authenticated user from the database.
@@ -369,51 +373,42 @@ async def get_current_user(
         user = result.scalar_one_or_none()
 
         if user is None:
-            raise HTTPException(
-                status_code=403,
-                detail="User not found"
-            )
+            raise HTTPException(status_code=403, detail="User not found")
 
         return user
     except HTTPException as e:
         raise e
     except Exception:
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to get current user"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get current user")
 
 
-async def get_current_client(db: AsyncSession = Depends(get_db), client_uuid: str = Depends(verify_access_token)):
+async def get_current_client(
+    db: AsyncSession = Depends(get_db), client_uuid: str = Depends(verify_access_token)
+):
     try:
-        result = await db.execute(select(Client).where(Client.uuid == uuid.UUID(client_uuid)))
+        result = await db.execute(
+            select(Client).where(Client.uuid == uuid.UUID(client_uuid))
+        )
         client = result.scalar_one_or_none()
 
         if client is None:
-            raise HTTPException(
-                status_code=403,
-                detail="Client not found"
-            )
+            raise HTTPException(status_code=403, detail="Client not found")
 
         return client
     except HTTPException as e:
         raise e
     except Exception:
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to get current client"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get current client")
 
 
 async def get_client_by_uuid(db: AsyncSession, client_uuid: str) -> Client:
-    result = await db.execute(select(Client).where(Client.uuid == uuid.UUID(client_uuid)))
+    result = await db.execute(
+        select(Client).where(Client.uuid == uuid.UUID(client_uuid))
+    )
     client = result.scalar_one_or_none()
 
     if client is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Client not found"
-        )
+        raise HTTPException(status_code=404, detail="Client not found")
 
     return client
 
@@ -433,10 +428,10 @@ def verify_websocket_access_token(token: str) -> str:
     """
     try:
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        
+
         if decoded_token.get("type") != "websocket":
             raise HTTPException(status_code=401, detail="Invalid token type")
-            
+
         some_uuid = decoded_token.get("sub")
 
         if some_uuid is None:

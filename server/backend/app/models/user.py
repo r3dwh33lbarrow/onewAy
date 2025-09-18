@@ -1,7 +1,7 @@
-from datetime import datetime, UTC
-
-from sqlalchemy import Column, Boolean, UUID, String, DateTime
+from datetime import UTC, datetime
 from uuid import uuid4
+
+from sqlalchemy import UUID, Boolean, Column, DateTime, String
 
 from app.db.base import Base
 from app.services.password import pwd_context
@@ -26,8 +26,12 @@ class User(Base):
     username = Column(String, nullable=False, unique=True, index=True)
     hashed_password = Column(String, nullable=False)
     is_admin = Column(Boolean, nullable=False, default=False)
-    last_login = Column(DateTime, nullable=False, default=lambda : datetime.now(UTC).replace(tzinfo=None))
-    created_at = Column(DateTime, nullable=False, default=lambda : datetime.now(UTC).replace(tzinfo=None))
+    last_login = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
     avatar_path = Column(String)
 
     def verify_password(self, password: str) -> bool:

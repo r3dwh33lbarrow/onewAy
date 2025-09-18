@@ -2,7 +2,7 @@ import os
 import uuid
 
 import magic
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import FileResponse
@@ -41,11 +41,9 @@ async def user_get_avatar(user: User = Depends(get_current_user)):
     default_path = os.path.join(settings.avatar_directory, "default_avatar.png")
     if not os.path.exists(default_path):
         raise HTTPException(
-            status_code=500,
-            detail="Configuration error: default_avatar.png missing"
+            status_code=500, detail="Configuration error: default_avatar.png missing"
         )
     return FileResponse(default_path, media_type="image/png")
-
 
 
 @router.post("/update-avatar", response_model=BasicTaskResponse)
@@ -81,7 +79,7 @@ async def user_update_avatar(
     if len(contents) > settings.max_avatar_size:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Max size is {settings.max_avatar_size // (1024*1024)}MB"
+            detail=f"File too large. Max size is {settings.max_avatar_size // (1024*1024)}MB",
         )
 
     if magic.from_buffer(contents, mime=True) != "image/png":
@@ -115,7 +113,7 @@ async def user_get_me(user: User = Depends(get_current_user)):
         is_admin=bool(user.is_admin),
         last_login=user.last_login,
         created_at=user.created_at,
-        avatar_set=bool(user.avatar_path)
+        avatar_set=bool(user.avatar_path),
     )
 
 
@@ -137,9 +135,13 @@ async def user_update_me(
                 raise HTTPException(status_code=400, detail="Username cannot be empty")
 
             if new_username != user.username:
-                existing = await db.execute(select(User).where(User.username == new_username))
+                existing = await db.execute(
+                    select(User).where(User.username == new_username)
+                )
                 if existing.scalar_one_or_none():
-                    raise HTTPException(status_code=409, detail="Username already exists")
+                    raise HTTPException(
+                        status_code=409, detail="Username already exists"
+                    )
                 user.username = new_username
 
         await db.commit()

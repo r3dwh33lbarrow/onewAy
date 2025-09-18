@@ -1,5 +1,6 @@
 from uuid import uuid4
-from sqlalchemy import Column, Boolean, UUID, String, DateTime
+
+from sqlalchemy import UUID, Boolean, Column, DateTime, String
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -21,6 +22,7 @@ class Client(Base):
         last_known_location (str): The last known location of the client. Optional.
         client_version (str): The version of the client software. This field is required.
     """
+
     __tablename__ = "clients"
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     username = Column(String, nullable=False, unique=True, index=True)

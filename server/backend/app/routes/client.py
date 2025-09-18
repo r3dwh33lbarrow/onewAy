@@ -9,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.models.client import Client
-from app.schemas.client import ClientAllResponse, BasicClientInfo, ClientUpdateInfo, ClientAllInfo
+from app.schemas.client import (
+    BasicClientInfo,
+    ClientAllInfo,
+    ClientAllResponse,
+    ClientUpdateInfo,
+)
 from app.services import authentication
 from app.services.authentication import get_current_client
 from app.settings import settings
@@ -18,7 +23,11 @@ router = APIRouter(prefix="/client")
 
 
 @router.get("/get/{username}", response_model=ClientAllInfo)
-async def client(username: str, db: AsyncSession = Depends(get_db), _=Depends(authentication.verify_access_token)):
+async def client(
+    username: str,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(authentication.verify_access_token),
+):
     result = await db.execute(select(Client).where(Client.username == username))
     result = result.scalar_one_or_none()
 
@@ -30,18 +39,19 @@ async def client(username: str, db: AsyncSession = Depends(get_db), _=Depends(au
             hostname=result.hostname if result.hostname else "",
             alive=result.alive,
             last_contact=str(result.last_contact),
-            last_known_location=result.last_known_location if result.last_known_location else "",
-            client_version=result.client_version
+            last_known_location=(
+                result.last_known_location if result.last_known_location else ""
+            ),
+            client_version=result.client_version,
         )
 
-    raise HTTPException(
-        status_code=404,
-        detail="Client not found"
-    )
+    raise HTTPException(status_code=404, detail="Client not found")
 
 
 @router.get("/all", response_model=ClientAllResponse)
-async def client_all(db: AsyncSession = Depends(get_db), _=Depends(authentication.verify_access_token)):
+async def client_all(
+    db: AsyncSession = Depends(get_db), _=Depends(authentication.verify_access_token)
+):
     """
     Retrieve all clients from the database.
 
@@ -58,7 +68,7 @@ async def client_all(db: AsyncSession = Depends(get_db), _=Depends(authenticatio
             ip_address=client.ip_address,
             hostname=client.hostname or "",
             alive=client.alive,
-            last_contact=client.last_contact.isoformat() if client.last_contact else ""
+            last_contact=client.last_contact.isoformat() if client.last_contact else "",
         )
         client_list.append(client_info)
 
@@ -68,26 +78,28 @@ async def client_all(db: AsyncSession = Depends(get_db), _=Depends(authenticatio
 @router.get("/update")
 async def client_update(client: Client = Depends(get_current_client)):
     if client.client_version >= settings.version:
-        raise HTTPException(
-            status_code=400,
-            detail="Client already at latest version"
-        )
+        raise HTTPException(status_code=400, detail="Client already at latest version")
 
     client_binary_ext = ".exe" if platform.system() == "Windows" else ""
-    client_binary = Path(settings.client_directory) / "target" / f"client{client_binary_ext}"
+    client_binary = (
+        Path(settings.client_directory) / "target" / f"client{client_binary_ext}"
+    )
     if not os.path.isfile(client_binary):
-        raise HTTPException(
-            status_code=500,
-            detail="Unable to find client binary"
-        )
+        raise HTTPException(status_code=500, detail="Unable to find client binary")
 
-    return FileResponse(path=client_binary, filename=f"client{client_binary_ext}", media_type="application/octet-stream")
+    return FileResponse(
+        path=client_binary,
+        filename=f"client{client_binary_ext}",
+        media_type="application/octet-stream",
+    )
 
 
 @router.post("/update-info")
-async def client_update_info(update_info: ClientUpdateInfo,
-                             client: Client = Depends(get_current_client),
-                             db: AsyncSession = Depends(get_db)):
+async def client_update_info(
+    update_info: ClientUpdateInfo,
+    client: Client = Depends(get_current_client),
+    db: AsyncSession = Depends(get_db),
+):
     if update_info.ip_address:
         client.client_version = update_info.ip_address
     if update_info.hostname:
@@ -103,6 +115,5 @@ async def client_update_info(update_info: ClientUpdateInfo,
     except Exception:
         await db.rollback()
         raise HTTPException(
-            status_code=500,
-            detail="Failed to add updated information to the database"
+            status_code=500, detail="Failed to add updated information to the database"
         )
