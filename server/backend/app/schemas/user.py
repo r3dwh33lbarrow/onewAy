@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -13,4 +12,4 @@ class UserInfoResponse(BaseModel):
 
 
 class UserUpdateRequest(BaseModel):
-    username: Optional[str] = Field(None, min_length=1)
+    username: str | None = Field(None, min_length=1)

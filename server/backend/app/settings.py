@@ -66,6 +66,11 @@ class TestingSettings(BaseSettings):
 class PathSettings(BaseSettings):
     client_dir: str = Field("[ROOT]/client")
     module_dir: str = Field("[ROOT]/modules")
+    avatar_dir: str = Field("[ROOT]/server/backend/app/resources")
+
+
+class OtherSettings(BaseSettings):
+    max_avatar_size_mb: int = Field(2)
 
 
 class Settings(BaseSettings):
@@ -75,6 +80,7 @@ class Settings(BaseSettings):
     security: SecuritySettings
     testing: TestingSettings
     paths: PathSettings
+    other: OtherSettings
 
     model_config = {"extra": "ignore", "frozen": True}
 
@@ -83,6 +89,7 @@ class Settings(BaseSettings):
         """Resolve [ROOT] placeholders in path settings to actual paths."""
         self.paths.client_dir = resolve_root(self.paths.client_dir)
         self.paths.module_dir = resolve_root(self.paths.module_dir)
+        self.paths.default_avatar = resolve_root(self.paths.default_avatar)
         return self
 
     @model_validator(mode="after")
