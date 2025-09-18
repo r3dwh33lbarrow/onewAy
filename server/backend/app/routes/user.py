@@ -20,6 +20,15 @@ router = APIRouter(prefix="/user")
 
 @router.get("/me", response_model=UserInfoResponse)
 async def user_get_me(user: User = Depends(get_current_user)):
+    """
+    Get information about the currently authenticated user.
+
+    Args:
+        user: Currently authenticated user
+
+    Returns:
+        User information including username, admin status, login times, and avatar status
+    """
     return UserInfoResponse(
         username=user.username,
         is_admin=user.is_admin,
@@ -35,6 +44,21 @@ async def user_patch(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """
+    Update user information (currently supports username changes).
+
+    Args:
+        update_info: User data to update (only provided fields will be updated)
+        db: Database session for executing queries
+        user: Currently authenticated user to update
+
+    Returns:
+        Success status of the update operation
+
+    Raises:
+        HTTPException: 400 if username is empty, 409 if username already exists,
+                      500 if database error occurs
+    """
     try:
         if update_info.username is not None:
             new_username = update_info.username.strip()
@@ -64,6 +88,21 @@ async def user_patch(
 
 @router.get("/avatar")
 async def user_get_avatar(user: User = Depends(get_current_user)):
+    """
+    Retrieve the user's avatar image or return default avatar.
+
+    Args:
+        user: Currently authenticated user
+
+    Returns:
+        PNG image file (user's custom avatar or default avatar)
+
+    Raises:
+        HTTPException: 500 if default avatar file is missing
+
+    Note:
+        Returns user's custom avatar if set, otherwise returns default avatar
+    """
     if user.avatar_path:
         file_path = Path(settings.paths.avatar_dir) / user.avatar_path
         if os.path.exists(file_path):
@@ -83,7 +122,25 @@ async def user_put_avatar(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """
+    Upload and set a new avatar image for the user.
 
+    Args:
+        file: PNG image file to upload as avatar
+        db: Database session for executing queries
+        user: Currently authenticated user
+
+    Returns:
+        Success status of the avatar upload operation
+
+    Raises:
+        HTTPException: 400 if file is not PNG or empty, 413 if file too large,
+                      500 if file save or database error occurs
+
+    Note:
+        File must be PNG format and under the configured size limit.
+        Validates file type using both content-type header and magic bytes.
+    """
     if file.content_type != "image/png":
         raise HTTPException(status_code=400, detail="Avatar must be a PNG file")
 
