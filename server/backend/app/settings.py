@@ -10,12 +10,16 @@ from app.utils import resolve_root
 CONFIG_PATH = Path(resolve_root("[ROOT]")) / "server" / "backend" / "config.toml"
 
 
-def toml_settings(_settings: BaseSettings) -> dict:
+def toml_settings() -> dict:
     try:
         with open(CONFIG_PATH, "rb") as file:
             return tomllib.load(file)
     except FileNotFoundError:
         raise RuntimeError("Could not find config.toml")
+
+
+class CorsSettings(BaseSettings):
+    allow_origins: List[str] = Field(["http://localhost:5173", "http://127.0.0.1:5173"])
 
 
 class DatabaseSettings(BaseSettings):
@@ -25,15 +29,17 @@ class DatabaseSettings(BaseSettings):
     echo_sql: bool = Field(False)
 
 
-class CorsSettings(BaseSettings):
-    allow_origins: List[str] = Field(["http://localhost:5173", "http://127.0.0.1:5173"])
-
-
 class SecuritySettings(BaseSettings):
     secret_key: str = Field(min_length=1)
     algorithm: str = Field("HS256")
     access_token_expires_minutes: int = Field(15)
     refresh_token_expires_days: int = Field(7)
+
+
+class TestingSettings(BaseSettings):
+    testing: bool = Field(False)
+    testing_db_url: str = Field("")
+    testing_db_secret_key: str = Field("")
 
 
 class PathSettings(BaseSettings):
@@ -43,15 +49,16 @@ class PathSettings(BaseSettings):
 
 class Settings(BaseSettings):
     debug: bool = Field(False)
-    database: DatabaseSettings
     cors: CorsSettings
+    database: DatabaseSettings
     security: SecuritySettings
+    testing: TestingSettings
     paths: PathSettings
 
-    class Config:
-        @classmethod
-        def customise_sources(cls, init_settings, env_settings, file_secret_settings):
-            return init_settings, toml_settings, env_settings, file_secret_settings
+    model_config = {
+        "extra": "ignore",
+        "frozen": True
+    }
 
     @model_validator(mode="after")
     def _resolve_paths(self) -> "Settings":
@@ -61,4 +68,15 @@ class Settings(BaseSettings):
         return self
 
 
-settings = Settings()  # type: ignore
+    @model_validator(mode="after")
+    def _testing_check(self) -> "Settings":
+        """Validates all required fields are filled if testing"""
+        if self.testing.testing and not self.testing.testing_db_url:
+            raise RuntimeError("You must provide a testing database URL if testing")
+        if  self.testing.testing and not self.testing.testing_db_secret_key:
+            raise RuntimeError("You must provide a testing secret key if testing")
+
+        return self
+
+
+settings = Settings(**toml_settings())
