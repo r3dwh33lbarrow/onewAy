@@ -15,6 +15,7 @@ from app.schemas.client import (
     ClientAllResponse,
     ClientUpdateInfo,
 )
+from app.schemas.general import BasicTaskResponse
 from app.services import authentication
 from app.services.authentication import get_current_client, get_current_user
 from app.settings import settings
@@ -28,6 +29,18 @@ async def client_get_username(
     db: AsyncSession = Depends(get_db),
     _=Depends(authentication.get_current_user),
 ):
+    """
+    Retrieve detailed information for a specific client by username.
+
+    Args:
+        username: The unique username of the client to retrieve
+
+    Returns:
+        Complete client information including UUID, network details, and status
+
+    Raises:
+        HTTPException: 404 if client not found
+    """
     result = await db.execute(select(Client).where(Client.username == username))
     result = result.scalar_one_or_none()
 
@@ -50,6 +63,12 @@ async def client_get_username(
 async def client_all(
     db: AsyncSession = Depends(get_db), _=Depends(get_current_user)
 ):
+    """
+    Retrieve a list of all registered clients with basic information.
+
+    Returns:
+        List of clients with basic info (username, IP, hostname, status, last contact)
+    """
     result = await db.execute(select(Client))
     clients = result.scalars().all()
 
@@ -69,6 +88,15 @@ async def client_all(
 
 @router.get("/update")
 async def client_update(client: Client = Depends(get_current_client)):
+    """
+    Download the latest client binary for updating.
+
+    Returns:
+        Client binary file appropriate for the client's platform
+
+    Raises:
+        HTTPException: 400 if client is already up to date, 500 if binary not found
+    """
     if client.client_version >= settings.app.client_version:
         raise HTTPException(status_code=400, detail="Client already at latest version")
 
@@ -86,12 +114,24 @@ async def client_update(client: Client = Depends(get_current_client)):
     )
 
 
-@router.post("/update-info")
+@router.post("/update-info", response_model=BasicTaskResponse)
 async def client_update_info(
     update_info: ClientUpdateInfo,
     client: Client = Depends(get_current_client),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Update client information in the database.
+
+    Args:
+        update_info: Client data to update (only provided fields will be updated)
+
+    Returns:
+        Success status of the update operation
+
+    Raises:
+        HTTPException: 500 if database update fails
+    """
     update_data = update_info.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(client, field, value)
@@ -99,6 +139,7 @@ async def client_update_info(
     try:
         await db.commit()
         await db.refresh(client)
+        return {"result": "success"}
     except Exception:
         await db.rollback()
         raise HTTPException(

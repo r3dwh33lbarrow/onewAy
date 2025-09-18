@@ -23,24 +23,6 @@ async def client_auth_enroll(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Enroll a new client by creating an account in the database.
-
-    This endpoint checks if the username already exists, and if not, creates a new
-    client account with the provided username, password, and client version. The
-    client's IP address is also recorded.
-
-    Args:
-        enroll_request (ClientEnrollRequest): The enrollment request containing the username, password, and client version.
-        request (Request): The FastAPI request object, used to retrieve the client's IP address.
-        db (AsyncSession): The database session dependency.
-
-    Returns:
-        BasicTaskResponse: A response indicating the success of the enrollment.
-
-    Raises:
-        HTTPException: If the username already exists or if a database error occurs.
-    """
     existing_client = await db.execute(
         select(Client).where(Client.username == enroll_request.username)
     )
@@ -73,25 +55,6 @@ async def client_auth_login(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Authenticate a client and issue access and refresh tokens.
-
-    This endpoint verifies the provided username and password, updates the client's
-    IP address and status, and generates a new access token and refresh token. The
-    refresh token is stored as an HTTP-only cookie.
-
-    Args:
-        login_request (ClientLoginRequest): The login request containing the username and password.
-        request (Request): The FastAPI request object, used to retrieve the client's IP address.
-        response (Response): The FastAPI response object, used to set the refresh token cookie.
-        db (AsyncSession): The database session dependency.
-
-    Returns:
-        TokenResponse: A response containing the access token and its type.
-
-    Raises:
-        HTTPException: If the username or password is invalid, or if a database error occurs.
-    """
     client = await db.execute(
         select(Client).where(Client.username == login_request.username)
     )
