@@ -26,7 +26,7 @@ class DatabaseSettings(BaseSettings):
     url: str = Field(min_length=1)
     pool_size: int = Field(10)
     pool_timeout: int = Field(30)
-    echo_sql: bool = Field(False)
+    echo: bool = Field(False)
 
 
 class SecuritySettings(BaseSettings):
@@ -36,10 +36,24 @@ class SecuritySettings(BaseSettings):
     refresh_token_expires_days: int = Field(7)
 
 
+class TestingDatabaseSettings(BaseSettings):
+    url: str = Field("")
+    pool_size: int = Field(10)
+    pool_timeout: int = Field(30)
+    echo: bool = Field(False)
+
+
+class TestingSecuritySettings(BaseSettings):
+    secret_key: str = Field("")
+    algorithm: str = Field("HS256")
+    access_token_expires_minutes: int = Field(15)
+    refresh_token_expires_days: int = Field(7)
+
+
 class TestingSettings(BaseSettings):
     testing: bool = Field(False)
-    testing_db_url: str = Field("")
-    testing_db_secret_key: str = Field("")
+    database: TestingDatabaseSettings
+    security: TestingSecuritySettings
 
 
 class PathSettings(BaseSettings):
@@ -55,10 +69,7 @@ class Settings(BaseSettings):
     testing: TestingSettings
     paths: PathSettings
 
-    model_config = {
-        "extra": "ignore",
-        "frozen": True
-    }
+    model_config = {"extra": "ignore", "frozen": True}
 
     @model_validator(mode="after")
     def _resolve_paths(self) -> "Settings":
@@ -67,13 +78,12 @@ class Settings(BaseSettings):
         self.paths.module_dir = resolve_root(self.paths.module_dir)
         return self
 
-
     @model_validator(mode="after")
     def _testing_check(self) -> "Settings":
         """Validates all required fields are filled if testing"""
         if self.testing.testing and not self.testing.testing_db_url:
             raise RuntimeError("You must provide a testing database URL if testing")
-        if  self.testing.testing and not self.testing.testing_db_secret_key:
+        if self.testing.testing and not self.testing.testing_db_secret_key:
             raise RuntimeError("You must provide a testing secret key if testing")
 
         return self
