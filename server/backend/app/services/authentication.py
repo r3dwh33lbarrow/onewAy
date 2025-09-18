@@ -83,6 +83,8 @@ def create_access_token(
     token_type = "websocket" if is_ws else "access"
     payload = {
         "sub": str(user_or_client_uuid),
+        "iss": settings.security.jwt_issuer,
+        "aud": settings.security.jwt_audience,
         "type": token_type,
         "exp": int(expires.timestamp()),
         "iat": int(now.timestamp()),

@@ -39,6 +39,8 @@ class SecuritySettings(BaseSettings):
     algorithm: str = Field("HS256")
     access_token_expires_minutes: int = Field(15)
     refresh_token_expires_days: int = Field(7)
+    jwt_issuer: str = Field("https://api.oneway.local")
+    jwt_audience: str = Field("oneway-api")
 
 
 class TestingDatabaseSettings(BaseSettings):
