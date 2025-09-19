@@ -24,16 +24,16 @@ from app.schemas.user_modules import (
     ModuleInfo,
     UserModuleAllResponse,
 )
-from app.services.authentication import verify_access_token
+from app.services.authentication import verify_access_token, get_current_user
 from app.services.client_websockets import client_websocket_manager
 from app.settings import settings
-from app.utils import convert_to_snake_case, hyphen_to_snake_case, resolve_root
+from app.utils import convert_to_snake_case, hyphen_to_snake_case
 
-router = APIRouter(prefix="/user/modules")
+router = APIRouter(prefix="/module")
 
 
 @router.get("/all", response_model=UserModuleAllResponse)
-async def user_modules_all(
+async def module_all(
     db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)
 ):
     result = await db.execute(select(Module))
@@ -52,16 +52,13 @@ async def user_modules_all(
     return UserModuleAllResponse(modules=module_list)
 
 
-@router.post("/add", response_model=BasicTaskResponse)
-async def user_modules_add(
+@router.put("/add", response_model=BasicTaskResponse)
+async def module_add(
     request: ModuleAddRequest,
     db: AsyncSession = Depends(get_db),
-    _=Depends(verify_access_token),
+    _=Depends(get_current_user),
 ):
-    # Try relative paths first
-    relative_module_path = (
-        Path(resolve_root("[ROOT]")) / "modules" / request.module_path
-    )
+    relative_module_path = Path(settings.paths.module_dir) / request.module_path
 
     if not os.path.exists(request.module_path):
         if not os.path.exists(relative_module_path):
@@ -77,19 +74,18 @@ async def user_modules_add(
         raise HTTPException(status_code=400, detail="Module config.yaml does not exist")
 
     try:
-        with open(config_path) as stream:
-            config = yaml.safe_load(stream)
+        async with aiofiles.open(config_path, "rb") as stream:
+            config = yaml.safe_load(await stream.read())
     except yaml.YAMLError as e:
         raise HTTPException(status_code=400, detail=f"Error parsing config.yaml: {e}")
     except Exception:
         raise HTTPException(status_code=500, detail=f"Error reading config.yaml")
 
     binaries = config.get("binaries")
-    if isinstance(binaries, str):
-        binaries = json.loads(binaries) if binaries else {}
-    elif binaries is None:
+    if binaries:
+        binaries = json.loads(binaries)
+    else:
         binaries = {}
-    # If binaries is already a dict, use it as-is
 
     try:
         module_info = ModuleInfo(
@@ -125,17 +121,16 @@ async def user_modules_add(
         )
 
 
-@router.post("/upload")
-async def user_modules_upload(
+@router.put("/upload")
+async def module_upload(
     files: list[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db),
-    _=Depends(verify_access_token),
+    _=Depends(get_current_user),
 ):
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
 
     saved = []
-    dest_path = None
     module_dir = None
 
     try:
@@ -145,7 +140,6 @@ async def user_modules_upload(
 
             rel_path = Path(f.filename)
 
-            # Check for path traversal attempts - allow hidden files but block traversal
             if any(part in ["..", ".", ""] for part in rel_path.parts):
                 raise HTTPException(
                     status_code=400,
@@ -153,12 +147,10 @@ async def user_modules_upload(
                 )
 
             try:
-                # Resolve path safely
-                dest_path = (Path(settings.module_path) / rel_path).resolve()
+                dest_path = (Path(settings.paths.module_dir) / rel_path).resolve()
 
-                # Ensure the resolved path is still within module_path
                 if not str(dest_path).startswith(
-                    str(Path(settings.module_path).resolve())
+                    str(Path(settings.paths.module_dir).resolve())
                 ):
                     raise HTTPException(
                         status_code=400,
@@ -167,15 +159,13 @@ async def user_modules_upload(
             except Exception:
                 raise HTTPException(status_code=400, detail="Unsafe file path")
 
-            # Keep track of the module directory (parent of all files)
             if module_dir is None:
                 module_dir = dest_path.parent
             elif dest_path.parent != module_dir and not str(dest_path).startswith(
                 str(module_dir)
             ):
-                # Allow subdirectories within the same module
                 potential_module_dir = dest_path
-                while potential_module_dir.parent != Path(settings.module_path):
+                while potential_module_dir.parent != Path(settings.paths.module_dir):
                     potential_module_dir = potential_module_dir.parent
                 if module_dir != potential_module_dir:
                     module_dir = potential_module_dir
@@ -189,9 +179,8 @@ async def user_modules_upload(
                         break
                     await out.write(chunk)
 
-            saved.append(str(dest_path.relative_to(settings.module_path)))
+            saved.append(str(dest_path.relative_to(settings.paths.module_dir)))
 
-        # Check for config.yaml in the module directory
         if module_dir is None:
             raise HTTPException(status_code=400, detail="No files were processed")
 
@@ -223,7 +212,6 @@ async def user_modules_upload(
                 detail="config.yaml must contain a valid configuration object",
             )
 
-        # Parse binaries field safely
         binaries = config.get("binaries", {})
         if isinstance(binaries, str):
             try:
@@ -236,7 +224,6 @@ async def user_modules_upload(
         elif not isinstance(binaries, dict):
             binaries = {}
 
-        # Validate required fields
         required_fields = ["name", "version", "start"]
         missing_fields = [field for field in required_fields if field not in config]
         if missing_fields:
@@ -261,7 +248,6 @@ async def user_modules_upload(
             )
 
         try:
-            # Check if module already exists
             result = await db.execute(
                 select(Module).where(Module.name == new_module.name)
             )
@@ -274,7 +260,6 @@ async def user_modules_upload(
             await db.commit()
 
         except HTTPException:
-            # Re-raise HTTP exceptions as-is
             raise
         except Exception as e:
             await db.rollback()
@@ -286,19 +271,17 @@ async def user_modules_upload(
         return {"result": "success", "files_saved": saved}
 
     except HTTPException:
-        # Clean up on HTTP exceptions
         if module_dir and module_dir.exists():
             shutil.rmtree(module_dir, ignore_errors=True)
         raise
     except Exception as e:
-        # Clean up on unexpected exceptions
         if module_dir and module_dir.exists():
             shutil.rmtree(module_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail="Failed to process module upload")
 
 
 @router.get("/get/{module_name}")
-async def user_modules_get(
+async def module_get(
     module_name: str, db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)
 ):
     module_name = hyphen_to_snake_case(module_name)
@@ -317,11 +300,11 @@ async def user_modules_get(
 
 
 @router.put("/update/{module_name}", response_model=BasicTaskResponse)
-async def user_modules_update(
+async def module_update(
     module_name: str,
     files: list[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db),
-    _=Depends(verify_access_token),
+    _=Depends(get_current_user),
 ):
     module_name = hyphen_to_snake_case(module_name)
     result = await db.execute(select(Module).where(Module.name == module_name))
@@ -334,14 +317,8 @@ async def user_modules_update(
     module_dir = None
     saved = []
 
-    # Path where the module currently lives
-    if settings.module_path:
-        module_path = Path(settings.module_path) / existing_module.name
-    else:
-        mod_dir = Path(__file__).resolve().parent.parent / "modules"
-        module_path = mod_dir / existing_module.name
+    module_path = settings.paths.module_dir
 
-    # Backup old module
     if module_path.exists():
         backup_path = Path(str(module_path) + ".backup")
         if backup_path.exists():
@@ -349,22 +326,20 @@ async def user_modules_update(
         shutil.move(module_path, backup_path)
 
     try:
-        # Save new uploaded directory structure
         for f in files:
             if not f.filename:
                 raise HTTPException(status_code=400, detail="File must have a filename")
 
             rel_path = Path(f.filename)
 
-            # Prevent traversal
             if any(part in ["..", ".", ""] for part in rel_path.parts):
                 raise HTTPException(
                     status_code=400,
                     detail="Invalid file path - no relative path traversal allowed",
                 )
 
-            dest_path = (Path(settings.module_path) / rel_path).resolve()
-            if not str(dest_path).startswith(str(Path(settings.module_path).resolve())):
+            dest_path = (Path(settings.paths.module_dir) / rel_path).resolve()
+            if not str(dest_path).startswith(str(Path(settings.paths.module_dir).resolve())):
                 raise HTTPException(
                     status_code=400,
                     detail="Invalid file path - outside allowed directory",
@@ -376,7 +351,7 @@ async def user_modules_update(
                 str(module_dir)
             ):
                 potential_module_dir = dest_path
-                while potential_module_dir.parent != Path(settings.module_path):
+                while potential_module_dir.parent != Path(settings.paths.module_dir):
                     potential_module_dir = potential_module_dir.parent
                 if module_dir != potential_module_dir:
                     module_dir = potential_module_dir
@@ -389,7 +364,7 @@ async def user_modules_update(
                         break
                     await out.write(chunk)
 
-            saved.append(str(dest_path.relative_to(settings.module_path)))
+            saved.append(str(dest_path.relative_to(settings.paths.module_dir)))
 
         if module_dir is None:
             raise HTTPException(status_code=400, detail="No files were processed")
@@ -427,7 +402,6 @@ async def user_modules_update(
         elif not isinstance(binaries, dict):
             binaries = {}
 
-        # Update DB entry
         new_module_name = convert_to_snake_case(config["name"])
         existing_module.name = new_module_name
         existing_module.description = config.get("description")
@@ -437,9 +411,8 @@ async def user_modules_update(
 
         await db.commit()
 
-        # If module name changed, rename directory
         if new_module_name != module_name:
-            new_module_path = Path(settings.module_path) / new_module_name
+            new_module_path = Path(settings.paths.module_dir) / new_module_name
             if new_module_path.exists():
                 shutil.rmtree(new_module_path, ignore_errors=True)
             shutil.move(module_dir, new_module_path)
@@ -465,8 +438,8 @@ async def user_modules_update(
 
 
 @router.delete("/delete/{module_name}", response_model=BasicTaskResponse)
-async def user_modules_delete(
-    module_name: str, db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)
+async def module_delete(
+    module_name: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)
 ):
     module_name = hyphen_to_snake_case(module_name)
     result = await db.execute(select(Module).where(Module.name == module_name))
@@ -476,16 +449,10 @@ async def user_modules_delete(
         raise HTTPException(status_code=404, detail="Module not found")
 
     try:
-        # Remove from database
         await db.delete(module)
         await db.commit()
 
-        # Remove module directory if it exists
-        if settings.module_path and os.path.isdir(settings.module_path):
-            module_path = Path(settings.module_path) / module_name
-        else:
-            mod_dir = Path(__file__).resolve().parent.parent / "modules"
-            module_path = mod_dir / module_name
+        module_path = Path(settings.paths.module_dir) / module_name
 
         if os.path.exists(module_path):
             shutil.rmtree(module_path)
@@ -498,28 +465,25 @@ async def user_modules_delete(
 
 
 @router.get("/query-module-dir", response_model=ModuleDirectoryContents)
-async def user_modules_query_module_dir():
+async def module_query_module_dir(_=Depends(get_current_user)):
     contents_list = []
-    if settings.module_path and os.path.isdir(settings.module_path):
-        try:
-            for item in os.listdir(settings.module_path):
-                item_path = os.path.join(settings.module_path, item)
-                if os.path.isfile(item_path):
-                    contents_list.append({"file": item})
-                elif os.path.isdir(item_path):
-                    contents_list.append({"directory": item})
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=f"Failed to query module directory: {str(e)}"
-            )
-    else:
-        return {"contents": []}
+    try:
+        for item in os.listdir(settings.paths.module_dir):
+            item_path = os.path.join(settings.paths.module_dir, item)
+            if os.path.isfile(item_path):
+                contents_list.append({"file": item})
+            elif os.path.isdir(item_path):
+                contents_list.append({"directory": item})
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to query module directory: {str(e)}"
+        )
 
     return {"contents": contents_list}
 
 
 @router.get("/installed/{client_username}")
-async def user_modules_installed_client_username(
+async def module_installed_client_username(
     client_username: str,
     db: AsyncSession = Depends(get_db),
     _=Depends(verify_access_token),
@@ -548,7 +512,7 @@ async def user_modules_installed_client_username(
 
 
 @router.post("/set-installed/{client_username}")
-async def user_modules_set_installed_client_username(
+async def module_set_installed_client_username(
     client_username: str,
     module_name: str,
     db: AsyncSession = Depends(get_db),
@@ -594,11 +558,11 @@ async def user_modules_set_installed_client_username(
 
 
 @router.get("/run/{module_name}")
-async def user_modules_run_module_name(
+async def module_run_module_name(
     module_name: str,
     client_username: str,
     db: AsyncSession = Depends(get_db),
-    _=Depends(verify_access_token),
+    _=Depends(get_current_user),
 ):
     module = await db.execute(select(Module).where(Module.name == module_name))
     module = module.scalar_one_or_none()
@@ -613,7 +577,6 @@ async def user_modules_run_module_name(
     if not client.alive:
         raise HTTPException(status_code=400, detail="Client is not alive")
 
-    # Ensure module is installed for this client
     client_module = await db.execute(
         select(ClientModule).where(
             (ClientModule.client_name == client_username)
@@ -624,7 +587,6 @@ async def user_modules_run_module_name(
     if not client_module:
         raise HTTPException(status_code=400, detail="Module not installed on client")
 
-    # Only allow manual start modules to be started explicitly
     if (module.start or "").lower() != "manual":
         raise HTTPException(
             status_code=400, detail="Module is not configured for manual start"
@@ -639,11 +601,11 @@ async def user_modules_run_module_name(
 
 
 @router.get("/cancel/{module_name}")
-async def user_modules_cancel_module_name(
+async def module_cancel_module_name(
     module_name: str,
     client_username: str,
     db: AsyncSession = Depends(get_db),
-    _=Depends(verify_access_token),
+    _=Depends(get_current_user),
 ):
     module = await db.execute(select(Module).where(Module.name == module_name))
     module = module.scalar_one_or_none()
@@ -658,7 +620,6 @@ async def user_modules_cancel_module_name(
     if not client.alive:
         raise HTTPException(status_code=400, detail="Client is not alive")
 
-    # Send cancel command to client
     await client_websocket_manager.send_to_client(
         client_uuid=str(client.uuid),
         message={"message_type": "module_cancel", "module_name": module.name},
