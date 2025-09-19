@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.models.user import User
 from app.schemas.general import BasicTaskResponse, TokenResponse
-from app.schemas.user_auth import UserLoginRequest, UserRegisterRequest
+from app.schemas.user_auth import *
 from app.services.authentication import TokenType, create_access_token, get_current_user
 from app.services.password import hash_password
 
@@ -18,6 +18,23 @@ router = APIRouter(prefix="/user/auth")
 async def user_auth_register(
     user_register_request: UserRegisterRequest, db: AsyncSession = Depends(get_db)
 ):
+    """
+    Register a new user account.
+
+    Creates a new user account with the provided username and password. The password
+    is automatically hashed before storage. Validates that the username is unique.
+
+    Args:
+        user_register_request: UserRegisterRequest containing username and password
+        db: Database session dependency
+
+    Returns:
+        BasicTaskResponse: Success/failure result
+
+    Raises:
+        HTTPException: 409 if username already exists
+        HTTPException: 500 if database operation fails
+    """
     existing_user = await db.execute(
         select(User).where(User.username == user_register_request.username)
     )
@@ -47,6 +64,25 @@ async def user_auth_login(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Authenticate user and create login session.
+
+    Validates user credentials and creates an authenticated session by setting
+    an HTTP-only access token cookie. Updates the user's last login timestamp.
+    The cookie expires after 7 days.
+
+    Args:
+        user_login_request: UserLoginRequest containing username and password
+        response: HTTP response object to set cookies
+        db: Database session dependency
+
+    Returns:
+        BasicTaskResponse: Success/failure result
+
+    Raises:
+        HTTPException: 401 if username or password is invalid
+        HTTPException: 500 if login process fails
+    """
     user = await db.execute(
         select(User).where(User.username == user_login_request.username)
     )
@@ -56,7 +92,7 @@ async def user_auth_login(
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     try:
-        access_token = create_access_token(user.uuid, True)
+        access_token = create_access_token(user.uuid, TokenType.USER)
         user.last_login = datetime.now(UTC)
         await db.commit()
 
@@ -77,11 +113,39 @@ async def user_auth_login(
 
 @router.post("/logout", response_model=BasicTaskResponse)
 async def user_auth_logout(response: Response):
+    """
+    Log out the current user by clearing authentication cookie.
+
+    Removes the access token cookie from the client, effectively logging out
+    the user from the system.
+
+    Args:
+        response: HTTP response object to delete cookies
+
+    Returns:
+        BasicTaskResponse: Success result
+    """
     response.delete_cookie(key="access_token", httponly=True, samesite="lax")
     return {"result": "success"}
 
 
 @router.post("/ws-token", response_model=TokenResponse)
 async def user_auth_ws_token(user: User = Depends(get_current_user)):
+    """
+    Generate a WebSocket authentication token for the current user.
+
+    Creates a special access token that can be used for WebSocket connections.
+    This token is separate from the regular HTTP authentication token and is
+    specifically designed for WebSocket authentication.
+
+    Args:
+        user: Current authenticated user dependency
+
+    Returns:
+        TokenResponse: WebSocket access token and token type
+
+    Raises:
+        HTTPException: 401 if user is not authenticated
+    """
     ws_token = create_access_token(user.uuid, TokenType.WEBSOCKET)
     return {"access_token": ws_token, "token_type": "websocket"}

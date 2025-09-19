@@ -11,7 +11,7 @@ from starlette.responses import FileResponse
 from app.dependencies import get_db
 from app.models.user import User
 from app.schemas.general import BasicTaskResponse
-from app.schemas.user import UserInfoResponse, UserUpdateRequest
+from app.schemas.user import *
 from app.services.authentication import get_current_user
 from app.settings import settings
 
