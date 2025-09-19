@@ -45,11 +45,11 @@ async def init_db() -> None:
     global test_engine, TestAsyncSessionLocal
     if test_engine is None and TestAsyncSessionLocal is None:
         test_engine = create_async_engine(
-            settings.testing.testing_db_url,
-            echo=settings.testing.database.echo,
+            settings.database.url,
+            echo=settings.database.echo,
             future=True,
-            pool_size=settings.testing.database.pool_size,
-            pool_timeout=settings.testing.database.pool_timeout,
+            pool_size=settings.database.pool_size,
+            pool_timeout=settings.database.pool_timeout,
         )
         TestAsyncSessionLocal = async_sessionmaker(
             test_engine, class_=AsyncSession, expire_on_commit=False

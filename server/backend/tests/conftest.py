@@ -1,33 +1,30 @@
+import asyncio
 import sys
 from pathlib import Path
-
-import httpx
-from httpx_ws.transport import ASGIWebSocketTransport
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-import asyncio
-import os
 from typing import AsyncGenerator
 
+import httpx
 import pytest
 import pytest_asyncio
-from dotenv import load_dotenv
 from httpx import AsyncClient, ASGITransport
+from httpx_ws.transport import ASGIWebSocketTransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.db.base import Base
 from app.dependencies import get_db
 from app.main import app
+from app.settings import settings
 
-# Load the environment variables first
-print(f"{os.path.dirname(os.path.abspath(__file__))}/.env.test")
-load_dotenv(f"{os.path.dirname(os.path.abspath(__file__))}/.env.test", verbose=True)
-TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 
-os.environ.setdefault("DATABASE_URL", TEST_DATABASE_URL)
-
-test_engine = create_async_engine(TEST_DATABASE_URL)
+test_engine = create_async_engine(
+            settings.database.url,
+            echo=settings.database.echo,
+            future=True,
+            pool_size=settings.database.pool_size,
+            pool_timeout=settings.database.pool_timeout
+)
 TestAsyncSessionLocal = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -74,12 +71,10 @@ async def ws_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, Non
     app.dependency_overrides[get_db] = override_get_db
     transport = ASGIWebSocketTransport(app=app)
 
-    # Create the client without entering the async context manager here
     client = httpx.AsyncClient(transport=transport, base_url="http://testserver")
 
     try:
         yield client
     finally:
-        # Clean up the client properly
         await client.aclose()
         app.dependency_overrides.clear()
