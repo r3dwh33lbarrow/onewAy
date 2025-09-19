@@ -114,5 +114,26 @@ class Settings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def _inject_testing(self) -> "Settings":
+        """Inject testing settings into main settings if testing is enabled."""
+        if self.testing.testing:
+            if self.testing.database.url:
+                self.database.url = self.testing.database.url
+            self.database.pool_size = self.testing.database.pool_size
+            self.database.pool_timeout = self.testing.database.pool_timeout
+            self.database.echo = self.testing.database.echo
+
+            if self.testing.security.secret_key:
+                self.security.secret_key = self.testing.security.secret_key
+            self.security.algorithm = self.testing.security.algorithm
+            self.security.access_token_expires_minutes = (
+                self.testing.security.access_token_expires_minutes
+            )
+            self.security.refresh_token_expires_days = (
+                self.testing.security.refresh_token_expires_days
+            )
+        return self
+
 
 settings = Settings(**toml_settings())
