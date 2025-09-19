@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, Depends, File
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
@@ -19,6 +21,22 @@ router = APIRouter(prefix="/module")
 async def module_all(
     db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)
 ):
+    """
+    Retrieve all available modules from the database.
+
+    Returns a list of all modules with their basic information including name,
+    description, version, start configuration, and supported binary platforms.
+
+    Args:
+        db: Database session dependency
+        _: Access token verification dependency
+
+    Returns:
+        UserModuleAllResponse: Response containing a list of all modules with basic info
+
+    Raises:
+        HTTPException: 401 if access token is invalid
+    """
     result = await db.execute(select(Module))
     modules = result.scalars().all()
 
@@ -41,6 +59,24 @@ async def module_add(
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
+    """
+    Add a new module to the system from a local path.
+
+    Validates the module path exists, loads the module configuration from config.yaml,
+    and adds the module to the database. Supports both absolute and relative paths.
+
+    Args:
+        request: ModuleAddRequest containing the module path
+        db: Database session dependency
+        _: Current user authentication dependency
+
+    Returns:
+        BasicTaskResponse: Success/failure result
+
+    Raises:
+        HTTPException: 400 if module path doesn't exist
+        HTTPException: 500 if database operation fails
+    """
     relative_module_path = Path(settings.paths.module_dir) / request.module_path
 
     if not os.path.exists(request.module_path):
@@ -73,6 +109,24 @@ async def module_upload(
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
+    """
+    Upload and install a new module from uploaded files.
+
+    Processes uploaded files, validates the module configuration, creates the module
+    directory structure, and adds the module to the database. Includes cleanup on failure.
+
+    Args:
+        files: List of uploaded files containing the module
+        db: Database session dependency
+        _: Current user authentication dependency
+
+    Returns:
+        dict: Success result with list of saved files
+
+    Raises:
+        HTTPException: 409 if module already exists
+        HTTPException: 500 if upload processing or database operation fails
+    """
     module_dir = None
     try:
         saved, module_dir = await process_uploaded_files(files)
@@ -109,6 +163,24 @@ async def module_upload(
 async def module_get(
     module_name: str, db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)
 ):
+    """
+    Retrieve detailed information for a specific module.
+
+    Fetches module details including name, description, version, and binary configurations
+    for the specified module.
+
+    Args:
+        module_name: Name of the module to retrieve (supports hyphen format)
+        db: Database session dependency
+        _: Access token verification dependency
+
+    Returns:
+        dict: Module details including name, description, version, and binaries
+
+    Raises:
+        HTTPException: 404 if module not found
+        HTTPException: 401 if access token is invalid
+    """
     module_name = hyphen_to_snake_case(module_name)
     module = await get_module_by_name(db, module_name)
 
@@ -130,6 +202,25 @@ async def module_update(
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
+    """
+    Update an existing module with new files and configuration.
+
+    Updates an existing module by replacing its files and configuration. Creates backups
+    before modification and handles rollback on failure. Supports module renaming.
+
+    Args:
+        module_name: Name of the module to update (supports hyphen format)
+        files: List of uploaded files containing the updated module
+        db: Database session dependency
+        _: Current user authentication dependency
+
+    Returns:
+        BasicTaskResponse: Success/failure result
+
+    Raises:
+        HTTPException: 404 if module not found
+        HTTPException: 500 if update operation fails
+    """
     module_name = hyphen_to_snake_case(module_name)
     existing_module = await get_module_by_name(db, module_name)
 
@@ -181,6 +272,24 @@ async def module_update(
 async def module_delete(
     module_name: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)
 ):
+    """
+    Delete a module from the system.
+
+    Removes the module from the database and deletes its associated files and directory
+    from the filesystem.
+
+    Args:
+        module_name: Name of the module to delete (supports hyphen format)
+        db: Database session dependency
+        _: Current user authentication dependency
+
+    Returns:
+        BasicTaskResponse: Success/failure result
+
+    Raises:
+        HTTPException: 404 if module not found
+        HTTPException: 500 if deletion operation fails
+    """
     module_name = hyphen_to_snake_case(module_name)
     module = await get_module_by_name(db, module_name)
 
@@ -204,6 +313,21 @@ async def module_delete(
 
 @router.get("/query-module-dir", response_model=ModuleDirectoryContents)
 async def module_query_module_dir(_=Depends(get_current_user)):
+    """
+    Query the contents of the module directory.
+
+    Lists all files and directories in the module directory, categorizing them
+    as either files or directories.
+
+    Args:
+        _: Current user authentication dependency
+
+    Returns:
+        ModuleDirectoryContents: Directory contents with files and directories listed
+
+    Raises:
+        HTTPException: 500 if directory access fails
+    """
     contents_list = []
     try:
         for item in os.listdir(settings.paths.module_dir):
@@ -226,6 +350,24 @@ async def module_installed_client_username(
     db: AsyncSession = Depends(get_db),
     _=Depends(verify_access_token),
 ):
+    """
+    Get all modules installed on a specific client.
+
+    Retrieves the list of modules installed on the specified client, including
+    module details and installation status.
+
+    Args:
+        client_username: Username of the client to query
+        db: Database session dependency
+        _: Access token verification dependency
+
+    Returns:
+        list[InstalledModuleInfo]: List of installed modules with their details and status
+
+    Raises:
+        HTTPException: 400 if client username not found
+        HTTPException: 401 if access token is invalid
+    """
     client = await db.execute(
         select(Client)
         .options(selectinload(Client.client_modules).selectinload(ClientModule.module))
@@ -256,6 +398,26 @@ async def module_set_installed_client_username(
     db: AsyncSession = Depends(get_db),
     _=Depends(verify_access_token),
 ):
+    """
+    Mark a module as installed on a specific client.
+
+    Associates a module with a client, marking it as installed. Prevents duplicate
+    installations on the same client.
+
+    Args:
+        client_username: Username of the client
+        module_name: Name of the module to mark as installed
+        db: Database session dependency
+        _: Access token verification dependency
+
+    Returns:
+        dict: Success result
+
+    Raises:
+        HTTPException: 400 if client username or module not found
+        HTTPException: 409 if module already installed on client
+        HTTPException: 500 if database operation fails
+    """
     client = await get_client_by_username(db, client_username)
     if not client:
         raise HTTPException(status_code=400, detail="Client username not found")
@@ -301,6 +463,25 @@ async def module_run_module_name(
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
+    """
+    Send a command to run a module on a specific client.
+
+    Sends a websocket message to the specified client to run the given module.
+    Only works for modules configured for manual start.
+
+    Args:
+        module_name: Name of the module to run
+        client_username: Username of the target client
+        db: Database session dependency
+        _: Current user authentication dependency
+
+    Returns:
+        dict: Success result
+
+    Raises:
+        HTTPException: 400 if module not installed on client or not configured for manual start
+        HTTPException: 404 if module or client not found
+    """
     module, client = await validate_module_and_client(db, module_name, client_username)
 
     client_module = await db.execute(
@@ -333,6 +514,24 @@ async def module_cancel_module_name(
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
+    """
+    Send a command to cancel a running module on a specific client.
+
+    Sends a websocket message to the specified client to cancel/stop the given module.
+
+    Args:
+        module_name: Name of the module to cancel
+        client_username: Username of the target client
+        db: Database session dependency
+        _: Current user authentication dependency
+
+    Returns:
+        dict: Success result
+
+    Raises:
+        HTTPException: 400 if module or client validation fails
+        HTTPException: 404 if module or client not found
+    """
     module, client = await validate_module_and_client(db, module_name, client_username)
 
     await client_websocket_manager.send_to_client(
