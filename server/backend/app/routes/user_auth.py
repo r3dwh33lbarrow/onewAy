@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
+from app.logger import get_logger
 from app.models.user import User
 from app.schemas.general import BasicTaskResponse, TokenResponse
 from app.schemas.user_auth import *
@@ -12,6 +13,7 @@ from app.services.authentication import TokenType, create_access_token, get_curr
 from app.services.password import hash_password
 
 router = APIRouter(prefix="/user/auth")
+logger = get_logger()
 
 
 @router.post("/register", response_model=BasicTaskResponse)
@@ -35,10 +37,19 @@ async def user_auth_register(
         HTTPException: 409 if username already exists
         HTTPException: 500 if database operation fails
     """
+    logger.debug(
+        "User registration attempt for '%s'",
+        user_register_request.username,
+    )
+
     existing_user = await db.execute(
         select(User).where(User.username == user_register_request.username)
     )
     if existing_user.scalar_one_or_none():
+        logger.warning(
+            "User registration failed: username '%s' already exists",
+            user_register_request.username,
+        )
         raise HTTPException(status_code=409, detail="Username already exists")
 
     new_user = User(
@@ -49,10 +60,12 @@ async def user_auth_register(
     try:
         db.add(new_user)
         await db.commit()
+        logger.info("User '%s' registered", new_user.username)
         return {"result": "success"}
 
     except Exception:
         await db.rollback()
+        logger.exception("Failed to register user '%s'", user_register_request.username)
         raise HTTPException(
             status_code=500, detail="Failed to add user to the database"
         )
@@ -83,12 +96,20 @@ async def user_auth_login(
         HTTPException: 401 if username or password is invalid
         HTTPException: 500 if login process fails
     """
+    logger.debug(
+        "User login attempt for '%s'",
+        user_login_request.username,
+    )
+
     user = await db.execute(
         select(User).where(User.username == user_login_request.username)
     )
     user = user.scalar_one_or_none()
 
     if not user or not user.verify_password(user_login_request.password):
+        logger.warning(
+            "Invalid credentials for user '%s'", user_login_request.username
+        )
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     try:
@@ -103,11 +124,13 @@ async def user_auth_login(
             samesite="lax",
             max_age=60 * 60 * 24 * 7,
         )
+        logger.info("User '%s' logged in", user.username)
         return {"result": "success"}
     except HTTPException as e:
         raise e
     except Exception:
         await db.rollback()
+        logger.exception("Login failure for user '%s'", user_login_request.username)
         raise HTTPException(status_code=500, detail="Failed to sign in user")
 
 
@@ -126,6 +149,7 @@ async def user_auth_logout(response: Response):
         BasicTaskResponse: Success result
     """
     response.delete_cookie(key="access_token", httponly=True, samesite="lax")
+    logger.info("User logged out")
     return {"result": "success"}
 
 
@@ -147,5 +171,6 @@ async def user_auth_ws_token(user: User = Depends(get_current_user)):
     Raises:
         HTTPException: 401 if user is not authenticated
     """
+    logger.debug("Issued websocket token for user '%s'", user.username)
     ws_token = create_access_token(user.uuid, TokenType.WEBSOCKET)
     return {"access_token": ws_token, "token_type": "websocket"}

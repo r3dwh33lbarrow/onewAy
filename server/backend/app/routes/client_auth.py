@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
+from app.logger import get_logger
 from app.models.client import Client
 from app.schemas.client_auth import *
 from app.schemas.general import BasicTaskResponse, TokenResponse
@@ -14,6 +15,7 @@ from app.services.authentication import (
 from app.services.password import hash_password
 
 router = APIRouter(prefix="/client/auth")
+logger = get_logger()
 
 
 @router.post("/enroll", response_model=BasicTaskResponse)
@@ -36,10 +38,18 @@ async def client_auth_enroll(
     Raises:
         HTTPException: 409 if username already exists, 500 if database error occurs
     """
+    logger.debug(
+        "Client enrollment attempt for '%s'", enroll_request.username
+    )
+
     existing_client = await db.execute(
         select(Client).where(Client.username == enroll_request.username)
     )
     if existing_client.scalar_one_or_none():
+        logger.warning(
+            "Client enrollment failed: username '%s' already exists",
+            enroll_request.username,
+        )
         raise HTTPException(status_code=409, detail="Username already exists")
 
     new_client = Client(
@@ -52,10 +62,12 @@ async def client_auth_enroll(
     try:
         db.add(new_client)
         await db.commit()
+        logger.info("Client '%s' enrolled", new_client.username)
         return {"result": "success"}
 
     except Exception:
         await db.rollback()
+        logger.exception("Failed to enroll client '%s'", enroll_request.username)
         raise HTTPException(
             status_code=500, detail="Failed to add client to the database"
         )
@@ -86,12 +98,19 @@ async def client_auth_login(
     Note:
         Sets refresh token as httpOnly cookie and updates client status to alive
     """
+    logger.debug(
+        "Client login attempt for '%s' from %s",
+        login_request.username,
+        request.client.host if request.client else "unknown",
+    )
+
     client = await db.execute(
         select(Client).where(Client.username == login_request.username)
     )
     client = client.scalar_one_or_none()
 
     if not client or not client.verify_password(login_request.password):
+        logger.warning("Invalid credentials for client '%s'", login_request.username)
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     client.ip_address = request.client.host
@@ -110,11 +129,17 @@ async def client_auth_login(
             max_age=60 * 60 * 24 * 7,
         )
 
+        logger.info(
+            "Client '%s' logged in from %s",
+            client.username,
+            request.client.host if request.client else "unknown",
+        )
         return {"access_token": access_token, "token_type": "Bearer"}
     except HTTPException as e:
         raise e
     except Exception:
         await db.rollback()
+        logger.exception("Login failure for client '%s'", login_request.username)
         raise HTTPException(
             status_code=500, detail="Login failed due to database error"
         )
@@ -151,12 +176,14 @@ async def client_auth_refresh(
             max_age=60 * 60 * 24 * 7,
         )
 
+        logger.info("Rotated client refresh token")
         return {"access_token": new_access_token, "token_type": "Bearer"}
 
     except HTTPException as e:
         raise e
     except Exception:
         await db.rollback()
+        logger.exception("Failed to refresh client access token")
         raise HTTPException(
             status_code=500, detail="Token refresh failed due to database error"
         )

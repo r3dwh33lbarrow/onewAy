@@ -11,11 +11,25 @@ log = get_logger()
 
 
 class ClientWebSocketManager:
+    """
+    Manages WebSocket connections for client applications.
+
+    Maintains active client connections and handles message broadcasting.
+    Thread-safe operations using asyncio locks.
+    """
+
     def __init__(self):
         self.active_connections: Dict[str, Set[WebSocket]] = {}
         self._lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket, client_uuid: str):
+        """
+        Accept and register a WebSocket connection for a client.
+
+        Args:
+            websocket: WebSocket connection to register
+            client_uuid: Client identifier
+        """
         await websocket.accept()
 
         async with self._lock:
@@ -26,6 +40,13 @@ class ClientWebSocketManager:
         log.info(f"WebSocket connected for client {client_uuid}")
 
     async def disconnect(self, websocket: WebSocket, client_uuid: str):
+        """
+        Remove a WebSocket connection for a client.
+
+        Args:
+            websocket: WebSocket connection to remove
+            client_uuid: Client identifier
+        """
         async with self._lock:
             if client_uuid in self.active_connections:
                 self.active_connections[client_uuid].discard(websocket)
@@ -35,6 +56,13 @@ class ClientWebSocketManager:
         log.info(f"WebSocket disconnected for client {client_uuid}")
 
     async def send_to_client(self, client_uuid: str, message: dict):
+        """
+        Send a message to all connections for a specific client.
+
+        Args:
+            client_uuid: Target client identifier
+            message: Message data to send
+        """
         if client_uuid not in self.active_connections:
             return
 
@@ -49,7 +77,6 @@ class ClientWebSocketManager:
                 log.warning(f"Failed to send message to WebSocket: {e}")
                 connections_to_remove.add(websocket)
 
-        # Clean up failed connections
         if connections_to_remove:
             async with self._lock:
                 self.active_connections[client_uuid].difference_update(
@@ -61,7 +88,11 @@ class ClientWebSocketManager:
     @staticmethod
     async def broadcast_client_alive_status(username: str, alive: bool):
         """
-        Broadcast a client's alive status to all connected users.
+        Broadcast client online/offline status to all users.
+
+        Args:
+            username: Client username
+            alive: True if online, False if offline
         """
         await user_websocket_manager.send_client_alive_update(
             {"username": username, "alive": alive}

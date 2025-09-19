@@ -1,7 +1,7 @@
 import json
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import aiofiles
 import yaml
@@ -13,16 +13,21 @@ from app.models.client import Client
 from app.models.module import Module
 from app.settings import settings
 from app.utils import convert_to_snake_case
+from app.logger import get_logger
+
+logger = get_logger()
 
 
 async def validate_file_path(filename: str) -> Path:
     """Validate and resolve file path within module directory."""
     if not filename:
+        logger.warning("Uploaded file missing filename")
         raise HTTPException(status_code=400, detail="File must have a filename")
 
     rel_path = Path(filename)
 
     if any(part in ["..", ".", ""] for part in rel_path.parts):
+        logger.warning("Rejected upload path traversal attempt: %s", filename)
         raise HTTPException(
             status_code=400,
             detail="Invalid file path - no relative path traversal allowed",
@@ -34,17 +39,24 @@ async def validate_file_path(filename: str) -> Path:
         if not str(dest_path).startswith(
             str(Path(settings.paths.module_dir).resolve())
         ):
+            logger.warning(
+                "Uploaded file resolved outside module dir: %s -> %s",
+                filename,
+                dest_path,
+            )
             raise HTTPException(
                 status_code=400,
                 detail="Invalid file path - outside allowed directory",
             )
+        logger.debug("Validated upload path %s", dest_path)
         return dest_path
     except Exception:
+        logger.warning("Failed to validate upload path for %s", filename, exc_info=True)
         raise HTTPException(status_code=400, detail="Unsafe file path")
 
 
 def determine_module_directory(
-    dest_path: Path, current_module_dir: Optional[Path]
+    dest_path: Path, current_module_dir: Path | None
 ) -> Path:
     """Determine the module directory based on file paths."""
     if current_module_dir is None:
@@ -63,6 +75,7 @@ def determine_module_directory(
 async def save_uploaded_file(file: UploadFile, dest_path: Path) -> None:
     """Save an uploaded file to the specified destination."""
     dest_path.parent.mkdir(parents=True, exist_ok=True)
+    logger.debug("Saving uploaded file '%s' to %s", file.filename, dest_path)
 
     async with aiofiles.open(dest_path, "wb") as out:
         while True:
@@ -75,6 +88,7 @@ async def save_uploaded_file(file: UploadFile, dest_path: Path) -> None:
 async def process_uploaded_files(files: List[UploadFile]) -> Tuple[List[str], Path]:
     """Process uploaded files and return saved files list and module directory."""
     if not files:
+        logger.warning("Module upload attempted with no files")
         raise HTTPException(status_code=400, detail="No files uploaded")
 
     saved = []
@@ -88,46 +102,57 @@ async def process_uploaded_files(files: List[UploadFile]) -> Tuple[List[str], Pa
         saved.append(str(dest_path.relative_to(settings.paths.module_dir)))
 
     if module_dir is None:
+        logger.warning("Module upload processing produced no module directory")
         raise HTTPException(status_code=400, detail="No files were processed")
 
+    logger.debug("Processed uploaded files into module dir %s", module_dir)
     return saved, module_dir
 
 
 async def load_config_yaml(config_path: Path) -> Dict:
     """Load and parse config.yaml file."""
     if not config_path.exists():
+        logger.warning("config.yaml missing at %s", config_path)
         raise HTTPException(status_code=400, detail="Module must contain config.yaml")
 
     try:
         async with aiofiles.open(config_path, "rb") as stream:
             config = yaml.safe_load(await stream.read())
     except yaml.YAMLError as e:
+        logger.warning("Failed to parse config.yaml at %s: %s", config_path, e)
         raise HTTPException(status_code=400, detail=f"Error parsing config.yaml: {e}")
     except Exception:
+        logger.exception("Error reading config.yaml at %s", config_path)
         raise HTTPException(status_code=500, detail="Error reading config.yaml")
 
+    logger.debug("Loaded config.yaml from %s", config_path)
     return config
 
 
 def load_config_yaml_sync(config_path: Path) -> Dict:
     """Load and parse config.yaml file synchronously."""
     if not config_path.exists():
+        logger.warning("config.yaml missing at %s", config_path)
         raise HTTPException(status_code=400, detail="Module must contain config.yaml")
 
     try:
         with open(config_path) as stream:
             config = yaml.safe_load(stream)
     except yaml.YAMLError as e:
+        logger.warning("Failed to parse config.yaml at %s: %s", config_path, e)
         raise HTTPException(status_code=400, detail=f"Error parsing config.yaml: {e}")
     except Exception as e:
+        logger.warning("Error reading config.yaml at %s: %s", config_path, e)
         raise HTTPException(status_code=400, detail=f"Error reading config.yaml: {e}")
 
+    logger.debug("Loaded config.yaml from %s", config_path)
     return config
 
 
 def validate_config_structure(config: Dict) -> None:
     """Validate the structure of the configuration."""
     if not isinstance(config, dict):
+        logger.warning("config.yaml validation failed: not a dict")
         raise HTTPException(
             status_code=400,
             detail="config.yaml must contain a valid configuration object",
@@ -136,6 +161,9 @@ def validate_config_structure(config: Dict) -> None:
     required_fields = ["name", "version", "start"]
     missing_fields = [field for field in required_fields if field not in config]
     if missing_fields:
+        logger.warning(
+            "config.yaml missing fields: %s", ", ".join(missing_fields)
+        )
         raise HTTPException(
             status_code=400,
             detail=f"Missing required fields in config.yaml: {', '.join(missing_fields)}",
@@ -151,6 +179,7 @@ def process_binaries_field(binaries_raw) -> Dict:
         try:
             return json.loads(binaries_raw) if binaries_raw else {}
         except json.JSONDecodeError:
+            logger.warning("Invalid JSON in binaries field: %s", binaries_raw)
             raise HTTPException(
                 status_code=400, detail="Invalid JSON in binaries field"
             )
@@ -166,31 +195,44 @@ def create_module_from_config(config: Dict) -> Module:
     binaries = process_binaries_field(config.get("binaries"))
 
     try:
-        return Module(
+        module = Module(
             name=convert_to_snake_case(config["name"]),
             description=config.get("description"),
             version=config["version"],
             start=config["start"],
             binaries=binaries,
         )
+        logger.debug("Created module object for '%s'", module.name)
+        return module
     except Exception as e:
+        logger.warning("Error creating module from config: %s", e)
         raise HTTPException(
             status_code=400, detail=f"Error creating module object: {e}"
         )
 
 
-async def get_module_by_name(db: AsyncSession, module_name: str) -> Optional[Module]:
+async def get_module_by_name(db: AsyncSession, module_name: str) -> Module | None:
     """Get a module by name from the database."""
     result = await db.execute(select(Module).where(Module.name == module_name))
-    return result.scalar_one_or_none()
+    module = result.scalar_one_or_none()
+    if module:
+        logger.debug("Module '%s' found", module_name)
+    else:
+        logger.debug("Module '%s' not found", module_name)
+    return module
 
 
 async def get_client_by_username(
     db: AsyncSession, client_username: str
-) -> Optional[Client]:
+) -> Client | None:
     """Get a client by username from the database."""
     result = await db.execute(select(Client).where(Client.username == client_username))
-    return result.scalar_one_or_none()
+    client = result.scalar_one_or_none()
+    if client:
+        logger.debug("Client '%s' found", client_username)
+    else:
+        logger.debug("Client '%s' not found", client_username)
+    return client
 
 
 async def validate_module_and_client(
@@ -199,15 +241,27 @@ async def validate_module_and_client(
     """Validate that both module and client exist and return them."""
     module = await get_module_by_name(db, module_name)
     if not module:
+        logger.warning(
+            "Validation failed: module '%s' not found", module_name
+        )
         raise HTTPException(status_code=404, detail="Module not found")
 
     client = await get_client_by_username(db, client_username)
     if not client:
+        logger.warning(
+            "Validation failed: client '%s' not found", client_username
+        )
         raise HTTPException(status_code=404, detail="Client not found")
 
     if not client.alive:
+        logger.warning(
+            "Validation failed: client '%s' is not alive", client_username
+        )
         raise HTTPException(status_code=400, detail="Client is not alive")
 
+    logger.debug(
+        "Validated module '%s' with client '%s'", module_name, client_username
+    )
     return module, client
 
 
@@ -220,10 +274,11 @@ async def check_module_exists(db: AsyncSession, module_name: str) -> bool:
 def cleanup_module_directory(module_dir: Path) -> None:
     """Clean up module directory on error."""
     if module_dir and module_dir.exists():
+        logger.debug("Cleaning up module directory %s", module_dir)
         shutil.rmtree(module_dir, ignore_errors=True)
 
 
-def create_backup_and_cleanup(module_path: Path) -> Optional[Path]:
+def create_backup_and_cleanup(module_path: Path) -> Path | None:
     """Create backup of existing module and return backup path."""
     if not module_path.exists():
         return None
@@ -232,6 +287,7 @@ def create_backup_and_cleanup(module_path: Path) -> Optional[Path]:
     if backup_path.exists():
         shutil.rmtree(backup_path)
     shutil.move(module_path, backup_path)
+    logger.debug("Created module backup %s", backup_path)
     return backup_path
 
 
@@ -241,3 +297,4 @@ def restore_from_backup(backup_path: Path, module_path: Path) -> None:
         if module_path.exists():
             shutil.rmtree(module_path, ignore_errors=True)
         shutil.move(backup_path, module_path)
+        logger.debug("Restored module from backup %s", backup_path)

@@ -23,8 +23,10 @@ from app.services.authentication import (
 )
 from app.services.client_websockets import client_websocket_manager
 from app.services.user_websockets import user_websocket_manager
+from app.logger import get_logger
 
 router = APIRouter()
+logger = get_logger()
 
 
 @router.websocket("/ws-user")
@@ -47,6 +49,7 @@ async def websocket_user_endpoint(
     """
     try:
         user_uuid = verify_websocket_access_token(token)
+        logger.info("User websocket connected: %s", user_uuid)
         await user_websocket_manager.connect(websocket, user_uuid)
 
         try:
@@ -55,15 +58,24 @@ async def websocket_user_endpoint(
                 message = json.loads(data)
                 if message.get("type") == "ping":
                     await websocket.send_text(json.dumps({"type": "pong"}))
+                else:
+                    logger.debug(
+                        "Unhandled user websocket message type: %s",
+                        message.get("type"),
+                    )
 
         except WebSocketDisconnect:
-            pass
+            logger.info("User websocket disconnected: %s", user_uuid)
         finally:
             await user_websocket_manager.disconnect(websocket, user_uuid)
 
     except HTTPException as e:
+        logger.warning(
+            "User websocket authentication failed: %s", getattr(e, "detail", e)
+        )
         await websocket.close(code=e.status_code, reason=e.detail)
     except Exception:
+        logger.exception("Unhandled error in user websocket endpoint")
         await websocket.close(code=500, reason="Internal server error")
 
 
@@ -84,6 +96,7 @@ async def websocket_user_token(user: User = Depends(get_current_user)):
     Raises:
         HTTPException: 401 if user is not authenticated
     """
+    logger.debug("Issuing user websocket token for '%s'", user.username)
     access_token = create_access_token(user.uuid, TokenType.WEBSOCKET)
     return {"access_token": access_token, "token_type": "websocket"}
 
@@ -112,10 +125,14 @@ async def websocket_client(
     """
     try:
         client_uuid = verify_websocket_access_token(token)
+        logger.info("Client websocket connected: %s", client_uuid)
         client = await db.execute(select(Client).where(Client.uuid == client_uuid))
         client = client.scalar_one_or_none()
 
         if not client:
+            logger.warning(
+                "Client websocket rejected: client '%s' not found", client_uuid
+            )
             await websocket.close(code=404, reason="Client not found")
             return
 
@@ -134,6 +151,11 @@ async def websocket_client(
 
                 msg_type = message.get("message_type")
                 if msg_type == "module_output":
+                    logger.debug(
+                        "Module output from client '%s' for module '%s'",
+                        client.username,
+                        message.get("module_name"),
+                    )
                     payload = {
                         "type": "console_output",
                         "data": {
@@ -145,6 +167,12 @@ async def websocket_client(
                     }
                     await user_websocket_manager.broadcast_to_all(payload)
                 elif msg_type in {"module_started", "module_exit", "module_canceled"}:
+                    logger.debug(
+                        "Module event '%s' from client '%s' for module '%s'",
+                        msg_type,
+                        client.username,
+                        message.get("module_name"),
+                    )
                     payload = {
                         "type": "console_event",
                         "data": {
@@ -155,9 +183,13 @@ async def websocket_client(
                         },
                     }
                     await user_websocket_manager.broadcast_to_all(payload)
+                else:
+                    logger.debug(
+                        "Unhandled client websocket message type: %s", msg_type
+                    )
 
         except WebSocketDisconnect:
-            pass
+            logger.info("Client websocket disconnected: %s", client_uuid)
         finally:
             await client_websocket_manager.disconnect(websocket, client_uuid)
             # Only broadcast alive status if client exists
@@ -167,8 +199,12 @@ async def websocket_client(
                 )
 
     except HTTPException as e:
+        logger.warning(
+            "Client websocket authentication failed: %s", getattr(e, "detail", e)
+        )
         await websocket.close(code=e.status_code, reason=e.detail)
     except Exception:
+        logger.exception("Unhandled error in client websocket endpoint")
         await websocket.close(code=500, reason="Internal server error")
 
 
@@ -189,5 +225,6 @@ async def websocket_client_token(client: Client = Depends(get_current_client)):
     Raises:
         HTTPException: 401 if client is not authenticated
     """
+    logger.debug("Issuing client websocket token for '%s'", client.username)
     access_token = create_access_token(client.uuid, TokenType.WEBSOCKET)
     return {"access_token": access_token, "token_type": "websocket"}
