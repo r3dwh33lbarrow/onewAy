@@ -8,7 +8,7 @@ from app.dependencies import get_db
 from app.models.user import User
 from app.schemas.general import BasicTaskResponse, TokenResponse
 from app.schemas.user_auth import UserLoginRequest, UserRegisterRequest
-from app.services.authentication import create_access_token, get_current_user, TokenType
+from app.services.authentication import TokenType, create_access_token, get_current_user
 from app.services.password import hash_password
 
 router = APIRouter(prefix="/user/auth")
