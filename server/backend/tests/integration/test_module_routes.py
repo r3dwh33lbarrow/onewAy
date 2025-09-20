@@ -1,4 +1,5 @@
 import pytest
+import io
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.module import Module
@@ -112,3 +113,50 @@ async def test_module_installed_not_found(client: AsyncClient):
     headers = await _client_headers(client)
     r = await client.get("/module/installed/nosuch", headers=headers)
     assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_module_add_from_local_path_and_list_all(client: AsyncClient):
+    user_headers = await _user_headers(client, "modadder", "pw")
+    r = await client.put("/module/add", headers=user_headers, json={"module_path": "test_module"})
+    assert r.status_code == 200
+    assert r.json() == {"result": "success"}
+
+    client_headers = await _client_headers(client, "listcaller", "pw")
+    r = await client.get("/module/all", headers=client_headers)
+    assert r.status_code == 200
+    names = [m["name"] for m in r.json()["modules"]]
+    assert "test_module" in names
+
+
+@pytest.mark.asyncio
+async def test_module_add_nonexistent_path_returns_400(client: AsyncClient):
+    user_headers = await _user_headers(client, "modadder2", "pw")
+    r = await client.put("/module/add", headers=user_headers, json={"module_path": "does_not_exist_dir"})
+    assert r.status_code == 400
+    assert "Module path does not exist" in r.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_module_update_not_found_returns_404(client: AsyncClient):
+    user_headers = await _user_headers(client, "upduser", "pw")
+    files = {"files": ("config.yaml", io.BytesIO(b"name: x\nversion: 0.1\nstart: manual\n"))}
+    r = await client.put("/module/update/no_such_module", headers=user_headers, files=files)
+    assert r.status_code == 404
+    assert r.json()["detail"] == "Module not found"
+
+
+@pytest.mark.asyncio
+async def test_module_installed_list_includes_set_item(client: AsyncClient, db_session: AsyncSession):
+    m = Module(name="listed_mod", description="d", version="1.0.0", start="manual", binaries={})
+    db_session.add(m)
+    await db_session.commit()
+
+    client_headers = await _client_headers(client, "instclient", "pw")
+    r = await client.post("/module/set-installed/instclient", params={"module_name": "listed_mod"}, headers=client_headers)
+    assert r.status_code == 200
+
+    r = await client.get("/module/installed/instclient", headers=client_headers)
+    assert r.status_code == 200
+    items = r.json()
+    assert any(it.get("name") == "listed_mod" for it in items)

@@ -37,3 +37,15 @@ async def test_logout_clears_cookie(client: AsyncClient):
     assert r.status_code == 200
     assert r.json() == {"result": "success"}
     assert "access_token" not in r.cookies
+
+
+@pytest.mark.asyncio
+async def test_user_auth_ws_token(client: AsyncClient):
+    await client.post("/user/auth/register", json={"username": "wsuser2", "password": "pw"})
+    r = await client.post("/user/auth/login", json={"username": "wsuser2", "password": "pw"})
+    assert r.status_code == 200
+    r = await client.post("/user/auth/ws-token")
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("token_type") == "websocket"
+    assert isinstance(data.get("access_token"), str) and len(data.get("access_token")) > 0

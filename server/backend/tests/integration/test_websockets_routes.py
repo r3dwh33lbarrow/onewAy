@@ -1,5 +1,6 @@
 import json
 import pytest
+from httpx import AsyncClient
 from httpx_ws import aconnect_ws
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +30,18 @@ async def test_user_websocket_connect(ws_client, db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_ws_user_token(client: AsyncClient):
+    await client.post("/user/auth/register", json={"username": "wsuser", "password": "pw"})
+    r = await client.post("/user/auth/login", json={"username": "wsuser", "password": "pw"})
+    assert r.status_code == 200
+    r = await client.post("/ws-user-token")
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("token_type") == "websocket"
+    assert isinstance(data.get("access_token"), str) and len(data.get("access_token")) > 0
+
+
+@pytest.mark.asyncio
 async def test_client_websocket_connect(ws_client, db_session: AsyncSession):
     client_obj = Client(
         username="wsrunner",
@@ -50,3 +63,20 @@ async def test_client_websocket_connect(ws_client, db_session: AsyncSession):
             response_data = json.loads(response)
 
             assert response_data["type"] == "pong"
+
+
+@pytest.mark.asyncio
+async def test_ws_client_token(client: AsyncClient):
+    await client.post(
+        "/client/auth/enroll",
+        json={"username": "wsclient", "password": "pw", "client_version": "1.0.0"},
+    )
+    r = await client.post("/client/auth/login", json={"username": "wsclient", "password": "pw"})
+    assert r.status_code == 200
+    token = r.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}", "user-agent": "oneway-client"}
+    r = await client.post("/ws-client-token", headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("token_type") == "websocket"
+    assert isinstance(data.get("access_token"), str) and len(data.get("access_token")) > 0

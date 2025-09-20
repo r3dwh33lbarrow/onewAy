@@ -74,3 +74,13 @@ async def test_user_avatar_flow(client: AsyncClient, tmp_path):
     assert r.status_code == 200
     assert r.headers["content-type"] == "image/png"
     assert r.content.startswith(b"\x89PNG")
+
+
+@pytest.mark.asyncio
+async def test_user_avatar_too_large_returns_413(client: AsyncClient):
+    await _register_and_login(client, "bigavatar", "pw")
+    oversized = b"0" * (2 * 1024 * 1024 + 1)
+    files = {"file": ("avatar.png", oversized, "image/png")}
+    r = await client.put("/user/avatar", files=files)
+    assert r.status_code == 413
+    assert "File too large" in r.json()["detail"]
