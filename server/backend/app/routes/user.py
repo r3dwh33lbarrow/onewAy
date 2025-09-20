@@ -63,6 +63,7 @@ async def user_patch(
                       500 if database error occurs
     """
     logger.debug("User '%s' update payload received", user.username)
+    current_username = user.username
 
     try:
         if update_info.username is not None:
@@ -94,11 +95,11 @@ async def user_patch(
 
     except HTTPException as e:
         await db.rollback()
-        logger.warning("User '%s' update aborted: %s", user.username, e.detail)
+        logger.warning("User '%s' update aborted: %s", current_username, e.detail)
         raise e
     except Exception as e:
         await db.rollback()
-        logger.exception("Failed to update user '%s'", user.username)
+        logger.exception("Failed to update user '%s'", current_username)
         raise HTTPException(status_code=500, detail=f"Failed to update user: {e}")
 
 

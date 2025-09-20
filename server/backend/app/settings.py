@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     security: SecuritySettings
     testing: TestingSettings
     paths: PathSettings
-    other: OtherSettings | None = None
+    other: OtherSettings
 
     model_config = {"extra": "ignore", "frozen": True}
 
