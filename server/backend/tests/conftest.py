@@ -1,4 +1,5 @@
 import asyncio
+import shutil
 import sys
 from pathlib import Path
 from typing import AsyncGenerator
@@ -16,6 +17,8 @@ from app.db.base import Base
 from app.dependencies import get_db
 from app.main import app
 from app.settings import settings
+
+BACKUP_SUFFIX = "_backup"
 
 if settings.testing.database.url is None:
     raise RuntimeError("Testing database URL is not set.")
@@ -87,3 +90,20 @@ async def ws_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, Non
     finally:
         await client.aclose()
         app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def copy_and_restore_module_dir():
+    module_dir = Path(settings.paths.module_dir)
+    backup_dir = Path(str(module_dir) + BACKUP_SUFFIX)
+
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir)
+    shutil.copytree(module_dir, backup_dir)
+
+    yield
+
+    if module_dir.exists():
+        shutil.rmtree(module_dir)
+    shutil.copytree(backup_dir, module_dir)
+    shutil.rmtree(backup_dir, ignore_errors=True)

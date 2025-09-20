@@ -261,13 +261,6 @@ async def check_module_exists(db: AsyncSession, module_name: str) -> bool:
     return module is not None
 
 
-def cleanup_module_directory(module_dir: Path) -> None:
-    """Clean up module directory on error."""
-    if module_dir and module_dir.exists():
-        logger.debug("Cleaning up module directory %s", module_dir)
-        shutil.rmtree(module_dir, ignore_errors=True)
-
-
 def create_backup_and_cleanup(module_path: Path) -> Path | None:
     """Create backup of existing module and return backup path."""
     if not module_path.exists():

@@ -16,8 +16,16 @@ class ClientModule(Base):
 
     __tablename__ = "client_modules"
 
-    client_name = Column(String, ForeignKey("clients.username"), primary_key=True)
-    module_name = Column(String, ForeignKey("modules.name"), primary_key=True)
+    client_name = Column(
+        String,
+        ForeignKey("clients.username", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    module_name = Column(
+        String,
+        ForeignKey("modules.name", ondelete="CASCADE"),
+        primary_key=True,
+    )
 
     status = Column(String, nullable=False, default="installed")
     installed_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))

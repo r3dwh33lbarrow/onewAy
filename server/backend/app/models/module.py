@@ -20,4 +20,9 @@ class Module(Base):
     version = Column(String, nullable=False)
     start = Column(String, nullable=False)
     binaries = Column(JSON)
-    client_modules = relationship("ClientModule", back_populates="module")
+    client_modules = relationship(
+        "ClientModule",
+        back_populates="module",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )

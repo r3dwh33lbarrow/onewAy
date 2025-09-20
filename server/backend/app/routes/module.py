@@ -148,7 +148,6 @@ async def module_upload(
         new_module = create_module_from_config(config)
 
         if await check_module_exists(db, new_module.name):
-            cleanup_module_directory(module_dir)
             logger.warning(
                 "Module upload aborted: module '%s' already exists", new_module.name
             )
@@ -162,14 +161,10 @@ async def module_upload(
         return {"result": "success", "files_saved": saved}
 
     except HTTPException as exc:
-        if module_dir:
-            cleanup_module_directory(module_dir)
         logger.warning("Module upload failed: %s", getattr(exc, "detail", exc))
         raise
     except Exception:
         await db.rollback()
-        if module_dir:
-            cleanup_module_directory(module_dir)
         logger.exception("Unexpected error during module upload")
         raise HTTPException(
             status_code=500, detail="Failed to add module to the database"

@@ -29,7 +29,12 @@ class Client(Base):
     last_known_location = Column(String)
     client_version = Column(String, nullable=False)
 
-    client_modules = relationship("ClientModule", back_populates="client")
+    client_modules = relationship(
+        "ClientModule",
+        back_populates="client",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     def verify_password(self, password: str) -> bool:
         return pwd_context.verify(password, self.hashed_password)
