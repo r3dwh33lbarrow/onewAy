@@ -64,42 +64,32 @@ async def user_patch(
     """
     logger.debug("User '%s' update payload received", user.username)
 
-    try:
-        if update_info.username is not None:
-            new_username = update_info.username.strip()
-            if len(new_username) == 0:
+    if update_info.username is not None:
+        new_username = update_info.username.strip()
+        if len(new_username) == 0:
+            logger.warning(
+                "User '%s' attempted to set empty username", user.username
+            )
+            raise HTTPException(status_code=400, detail="Username cannot be empty")
+
+        if new_username != user.username:
+            existing = await db.execute(
+                select(User).where(User.username == new_username)
+            )
+            if existing.scalar_one_or_none():
                 logger.warning(
-                    "User '%s' attempted to set empty username", user.username
+                    "User '%s' attempted to change to existing username '%s'",
+                    user.username,
+                    new_username,
                 )
-                raise HTTPException(status_code=400, detail="Username cannot be empty")
-
-            if new_username != user.username:
-                existing = await db.execute(
-                    select(User).where(User.username == new_username)
+                raise HTTPException(
+                    status_code=409, detail="Username already exists"
                 )
-                if existing.scalar_one_or_none():
-                    logger.warning(
-                        "User '%s' attempted to change to existing username '%s'",
-                        user.username,
-                        new_username,
-                    )
-                    raise HTTPException(
-                        status_code=409, detail="Username already exists"
-                    )
-                user.username = new_username
-                await db.commit()
+            user.username = new_username
+            await db.commit()
 
-        logger.info("User '%s' updated profile", user.username)
-        return {"result": "success"}
-
-    except HTTPException as e:
-        await db.rollback()
-        logger.warning("User '%s' update aborted: %s", user.username, e.detail)
-        raise e
-    except Exception as e:
-        await db.rollback()
-        logger.exception("Failed to update user '%s'", user.username)
-        raise HTTPException(status_code=500, detail=f"Failed to update user: {e}")
+    logger.info("User '%s' updated profile", user.username)
+    return {"result": "success"}
 
 
 @router.get("/avatar")
