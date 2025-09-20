@@ -19,7 +19,8 @@ from app.services.authentication import (
     create_access_token,
     get_current_client,
     get_current_user,
-    verify_websocket_access_token, TokenType,
+    verify_websocket_access_token,
+    TokenType,
 )
 from app.services.client_websockets import client_websocket_manager
 from app.services.user_websockets import user_websocket_manager

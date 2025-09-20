@@ -62,15 +62,15 @@ async def user_patch(
         HTTPException: 400 if username is empty, 409 if username already exists,
                       500 if database error occurs
     """
-    logger.debug(
-        "User '%s' update payload received", user.username
-    )
+    logger.debug("User '%s' update payload received", user.username)
 
     try:
         if update_info.username is not None:
             new_username = update_info.username.strip()
             if len(new_username) == 0:
-                logger.warning("User '%s' attempted to set empty username", user.username)
+                logger.warning(
+                    "User '%s' attempted to set empty username", user.username
+                )
                 raise HTTPException(status_code=400, detail="Username cannot be empty")
 
             if new_username != user.username:
@@ -94,9 +94,7 @@ async def user_patch(
 
     except HTTPException as e:
         await db.rollback()
-        logger.warning(
-            "User '%s' update aborted: %s", user.username, e.detail
-        )
+        logger.warning("User '%s' update aborted: %s", user.username, e.detail)
         raise e
     except Exception as e:
         await db.rollback()

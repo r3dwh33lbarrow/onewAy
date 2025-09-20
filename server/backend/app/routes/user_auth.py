@@ -107,9 +107,7 @@ async def user_auth_login(
     user = user.scalar_one_or_none()
 
     if not user or not user.verify_password(user_login_request.password):
-        logger.warning(
-            "Invalid credentials for user '%s'", user_login_request.username
-        )
+        logger.warning("Invalid credentials for user '%s'", user_login_request.username)
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     try:

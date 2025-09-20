@@ -467,16 +467,12 @@ async def module_set_installed_client_username(
     """
     client = await get_client_by_username(db, client_username)
     if not client:
-        logger.warning(
-            "Set installed failed: client '%s' not found", client_username
-        )
+        logger.warning("Set installed failed: client '%s' not found", client_username)
         raise HTTPException(status_code=400, detail="Client username not found")
 
     module = await get_module_by_name(db, module_name)
     if not module:
-        logger.warning(
-            "Set installed failed: module '%s' not found", module_name
-        )
+        logger.warning("Set installed failed: module '%s' not found", module_name)
         raise HTTPException(status_code=400, detail="Module not found")
 
     client_with_modules = await db.execute(
@@ -578,9 +574,7 @@ async def module_run_module_name(
         raise HTTPException(status_code=400, detail="Module not installed on client")
 
     if (module.start or "").lower() != "manual":
-        logger.warning(
-            "Module '%s' is not configured for manual start", module.name
-        )
+        logger.warning("Module '%s' is not configured for manual start", module.name)
         raise HTTPException(
             status_code=400, detail="Module is not configured for manual start"
         )

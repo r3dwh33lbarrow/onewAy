@@ -61,9 +61,7 @@ def create_access_token(account_uuid: uuid.UUID, token_type: TokenType) -> str:
         "iat": int(now.timestamp()),
     }
 
-    logger.debug(
-        "Creating %s access token for %s", token_type.value, account_uuid
-    )
+    logger.debug("Creating %s access token for %s", token_type.value, account_uuid)
     return jwt.encode(
         payload, settings.security.secret_key, settings.security.algorithm
     )
@@ -151,7 +149,9 @@ async def verify_refresh_token(
                 break
 
         if not refresh_token:
-            logger.warning("Refresh token not found or revoked for client %s", client_uuid)
+            logger.warning(
+                "Refresh token not found or revoked for client %s", client_uuid
+            )
             raise HTTPException(status_code=401, detail="Token not found")
 
         logger.debug("Refresh token verified for client %s", client_uuid)
@@ -306,9 +306,7 @@ async def get_current_client(
         logger.warning("Failed to resolve current client: %s", e.detail)
         raise e
     except Exception:
-        logger.exception(
-            "Unexpected error retrieving current client %s", client_uuid
-        )
+        logger.exception("Unexpected error retrieving current client %s", client_uuid)
         raise HTTPException(status_code=500, detail="Failed to get current client")
 
 

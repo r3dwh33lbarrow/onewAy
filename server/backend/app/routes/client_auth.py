@@ -38,9 +38,7 @@ async def client_auth_enroll(
     Raises:
         HTTPException: 409 if username already exists, 500 if database error occurs
     """
-    logger.debug(
-        "Client enrollment attempt for '%s'", enroll_request.username
-    )
+    logger.debug("Client enrollment attempt for '%s'", enroll_request.username)
 
     existing_client = await db.execute(
         select(Client).where(Client.username == enroll_request.username)

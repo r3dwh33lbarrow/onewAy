@@ -161,9 +161,7 @@ def validate_config_structure(config: Dict) -> None:
     required_fields = ["name", "version", "start"]
     missing_fields = [field for field in required_fields if field not in config]
     if missing_fields:
-        logger.warning(
-            "config.yaml missing fields: %s", ", ".join(missing_fields)
-        )
+        logger.warning("config.yaml missing fields: %s", ", ".join(missing_fields))
         raise HTTPException(
             status_code=400,
             detail=f"Missing required fields in config.yaml: {', '.join(missing_fields)}",
@@ -241,27 +239,19 @@ async def validate_module_and_client(
     """Validate that both module and client exist and return them."""
     module = await get_module_by_name(db, module_name)
     if not module:
-        logger.warning(
-            "Validation failed: module '%s' not found", module_name
-        )
+        logger.warning("Validation failed: module '%s' not found", module_name)
         raise HTTPException(status_code=404, detail="Module not found")
 
     client = await get_client_by_username(db, client_username)
     if not client:
-        logger.warning(
-            "Validation failed: client '%s' not found", client_username
-        )
+        logger.warning("Validation failed: client '%s' not found", client_username)
         raise HTTPException(status_code=404, detail="Client not found")
 
     if not client.alive:
-        logger.warning(
-            "Validation failed: client '%s' is not alive", client_username
-        )
+        logger.warning("Validation failed: client '%s' is not alive", client_username)
         raise HTTPException(status_code=400, detail="Client is not alive")
 
-    logger.debug(
-        "Validated module '%s' with client '%s'", module_name, client_username
-    )
+    logger.debug("Validated module '%s' with client '%s'", module_name, client_username)
     return module, client
 
 
