@@ -57,10 +57,17 @@ class TestingSecuritySettings(BaseSettings):
     refresh_token_expires_days: int = Field(7)
 
 
+class TestingPathsSettings(BaseSettings):
+    client_dir: str = Field("[ROOT]/client")
+    module_dir: str = Field("[ROOT]/server/backend/tests/modules")
+    avatar_dir: str = Field("[ROOT]/server/backend/app/resources")
+
+
 class TestingSettings(BaseSettings):
     testing: bool = Field(False)
     database: TestingDatabaseSettings
     security: TestingSecuritySettings
+    paths: TestingPathsSettings
 
 
 class PathSettings(BaseSettings):
@@ -133,6 +140,10 @@ class Settings(BaseSettings):
             self.security.refresh_token_expires_days = (
                 self.testing.security.refresh_token_expires_days
             )
+
+            self.paths.client_dir = self.testing.paths.client_dir
+            self.paths.module_dir = self.testing.paths.module_dir
+            self.paths.avatar_dir = self.testing.paths.avatar_dir
         return self
 
 
