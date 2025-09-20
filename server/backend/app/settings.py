@@ -60,7 +60,7 @@ class TestingSecuritySettings(BaseSettings):
 class TestingPathsSettings(BaseSettings):
     client_dir: str = Field("[ROOT]/client")
     module_dir: str = Field("[ROOT]/server/backend/tests/modules")
-    avatar_dir: str = Field("[ROOT]/server/backend/app/resources")
+    avatar_dir: str = Field("[ROOT]/server/backend/tests/resources/avatars")
 
 
 class TestingSettings(BaseSettings):
@@ -73,7 +73,7 @@ class TestingSettings(BaseSettings):
 class PathSettings(BaseSettings):
     client_dir: str = Field("[ROOT]/client")
     module_dir: str = Field("[ROOT]/modules")
-    avatar_dir: str = Field("[ROOT]/server/backend/app/resources")
+    avatar_dir: str = Field("[ROOT]/server/backend/app/resources/avatars")
 
 
 class OtherSettings(BaseSettings):
@@ -97,6 +97,9 @@ class Settings(BaseSettings):
         self.paths.client_dir = resolve_root(self.paths.client_dir)
         self.paths.module_dir = resolve_root(self.paths.module_dir)
         self.paths.avatar_dir = resolve_root(self.paths.avatar_dir)
+        self.testing.paths.client_dir = resolve_root(self.testing.paths.client_dir)
+        self.testing.paths.module_dir = resolve_root(self.testing.paths.module_dir)
+        self.testing.paths.avatar_dir = resolve_root(self.testing.paths.avatar_dir)
         return self
 
     @model_validator(mode="after")
