@@ -115,7 +115,7 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def _inject_testing(self) -> "Settings":
+    def inject_testing(self) -> "Settings":
         """Inject testing settings into main settings if testing is enabled."""
         if self.testing.testing:
             if self.testing.database.url:

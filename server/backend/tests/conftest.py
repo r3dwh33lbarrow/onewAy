@@ -17,6 +17,15 @@ from app.dependencies import get_db
 from app.main import app
 from app.settings import settings
 
+if settings.testing.database.url is None:
+    raise RuntimeError("Testing database URL is not set.")
+
+if settings.testing.security.secret_key is None:
+    raise RuntimeError("Testing secret key is not set.")
+
+settings.testing.testing = True
+settings = settings.inject_testing()
+
 
 test_engine = create_async_engine(
             settings.database.url,
