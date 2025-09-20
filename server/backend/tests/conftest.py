@@ -107,3 +107,20 @@ def copy_and_restore_module_dir():
         shutil.rmtree(module_dir)
     shutil.copytree(backup_dir, module_dir)
     shutil.rmtree(backup_dir, ignore_errors=True)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def copy_and_restore_avatar_dir():
+    avatar_dir = Path(settings.paths.avatar_dir)
+    backup_dir = Path(str(avatar_dir) + BACKUP_SUFFIX)
+
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir)
+    shutil.copytree(avatar_dir, backup_dir)
+
+    yield
+
+    if avatar_dir.exists():
+        shutil.rmtree(avatar_dir)
+    shutil.copytree(backup_dir, avatar_dir)
+    shutil.rmtree(backup_dir, ignore_errors=True)
