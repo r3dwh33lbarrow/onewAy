@@ -97,9 +97,6 @@ class Settings(BaseSettings):
         self.paths.client_dir = resolve_root(self.paths.client_dir)
         self.paths.module_dir = resolve_root(self.paths.module_dir)
         self.paths.avatar_dir = resolve_root(self.paths.avatar_dir)
-        self.testing.paths.client_dir = resolve_root(self.testing.paths.client_dir)
-        self.testing.paths.module_dir = resolve_root(self.testing.paths.module_dir)
-        self.testing.paths.avatar_dir = resolve_root(self.testing.paths.avatar_dir)
         return self
 
     @model_validator(mode="after")
@@ -143,6 +140,10 @@ class Settings(BaseSettings):
             self.security.refresh_token_expires_days = (
                 self.testing.security.refresh_token_expires_days
             )
+
+            self.paths.client_dir = self.testing.paths.client_dir
+            self.paths.module_dir = self.testing.paths.module_dir
+            self.paths.avatar_dir = self.testing.paths.avatar_dir
         return self
 
 

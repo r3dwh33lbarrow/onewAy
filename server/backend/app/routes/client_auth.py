@@ -11,7 +11,6 @@ from app.services.authentication import (
     create_access_token,
     create_refresh_token,
     rotate_refresh_token,
-    TokenType,
 )
 from app.services.password import hash_password
 
@@ -116,7 +115,7 @@ async def client_auth_login(
     client.alive = True
 
     try:
-        access_token = create_access_token(client.uuid, TokenType.CLIENT)
+        access_token = create_access_token(client.uuid)
         refresh_token = await create_refresh_token(client.uuid, db)
         await db.commit()
 
