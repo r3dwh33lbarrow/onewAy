@@ -13,7 +13,7 @@ from app.models.client import Client
 from app.schemas.client import *
 from app.schemas.general import BasicTaskResponse
 from app.services import authentication
-from app.services.authentication import get_current_client, get_current_user
+from app.services.authentication import get_current_client
 from app.settings import settings
 
 router = APIRouter(prefix="/client")
@@ -39,7 +39,7 @@ async def client_me(client: Client = Depends(authentication.get_current_client))
 async def client_get_username(
     username: str,
     db: AsyncSession = Depends(get_db),
-    _=Depends(authentication.get_current_user),
+    _=Depends(authentication.get_current_client),
 ):
     """
     Retrieve detailed information for a specific client by username.
@@ -47,7 +47,7 @@ async def client_get_username(
     Args:
         username: The unique username of the client to retrieve
         db: Database session for executing queries
-        _: Current authenticated user (required for authorization)
+        _: Current authenticated client (required for authorization)
 
     Returns:
         Complete client information including UUID, network details, and status
@@ -74,13 +74,13 @@ async def client_get_username(
 
 
 @router.get("/all", response_model=ClientAllResponse)
-async def client_all(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def client_all(db: AsyncSession = Depends(get_db), _=Depends(get_current_client)):
     """
     Retrieve a list of all registered clients with basic information.
 
     Args:
         db: Database session for executing queries
-        _: Current authenticated user (required for authorization)
+        _: Current authenticated client (required for authorization)
 
     Returns:
         List of clients with basic info (username, IP, hostname, status, last contact)

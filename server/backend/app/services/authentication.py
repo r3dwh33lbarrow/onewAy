@@ -112,6 +112,7 @@ async def verify_refresh_token(
             token,
             settings.security.secret_key,
             algorithms=[settings.security.algorithm],
+            audience=settings.security.jwt_audience,
         )
         if payload.get("type") != "refresh":
             logger.warning(
@@ -137,7 +138,7 @@ async def verify_refresh_token(
             select(RefreshToken).where(
                 RefreshToken.client_uuid == client_uuid,
                 RefreshToken.revoked == False,
-                RefreshToken.expires_at > datetime.now(),
+                RefreshToken.expires_at > datetime.now(UTC),
             )
         )
         refresh_tokens = result.scalars().all()
@@ -238,22 +239,27 @@ def verify_access_token(request: Request):
         if not access_token:
             logger.warning("Client request missing bearer token")
             raise HTTPException(status_code=401, detail="Missing access token")
+        expected_token_type = TokenType.CLIENT.value
     else:
         access_token = request.cookies.get("access_token")
         if not access_token:
             logger.warning("User request missing access token cookie")
             raise HTTPException(status_code=401, detail="Missing access token cookie")
+        expected_token_type = TokenType.USER.value
 
     try:
         decoded_token = jwt.decode(
             access_token,
             settings.security.secret_key,
             algorithms=[settings.security.algorithm],
+            audience=settings.security.jwt_audience,
         )
-        if decoded_token.get("type") != "access":
+        token_type = decoded_token.get("type")
+        if token_type != expected_token_type:
             logger.warning(
-                "Access token validation failed: expected 'access', got '%s'",
-                decoded_token.get("type"),
+                "Access token validation failed: expected '%s', got '%s'",
+                expected_token_type,
+                token_type,
             )
             raise HTTPException(status_code=401, detail="Invalid token type")
 
@@ -316,6 +322,7 @@ def verify_websocket_access_token(token: str) -> str:
             token,
             settings.security.secret_key,
             algorithms=[settings.security.algorithm],
+            audience=settings.security.jwt_audience,
         )
         if decoded_token.get("type") != "websocket":
             logger.warning(
