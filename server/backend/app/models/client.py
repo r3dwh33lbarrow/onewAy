@@ -25,7 +25,7 @@ class Client(Base):
     ip_address = Column(INET, nullable=False)
     hostname = Column(String)
     alive = Column(Boolean, nullable=False, default=False)
-    last_contact = Column(DateTime)
+    last_contact = Column(DateTime(timezone=True))
     last_known_location = Column(String)
     client_version = Column(String, nullable=False)
 

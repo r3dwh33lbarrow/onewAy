@@ -10,7 +10,7 @@ class BasicClientInfo(BaseModel):
     ip_address: IPvAnyAddress
     hostname: str | None = None
     alive: bool
-    last_contact: datetime
+    last_contact: datetime | None = None
 
 
 class ClientAllResponse(BaseModel):
