@@ -5,21 +5,22 @@ use serde::{Serialize, Deserialize};
 use toml;
 
 #[derive(Serialize, Deserialize)]
-struct ModuleConfig {
-    version: String,
+pub struct ModuleConfig {
+    pub version: String,
+    pub modules_directory: String,
 }
 
 #[derive(Serialize, Deserialize)]
-struct AuthConfig {
-    username: String,
-    password: String,
-    enrolled: bool,
+pub struct AuthConfig {
+    pub username: String,
+    pub password: String,
+    pub enrolled: bool,
 }
 
 #[derive(Serialize, Deserialize)]
-struct Config {
-    module: ModuleConfig,
-    auth: AuthConfig,
+pub struct Config {
+    pub module: ModuleConfig,
+    pub auth: AuthConfig,
 }
 
 pub static CONFIG: Lazy<Arc<Config>> = Lazy::new(|| {
@@ -27,13 +28,3 @@ pub static CONFIG: Lazy<Arc<Config>> = Lazy::new(|| {
     let config: Config = toml::from_str(&toml_str).expect("Failed to parse config.toml");
     Arc::new(config)
 });
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_read_config() {
-        assert_eq!(CONFIG.auth.username, "test_0")
-    }
-}

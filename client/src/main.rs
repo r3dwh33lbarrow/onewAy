@@ -21,29 +21,27 @@ async fn main() {
     let mut api_client =
         ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient");
 
-    if ! {
+    if !config.auth.enrolled {
         let result = enroll(
             &api_client,
-            &*config_data.username,
-            &*config_data.password,
-            &*config_data.version,
+            config.auth.username.as_str(),
+            config.auth.password.as_str(),
+            config.module.version.as_str(),
         )
         .await;
         if !result {
             panic!("failed to enroll client");
         }
 
-        config_data
-            .replace("enrolled", &true)
-            .expect("failed to save config data");
+        // TODO: Save enrolled = true in config.toml
     } else {
         debug!("Client already enrolled");
     }
 
     if !login(
         &mut api_client,
-        &*config_data.username,
-        &*config_data.password,
+        config.auth.username.as_str(),
+        config.auth.password.as_str(),
     )
     .await
     {
@@ -51,8 +49,8 @@ async fn main() {
     }
 
     debug!("Client logged in");
-    debug!("Loading modules from {}", config_data.modules_directory);
-    let mut module_manager = ModuleManager::new(&config_data.modules_directory);
+    debug!("Loading modules from {}", config.module.modules_directory);
+    let mut module_manager = ModuleManager::new(&config.module.modules_directory);
     if let Err(e) = module_manager.load_all_modules().await {
         error!("Failed to load modules: {}", e);
     }
