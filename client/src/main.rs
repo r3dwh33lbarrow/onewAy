@@ -3,26 +3,25 @@ mod http;
 mod logger;
 mod module_manager;
 mod schemas;
-mod utils;
-mod update;
 mod system_info;
+mod update;
+mod utils;
 
-use crate::config::ConfigData;
+use crate::config::CONFIG;
 use crate::http::api_client::ApiClient;
 use crate::http::auth::{enroll, login};
+use crate::http::websockets::start_websocket_client;
 use crate::module_manager::{ModuleManager, ModuleStart};
 use std::path::Path;
-use crate::http::websockets::start_websocket_client;
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    let mut config_data: ConfigData = ConfigData::load(Path::new(".env")).unwrap();
-
+    let config = CONFIG.clone();
     let mut api_client =
         ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient");
 
-    if !config_data.enrolled {
+    if ! {
         let result = enroll(
             &api_client,
             &*config_data.username,
@@ -71,8 +70,16 @@ async fn main() {
     let api_client_clone = api_client.clone();
     let module_manager_clone = Arc::clone(&module_manager);
     let handle = tokio::spawn(async move {
-        start_websocket_client("ws://127.0.0.1:8000/ws-client", &api_client_clone, module_manager_clone).await
+        start_websocket_client(
+            "ws://127.0.0.1:8000/ws-client",
+            &api_client_clone,
+            module_manager_clone,
+        )
+        .await
     });
 
-    handle.await.unwrap().expect("failed to start websocket client");
+    handle
+        .await
+        .unwrap()
+        .expect("failed to start websocket client");
 }

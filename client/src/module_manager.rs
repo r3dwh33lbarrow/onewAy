@@ -1,14 +1,14 @@
-use anyhow::Result;
-use std::collections::HashMap;
-use serde::Deserialize;
-use std::path::Path;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::process::{Command as TokioCommand, Child};
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::sync::mpsc::UnboundedSender;
 use crate::utils::{str_to_snake_case, title_case_to_camel_case};
 use crate::{debug, error, info};
+use anyhow::Result;
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::path::Path;
+use std::sync::Arc;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::{Child, Command as TokioCommand};
+use tokio::sync::Mutex;
+use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -60,7 +60,11 @@ impl ModuleManager {
         }
     }
 
-    pub async fn load_module(&mut self, config_path: &str, parent_dir: Option<String>) -> Result<()> {
+    pub async fn load_module(
+        &mut self,
+        config_path: &str,
+        parent_dir: Option<String>,
+    ) -> Result<()> {
         let config_content = tokio::fs::read_to_string(config_path).await?;
         let mut config: ModuleConfig = serde_yaml::from_str(&config_content)?;
         config.parent_directory = parent_dir;
@@ -99,7 +103,8 @@ impl ModuleManager {
                 continue;
             }
 
-            self.load_module(config_path.to_str().unwrap(), Some(folder)).await?
+            self.load_module(config_path.to_str().unwrap(), Some(folder))
+                .await?
         }
 
         Ok(())
@@ -155,7 +160,11 @@ impl ModuleManager {
         self.modules_directory.clone()
     }
 
-    pub async fn start_module_streaming(&self, name: &str, sender: UnboundedSender<String>) -> Result<()> {
+    pub async fn start_module_streaming(
+        &self,
+        name: &str,
+        sender: UnboundedSender<String>,
+    ) -> Result<()> {
         // Find module by name or camel-case variant
         let module_opt = self.get_module(name).await;
         let Some(module) = module_opt else {
@@ -169,7 +178,9 @@ impl ModuleManager {
         // Build full path to binary
         let parent_dir = module.parent_directory.clone();
         let mut full_path = std::path::PathBuf::from(self.get_modules_directory());
-        if let Some(dir) = parent_dir { full_path.push(dir); }
+        if let Some(dir) = parent_dir {
+            full_path.push(dir);
+        }
         full_path.push(binary);
 
         // Spawn process with piped stdout/stderr
@@ -191,10 +202,13 @@ impl ModuleManager {
 
         let module_name = name.to_string();
         // Send started event
-        let _ = sender.send(serde_json::json!({
-            "message_type": "module_started",
-            "module_name": module_name
-        }).to_string());
+        let _ = sender.send(
+            serde_json::json!({
+                "message_type": "module_started",
+                "module_name": module_name
+            })
+            .to_string(),
+        );
 
         // Stream stdout
         if let Some(stdout) = stdout {
@@ -203,12 +217,15 @@ impl ModuleManager {
             tokio::spawn(async move {
                 let mut reader = BufReader::new(stdout).lines();
                 while let Ok(Some(line)) = reader.next_line().await {
-                    let _ = sender_clone.send(serde_json::json!({
-                        "message_type": "module_output",
-                        "module_name": module_name,
-                        "stream": "stdout",
-                        "line": line
-                    }).to_string());
+                    let _ = sender_clone.send(
+                        serde_json::json!({
+                            "message_type": "module_output",
+                            "module_name": module_name,
+                            "stream": "stdout",
+                            "line": line
+                        })
+                        .to_string(),
+                    );
                 }
             });
         }
@@ -220,12 +237,15 @@ impl ModuleManager {
             tokio::spawn(async move {
                 let mut reader = BufReader::new(stderr).lines();
                 while let Ok(Some(line)) = reader.next_line().await {
-                    let _ = sender_clone.send(serde_json::json!({
-                        "message_type": "module_output",
-                        "module_name": module_name,
-                        "stream": "stderr",
-                        "line": line
-                    }).to_string());
+                    let _ = sender_clone.send(
+                        serde_json::json!({
+                            "message_type": "module_output",
+                            "module_name": module_name,
+                            "stream": "stderr",
+                            "line": line
+                        })
+                        .to_string(),
+                    );
                 }
             });
         }
@@ -246,11 +266,14 @@ impl ModuleManager {
             let mut map = running_map.lock().await;
             map.remove(&module_name);
 
-            let _ = sender_clone.send(serde_json::json!({
-                "message_type": "module_exit",
-                "module_name": module_name,
-                "code": code
-            }).to_string());
+            let _ = sender_clone.send(
+                serde_json::json!({
+                    "message_type": "module_exit",
+                    "module_name": module_name,
+                    "code": code
+                })
+                .to_string(),
+            );
         });
 
         Ok(())

@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use crate::schemas::{ApiError, ApiErrorResponse};
 use anyhow::{Context, Result};
 use reqwest::{
@@ -8,6 +7,7 @@ use reqwest::{
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json;
+use std::path::PathBuf;
 use std::time::Duration;
 
 #[derive(Debug, Clone)]
@@ -178,8 +178,7 @@ impl ApiClient {
                 .await
                 .context("failed to read response bytes")?;
 
-            std::fs::write(path, bytes)
-                .context("failed to write file")?;
+            std::fs::write(path, bytes).context("failed to write file")?;
 
             Ok(())
         } else {
