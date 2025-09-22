@@ -7,16 +7,22 @@ mod system_info;
 mod update;
 mod utils;
 
-use crate::config::CONFIG;
+use crate::config::{CONFIG, CONFIG_PATH};
 use crate::http::api_client::ApiClient;
 use crate::http::auth::{enroll, login};
 use crate::http::websockets::start_websocket_client;
 use crate::module_manager::{ModuleManager, ModuleStart};
-use std::path::Path;
+use client::config::resolve_current_dir;
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
+    let config = CONFIG.clone();
+    println!("{:?}", config);
+}
+
+//#[tokio::main]
+async fn _main() {
     let config = CONFIG.clone();
     let mut api_client =
         ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient");
