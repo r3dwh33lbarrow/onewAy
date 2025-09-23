@@ -12,6 +12,7 @@ use crate::http::auth::{enroll, login};
 use crate::http::websockets::start_websocket_client;
 use crate::module_manager::{ModuleManager, ModuleStart};
 use std::sync::Arc;
+use client::config::set_enrolled;
 
 #[tokio::main]
 async fn main() {
@@ -37,7 +38,7 @@ async fn _main() {
             panic!("failed to enroll client");
         }
 
-        // TODO: Save enrolled = true in config.toml
+        set_enrolled().expect("failed to save enrolled status");
     } else {
         debug!("Client already enrolled");
     }
