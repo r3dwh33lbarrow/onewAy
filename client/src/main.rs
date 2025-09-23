@@ -3,16 +3,14 @@ mod http;
 mod logger;
 mod module_manager;
 mod schemas;
-mod system_info;
 mod update;
 mod utils;
 
-use crate::config::{CONFIG, CONFIG_PATH};
+use crate::config::CONFIG;
 use crate::http::api_client::ApiClient;
 use crate::http::auth::{enroll, login};
 use crate::http::websockets::start_websocket_client;
 use crate::module_manager::{ModuleManager, ModuleStart};
-use client::config::resolve_current_dir;
 use std::sync::Arc;
 
 #[tokio::main]

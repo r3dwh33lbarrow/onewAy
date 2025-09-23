@@ -88,7 +88,6 @@ impl ModuleManager {
             }
         }
 
-        // TODO: Add support for base YAML files
         for folder in module_folders {
             let config_path = Path::new(&self.modules_directory)
                 .join(&folder)
@@ -165,7 +164,6 @@ impl ModuleManager {
         name: &str,
         sender: UnboundedSender<String>,
     ) -> Result<()> {
-        // Find module by name or camel-case variant
         let module_opt = self.get_module(name).await;
         let Some(module) = module_opt else {
             return Ok(());
@@ -175,7 +173,6 @@ impl ModuleManager {
             return Ok(());
         };
 
-        // Build full path to binary
         let parent_dir = module.parent_directory.clone();
         let mut full_path = std::path::PathBuf::from(self.get_modules_directory());
         if let Some(dir) = parent_dir {
@@ -183,17 +180,14 @@ impl ModuleManager {
         }
         full_path.push(binary);
 
-        // Spawn process with piped stdout/stderr
         let mut cmd = TokioCommand::new(&full_path);
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
         let mut child = cmd.spawn()?;
 
-        // Take stdout/stderr
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
 
-        // Track running child by module name
         let child_arc = Arc::new(Mutex::new(child));
         {
             let mut map = self.running.lock().await;
@@ -201,7 +195,6 @@ impl ModuleManager {
         }
 
         let module_name = name.to_string();
-        // Send started event
         let _ = sender.send(
             serde_json::json!({
                 "message_type": "module_started",
@@ -210,7 +203,6 @@ impl ModuleManager {
             .to_string(),
         );
 
-        // Stream stdout
         if let Some(stdout) = stdout {
             let sender_clone = sender.clone();
             let module_name = name.to_string();
@@ -230,7 +222,6 @@ impl ModuleManager {
             });
         }
 
-        // Stream stderr
         if let Some(stderr) = stderr {
             let sender_clone = sender.clone();
             let module_name = name.to_string();
@@ -250,19 +241,16 @@ impl ModuleManager {
             });
         }
 
-        // Wait on child exit in background and notify
         let sender_clone = sender.clone();
         let running_map = Arc::clone(&self.running);
         let module_name = name.to_string();
         let child_for_wait = Arc::clone(&child_arc);
         tokio::spawn(async move {
-            // Wait for child to exit
             let code = {
                 let mut child = child_for_wait.lock().await;
                 let status = child.wait().await.ok();
                 status.and_then(|s| s.code()).unwrap_or_default()
             };
-            // Remove from running after exit
             let mut map = running_map.lock().await;
             map.remove(&module_name);
 
@@ -280,11 +268,10 @@ impl ModuleManager {
     }
 
     pub async fn cancel_module(&self, name: &str) -> Result<bool> {
-        let mut map = self.running.lock().await;
+        let map = self.running.lock().await;
         if let Some(child_arc) = map.get(name) {
             let mut child = child_arc.lock().await;
             let _ = child.kill().await;
-            // Let the wait task remove the entry and emit exit event
             return Ok(true);
         }
         Ok(false)
