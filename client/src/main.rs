@@ -11,8 +11,8 @@ use crate::http::api_client::ApiClient;
 use crate::http::auth::{enroll, login};
 use crate::http::websockets::start_websocket_client;
 use crate::module_manager::{ModuleManager, ModuleStart};
-use std::sync::Arc;
 use client::config::set_enrolled;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
