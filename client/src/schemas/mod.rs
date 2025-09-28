@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod modules;
+pub mod websockets;
 
 use serde::{Deserialize, Serialize};
 

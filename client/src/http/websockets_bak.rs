@@ -1,33 +1,51 @@
 use crate::http::api_client::ApiClient;
+use crate::info;
 use crate::module_manager::ModuleManager;
-use crate::schemas::websockets::*;
-use crate::{debug, error, info};
+use anyhow::Result;
 use futures_util::{SinkExt, StreamExt};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio_tungstenite::connect_async;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio_tungstenite::tungstenite::Bytes;
-use tungstenite::Message;
-use crate::warn;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 pub enum OutgoingMessage {
     Text(String),
     Pong(Bytes),
 }
 
-pub async fn select_websocket_client(
+#[derive(Debug, Serialize, Deserialize)]
+struct WebsocketMessage {
+    message_type: String,
+    module_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct AccessTokenResponse {
+    access_token: String,
+    token_type: String,
+}
+
+pub async fn start_websocket_client(
     url: &str,
     api_client: &ApiClient,
     module_manager: Arc<ModuleManager>,
-) -> anyhow::Result<()> {
+) -> Result<()> {
+    // Get websocket token from API
     let access_token = api_client
         .post::<(), AccessTokenResponse>("/ws-client-token", &())
         .await?;
     let access_token = access_token.access_token;
+
     let url = url.to_owned() + "?token=" + &access_token;
+
     let (ws_stream, _) = connect_async(url)
-        .await?;
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to connect to websocket: {}", e))?;
+
     let (mut write, mut read) = ws_stream.split();
+
+    // Writer task and channels
     let (tx, mut rx): (
         UnboundedSender<OutgoingMessage>,
         UnboundedReceiver<OutgoingMessage>,
@@ -39,12 +57,13 @@ pub async fn select_websocket_client(
                 OutgoingMessage::Pong(data) => write.send(Message::Pong(data)).await,
             };
             if let Err(e) = send_res {
-                error!("Failed to send message over Websocket: {}", e);
+                eprintln!("Failed to send message over WebSocket: {}", e);
                 break;
             }
         }
     });
 
+    // Text forwarding channel for module manager
     let (text_tx, mut text_rx) = unbounded_channel::<String>();
     let tx_clone_for_forward = tx.clone();
     tokio::spawn(async move {
@@ -53,50 +72,57 @@ pub async fn select_websocket_client(
         }
     });
 
-    info!("WebSocket connection established");
+    println!("WebSocket connection established");
 
     while let Some(message) = read.next().await {
         match message {
             Ok(Message::Text(text)) => {
+                // Try to parse the JSON message into our WebsocketMessage struct
                 match serde_json::from_str::<WebsocketMessage>(&text) {
                     Ok(ws_msg) => {
-                        debug!("Received message: {:?}", ws_msg);
+                        println!("Received message: {:?}", ws_msg);
+                        // Handle the parsed message here
                         handle_websocket_message(
                             ws_msg,
                             Arc::clone(&module_manager),
                             text_tx.clone(),
-                        ).await;
+                        )
+                        .await;
                     }
-
                     Err(e) => {
-                        error!("Failed to parse message as JSON: {}. Raw message: {}", e, text);
+                        eprintln!(
+                            "Failed to parse message as JSON: {}. Raw message: {}",
+                            e, text
+                        );
                     }
                 }
             }
-
             Ok(Message::Binary(data)) => {
-                info!("Received binary message: {} bytes", data.len());
+                println!("Received binary message: {} bytes", data.len());
+                // Handle binary data if needed
             }
             Ok(Message::Close(frame)) => {
-                info!("WebSocket connection closed: {:?}", frame);
+                println!("WebSocket connection closed: {:?}", frame);
                 break;
             }
             Ok(Message::Ping(data)) => {
-                debug!("Received ping, sending pong");
+                println!("Received ping, sending pong");
                 let _ = tx.send(OutgoingMessage::Pong(data));
             }
             Ok(Message::Pong(_)) => {
-                debug!("Received pong");
+                println!("Received pong");
             }
-            Ok(Message::Frame(_)) => {}
+            Ok(Message::Frame(_)) => {
+                // Raw frames are typically handled internally
+            }
             Err(e) => {
-                error!("WebSocket error: {}", e);
+                eprintln!("WebSocket error: {}", e);
                 break;
             }
         }
     }
 
-    debug!("WebSocket client stopped");
+    println!("WebSocket client stopped");
     Ok(())
 }
 
@@ -110,15 +136,16 @@ async fn handle_websocket_message(
             info!("Running module: {}", message.module_name);
             let module = module_manager.get_module(&*message.module_name).await;
             if module.is_none() {
-                error!("Module {} not found", message.module_name);
+                println!("Module {} not found", message.module_name);
                 return;
             }
 
+            // Start and stream output back to server
             if let Err(e) = module_manager
                 .start_module_streaming(&message.module_name, tx.clone())
                 .await
             {
-                error!(
+                eprintln!(
                     "Failed to run and stream module {}: {}",
                     message.module_name, e
                 );
@@ -126,18 +153,26 @@ async fn handle_websocket_message(
         }
         "module_cancel" => {
             info!("Cancel requested for module: {}", message.module_name);
-            if module_manager.cancel_module(&message.module_name).await {
-                let _ = tx.send(
-                    serde_json::json!({
-                        "message_type": "module_canceled",
-                        "module_name": message.module_name
-                    })
+            match module_manager.cancel_module(&message.module_name).await {
+                Ok(true) => {
+                    let _ = tx.send(
+                        serde_json::json!({
+                            "message_type": "module_canceled",
+                            "module_name": message.module_name
+                        })
                         .to_string(),
-                );
+                    );
+                }
+                Ok(false) => {
+                    // Not running; optionally emit an event
+                }
+                Err(e) => {
+                    eprintln!("Failed to cancel module {}: {}", message.module_name, e);
+                }
             }
         }
         _ => {
-            warn!(
+            println!(
                 "Unknown message type: {} for module: {}",
                 message.message_type, message.module_name
             );
