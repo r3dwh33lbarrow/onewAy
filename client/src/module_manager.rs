@@ -1,3 +1,4 @@
+use crate::utils::{str_to_snake_case, title_case_to_camel_case};
 use crate::{debug, error};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -9,7 +10,6 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
-use crate::utils::{str_to_snake_case, title_case_to_camel_case};
 
 #[derive(Debug, Error)]
 pub enum ModuleManagerError {
