@@ -8,8 +8,8 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
-use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug, Error)]
 pub enum ModuleManagerError {
@@ -24,7 +24,7 @@ pub enum ModuleManagerError {
 
     #[error("Could not resolve binaries")]
     BinaryResolutionFailed,
-    
+
     #[error("Not a valid module: {0}")]
     NotAValidModule(String),
 }
@@ -163,7 +163,7 @@ impl ModuleManager {
             Err(ModuleManagerError::BinaryResolutionFailed)
         }
     }
-    
+
     pub(crate) async fn start_module_streaming(
         &self,
         name: &str,
@@ -174,16 +174,16 @@ impl ModuleManager {
             return Err(ModuleManagerError::ModuleNotFound(name.to_string()));
         };
         let Some(binary) = module.resolve_binaries() else {
-            return Err(ModuleManagerError::BinaryResolutionFailed)
+            return Err(ModuleManagerError::BinaryResolutionFailed);
         };
-        
+
         let parent_dir = module.parent_directory.clone();
         let mut full_path = std::path::PathBuf::from(self.get_modules_directory());
-        if let Some (dir) = parent_dir {
+        if let Some(dir) = parent_dir {
             full_path.push(dir);
         }
         full_path.push(binary);
-        
+
         let mut cmd = Command::new(&full_path);
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
@@ -204,7 +204,7 @@ impl ModuleManager {
                 "message_type": "module_started",
                 "module_name": module_name
             })
-                .to_string(),
+            .to_string(),
         );
 
         if let Some(stdout) = stdout {
@@ -220,7 +220,7 @@ impl ModuleManager {
                             "stream": "stdout",
                             "line": line
                         })
-                            .to_string(),
+                        .to_string(),
                     );
                 }
             });
@@ -239,7 +239,7 @@ impl ModuleManager {
                             "stream": "stderr",
                             "line": line
                         })
-                            .to_string(),
+                        .to_string(),
                     );
                 }
             });
@@ -264,14 +264,17 @@ impl ModuleManager {
                     "module_name": module_name,
                     "code": code
                 })
-                    .to_string(),
+                .to_string(),
             );
         });
 
         Ok(())
     }
 
-    pub async fn start_all_modules_by_start(&self, start_type: ModuleStart) -> Result<(), ModuleManagerError> {
+    pub async fn start_all_modules_by_start(
+        &self,
+        start_type: ModuleStart,
+    ) -> Result<(), ModuleManagerError> {
         let configs = self.module_configs.lock().await;
         let matching_modules: Vec<ModuleConfig> = configs
             .iter()
@@ -311,7 +314,7 @@ impl ModuleManager {
         if let Some(child_arc) = map.get(name) {
             let mut child = child_arc.lock().await;
             let _ = child.kill().await;
-            return true
+            return true;
         }
 
         false

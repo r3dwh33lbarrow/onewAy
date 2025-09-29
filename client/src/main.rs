@@ -1,6 +1,5 @@
 use client::{
-    debug, error, info, warn, // macros
-    ApiClient, ModuleManager, ModuleStart, CONFIG, enroll, login, set_enrolled,
+    ApiClient, CONFIG, ModuleManager, ModuleStart, debug, enroll, error, login, set_enrolled,
     start_websocket_client,
 };
 use std::sync::Arc;

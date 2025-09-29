@@ -1,16 +1,19 @@
-use client::{ApiClient};
+use client::ApiClient;
 use client::http::auth::{enroll, login, refresh_access_token};
-use client::schemas::{RootResponse, ApiError};
-use client::schemas::auth::TokenResponse;
-// Avoid using AccessTokenResponse directly because its fields are crate-private.
-use serde::{Deserialize};
+use client::schemas::{ApiError, RootResponse};
+use serde::Deserialize;
 use tokio_tungstenite::connect_async;
 
-fn base_url() -> &'static str { "http://127.0.0.1:8000/" }
+fn base_url() -> &'static str {
+    "http://127.0.0.1:8000/"
+}
 
 fn unique_username(prefix: &str) -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     format!("{}_{}", prefix, nanos)
 }
 
@@ -22,7 +25,9 @@ async fn test_root_alive() {
 }
 
 #[derive(Debug, Deserialize)]
-struct ClientMeResponse { username: String }
+struct ClientMeResponse {
+    username: String,
+}
 
 #[tokio::test]
 async fn test_enroll_login_and_me() {
@@ -52,7 +57,10 @@ async fn test_refresh_access_token_and_me() {
     let refreshed = refresh_access_token(&mut api).await;
     assert!(refreshed, "expected refresh token to succeed");
 
-    let me: ClientMeResponse = api.get("/client/me").await.expect("/client/me after refresh");
+    let me: ClientMeResponse = api
+        .get("/client/me")
+        .await
+        .expect("/client/me after refresh");
     assert_eq!(me.username, username);
 }
 
@@ -121,7 +129,10 @@ async fn test_ws_client_token_and_ping_pong() {
     use futures_util::{SinkExt, StreamExt};
     use tungstenite::Message;
 
-    stream.send(Message::Text(msg.into())).await.expect("send ping");
+    stream
+        .send(Message::Text(msg.into()))
+        .await
+        .expect("send ping");
     if let Some(Ok(Message::Text(txt))) = stream.next().await {
         let v: serde_json::Value = serde_json::from_str(&txt).expect("json pong");
         assert_eq!(v.get("type").and_then(|x| x.as_str()), Some("pong"));

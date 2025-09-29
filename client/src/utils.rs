@@ -36,12 +36,10 @@ pub(crate) fn resolve_current_dir(path: &str) -> String {
 
     let p = Path::new(&replaced);
 
-    // Prefer filesystem-aware canonicalization to fully resolve `.` and `..`.
     if let Ok(canon) = std::fs::canonicalize(p) {
         return canon.to_string_lossy().into_owned();
     }
 
-    // Fallback to a logical normalization that removes `.` and processes `..` without touching FS.
     let mut buf = PathBuf::new();
     for comp in p.components() {
         match comp {
@@ -63,20 +61,28 @@ mod tests {
     #[test]
     fn test_str_to_snake_case() {
         assert_eq!(str_to_snake_case("Hello World!"), "hello_world");
-        assert_eq!(str_to_snake_case("Already_Snake-Case 123"), "already_snake_case_123");
-        assert_eq!(str_to_snake_case("  spaces   and--punct  "), "spaces_and_punct");
+        assert_eq!(
+            str_to_snake_case("Already_Snake-Case 123"),
+            "already_snake_case_123"
+        );
+        assert_eq!(
+            str_to_snake_case("  spaces   and--punct  "),
+            "spaces_and_punct"
+        );
     }
 
     #[test]
     fn test_title_case_to_camel_case() {
         assert_eq!(title_case_to_camel_case("Hello World"), "hello_world");
-        assert_eq!(title_case_to_camel_case("Multiple   Words"), "multiple_words");
+        assert_eq!(
+            title_case_to_camel_case("Multiple   Words"),
+            "multiple_words"
+        );
     }
 
     #[test]
     fn test_resolve_current_dir_normalization() {
         let p = resolve_current_dir("[CURRENT_DIR]/./a/../b");
-        // Should resolve logical components and end with 'b'
         assert!(p.ends_with("/b") || p.ends_with("\\b"));
     }
 }

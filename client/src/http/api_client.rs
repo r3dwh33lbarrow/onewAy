@@ -1,12 +1,12 @@
-use reqwest::{Client, Method};
-use std::time::Duration;
-use std::path::PathBuf;
-use anyhow::Context;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
-use serde::de::DeserializeOwned;
-use serde::Serialize;
-use url::Url;
 use crate::schemas::{ApiError, ApiErrorResponse};
+use anyhow::Context;
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
+use reqwest::{Client, Method};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+use std::path::PathBuf;
+use std::time::Duration;
+use url::Url;
 
 #[derive(Debug, Clone)]
 pub struct ApiClient {
@@ -40,10 +40,15 @@ impl ApiClient {
     where
         T: DeserializeOwned,
     {
-        self.request(Method::GET, endpoint, Option::<&()>::None).await
+        self.request(Method::GET, endpoint, Option::<&()>::None)
+            .await
     }
 
-    pub async fn post<Request, Response>(&self, endpoint: &str, body: &Request) -> anyhow::Result<Response>
+    pub async fn post<Request, Response>(
+        &self,
+        endpoint: &str,
+        body: &Request,
+    ) -> anyhow::Result<Response>
     where
         Request: Serialize + ?Sized,
         Response: DeserializeOwned,
@@ -51,7 +56,11 @@ impl ApiClient {
         self.request(Method::POST, endpoint, Some(body)).await
     }
 
-    pub async fn put<Request, Response>(&self, endpoint: &str, body: &Request) -> anyhow::Result<Response>
+    pub async fn put<Request, Response>(
+        &self,
+        endpoint: &str,
+        body: &Request,
+    ) -> anyhow::Result<Response>
     where
         Request: Serialize + ?Sized,
         Response: DeserializeOwned,
@@ -95,7 +104,10 @@ impl ApiClient {
         self.handle_response(response).await
     }
 
-    async fn handle_response<Response>(&self, response: reqwest::Response) -> anyhow::Result<Response>
+    async fn handle_response<Response>(
+        &self,
+        response: reqwest::Response,
+    ) -> anyhow::Result<Response>
     where
         Response: DeserializeOwned,
     {

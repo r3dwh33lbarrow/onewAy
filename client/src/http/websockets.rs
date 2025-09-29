@@ -1,14 +1,14 @@
 use crate::http::api_client::ApiClient;
 use crate::module_manager::ModuleManager;
 use crate::schemas::websockets::*;
+use crate::warn;
 use crate::{debug, error, info};
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Bytes;
 use tungstenite::Message;
-use crate::warn;
 
 pub enum OutgoingMessage {
     Text(String),
@@ -25,8 +25,7 @@ pub async fn start_websocket_client(
         .await?;
     let access_token = access_token.access_token;
     let url = url.to_owned() + "?token=" + &access_token;
-    let (ws_stream, _) = connect_async(url)
-        .await?;
+    let (ws_stream, _) = connect_async(url).await?;
     let (mut write, mut read) = ws_stream.split();
     let (tx, mut rx): (
         UnboundedSender<OutgoingMessage>,
@@ -57,22 +56,20 @@ pub async fn start_websocket_client(
 
     while let Some(message) = read.next().await {
         match message {
-            Ok(Message::Text(text)) => {
-                match serde_json::from_str::<WebsocketMessage>(&text) {
-                    Ok(ws_msg) => {
-                        debug!("Received message: {:?}", ws_msg);
-                        handle_websocket_message(
-                            ws_msg,
-                            Arc::clone(&module_manager),
-                            text_tx.clone(),
-                        ).await;
-                    }
-
-                    Err(e) => {
-                        error!("Failed to parse message as JSON: {}. Raw message: {}", e, text);
-                    }
+            Ok(Message::Text(text)) => match serde_json::from_str::<WebsocketMessage>(&text) {
+                Ok(ws_msg) => {
+                    debug!("Received message: {:?}", ws_msg);
+                    handle_websocket_message(ws_msg, Arc::clone(&module_manager), text_tx.clone())
+                        .await;
                 }
-            }
+
+                Err(e) => {
+                    error!(
+                        "Failed to parse message as JSON: {}. Raw message: {}",
+                        e, text
+                    );
+                }
+            },
 
             Ok(Message::Binary(data)) => {
                 info!("Received binary message: {} bytes", data.len());
@@ -132,7 +129,7 @@ async fn handle_websocket_message(
                         "message_type": "module_canceled",
                         "module_name": message.module_name
                     })
-                        .to_string(),
+                    .to_string(),
                 );
             }
         }
