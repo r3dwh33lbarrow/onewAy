@@ -17,12 +17,6 @@ use std::sync::Arc;
 #[tokio::main]
 async fn main() {
     let config = CONFIG.clone();
-    println!("{:?}", config);
-}
-
-//#[tokio::main]
-async fn _main() {
-    let config = CONFIG.clone();
     let mut api_client =
         ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient");
 

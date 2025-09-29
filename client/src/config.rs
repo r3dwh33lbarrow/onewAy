@@ -30,7 +30,9 @@ pub struct Config {
 
 pub static CONFIG: Lazy<Arc<Config>> = Lazy::new(|| {
     let toml_str = fs::read_to_string(CONFIG_PATH.as_str()).expect("Failed to read config.toml");
-    let config: Config = toml::from_str(&toml_str).expect("Failed to parse config.toml");
+    let mut config: Config = toml::from_str(&toml_str).expect("Failed to parse config.toml");
+    config.module.modules_directory = utils::resolve_current_dir(&config.module.modules_directory);
+
     Arc::new(config)
 });
 

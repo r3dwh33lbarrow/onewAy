@@ -271,6 +271,25 @@ impl ModuleManager {
         Ok(())
     }
 
+    pub async fn start_all_modules_by_start(&self, start_type: ModuleStart) -> Result<(), ModuleManagerError> {
+        let configs = self.module_configs.lock().await;
+        let matching_modules: Vec<ModuleConfig> = configs
+            .iter()
+            .filter(|config| config.start == start_type)
+            .cloned()
+            .collect();
+        drop(configs);
+
+        for module in matching_modules {
+            if let Err(e) = self.start_module(module.clone()).await {
+                error!("Failed to start module {}: {}", module.name, e);
+                return Err(e);
+            }
+        }
+
+        Ok(())
+    }
+
     pub async fn get_module(&self, name: &str) -> Option<ModuleConfig> {
         let configs = self.module_configs.lock().await;
         configs

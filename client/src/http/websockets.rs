@@ -15,7 +15,7 @@ pub enum OutgoingMessage {
     Pong(Bytes),
 }
 
-pub async fn select_websocket_client(
+pub async fn start_websocket_client(
     url: &str,
     api_client: &ApiClient,
     module_manager: Arc<ModuleManager>,
