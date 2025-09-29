@@ -15,17 +15,12 @@ export function isApiError(obj: unknown): obj is ApiError {
 
 class ApiClient {
   private apiUrl: string | undefined;
-  private readonly initializationPromise: Promise<void> | null = null;
 
   public constructor() {
     const apiUrl = localStorage.getItem("apiUrl");
     if (apiUrl) {
       this.apiUrl = apiUrl;
-      this.initializationPromise = this.validateAndSetUrl(apiUrl).catch(
-        (error) => {
-          console.warn("Failed to validate API URL on initialization:", error);
-        },
-      );
+      this.validateAndSetUrl(apiUrl).then((_) => {});
     }
   }
 
@@ -77,17 +72,6 @@ class ApiClient {
       return false;
     }
   }
-
-  public async ensureInitialized(): Promise<void> {
-    if (this.initializationPromise) {
-      await this.initializationPromise;
-    }
-  }
-
-  public isConfigured(): boolean {
-    return this.apiUrl !== undefined;
-  }
-
   public getApiUrl(): string | undefined {
     return this.apiUrl;
   }
@@ -117,7 +101,6 @@ class ApiClient {
       });
 
       if (!response.ok) {
-        // Try to parse error response to get detail from FastAPI
         try {
           const errorData = await response.json();
           return {
@@ -126,7 +109,6 @@ class ApiClient {
             detail: errorData.detail || undefined,
           };
         } catch {
-          // If parsing fails, return basic error without detail
           return {
             statusCode: response.status,
             message: response.statusText || `HTTP ${response.status} error`,
@@ -134,12 +116,11 @@ class ApiClient {
         }
       }
 
-      // Check if response has content before trying to parse JSON
       const contentLength = response.headers.get("content-length");
       const contentType = response.headers.get("content-type");
 
       if (contentLength === "0" || !contentType?.includes("application/json")) {
-        return {} as T; // Return empty object for empty responses
+        return {} as T;
       }
 
       return (await response.json()) as T;
