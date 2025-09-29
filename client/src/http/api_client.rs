@@ -175,3 +175,34 @@ impl ApiClient {
         headers
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_endpoint() {
+        let api = ApiClient::new("http://localhost:8000/").unwrap();
+        let u = api.parse_endpoint("/client/me").unwrap();
+        assert_eq!(u.as_str(), "http://localhost:8000/client/me");
+
+        let u2 = api.parse_endpoint("client/me").unwrap();
+        assert_eq!(u2.as_str(), "http://localhost:8000/client/me");
+    }
+
+    #[test]
+    fn test_build_headers_with_token() {
+        let mut api = ApiClient::new("http://localhost:8000/").unwrap();
+        api.set_access_token("abc123");
+        let headers = api.build_headers();
+        let v = headers.get(AUTHORIZATION).unwrap();
+        assert_eq!(v.to_str().unwrap(), "Bearer abc123");
+    }
+
+    #[test]
+    fn test_build_headers_without_token() {
+        let api = ApiClient::new("http://localhost:8000/").unwrap();
+        let headers = api.build_headers();
+        assert!(headers.get(AUTHORIZATION).is_none());
+    }
+}
