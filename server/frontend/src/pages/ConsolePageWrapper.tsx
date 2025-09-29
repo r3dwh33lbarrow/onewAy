@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
-import ConsolePage from "./ConsolePage.tsx";
+
+import ConsolePage from "./ConsolePage";
 
 export default function ConsolePageWrapper() {
   const { username } = useParams<{ username: string }>();
@@ -8,7 +9,5 @@ export default function ConsolePageWrapper() {
     return <div>No username provided</div>;
   }
 
-  return (
-    <ConsolePage username={username} />
-  )
+  return <ConsolePage username={username} />;
 }

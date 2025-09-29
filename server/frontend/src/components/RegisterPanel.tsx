@@ -1,7 +1,7 @@
-import AuthForm from "./AuthForm.tsx";
+import AuthForm from "./AuthForm";
 
 interface RegisterPanelProps {
-  onSubmit: (data: { username: string, password: string }) => Promise<boolean>;
+  onSubmit: (data: { username: string; password: string }) => Promise<boolean>;
 }
 
 export default function RegisterPanel({ onSubmit }: RegisterPanelProps) {

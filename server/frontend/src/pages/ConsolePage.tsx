@@ -1,11 +1,27 @@
-import MainSkeleton from "../components/MainSkeleton.tsx";
-import {useEffect, useRef, useState} from "react";
-import type { ClientAllInfo } from "../schemas/client.ts";
-import { apiClient, isApiError } from "../apiClient.ts";
-import { Button, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from "flowbite-react";
-import { snakeCaseToTitle } from "../utils.ts";
-import type { TokenResponse } from "../schemas/authentication.ts";
-import { cancelModule, getAllModules, getInstalledModules, runModule, type InstalledModuleInfo, type ModuleBasicInfo } from "../services/modules.ts";
+import {
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeadCell,
+  TableRow,
+} from "flowbite-react";
+import { useEffect, useRef, useState } from "react";
+
+import { apiClient, isApiError } from "../apiClient";
+import MainSkeleton from "../components/MainSkeleton";
+import type { TokenResponse } from "../schemas/authentication";
+import type { ClientAllInfo } from "../schemas/client";
+import {
+  cancelModule,
+  getAllModules,
+  getInstalledModules,
+  runModule,
+  type InstalledModuleInfo,
+  type ModuleBasicInfo,
+} from "../services/modules";
+import { snakeCaseToTitle } from "../utils";
 
 interface ConsolePageProps {
   username: string;
@@ -18,7 +34,9 @@ export default function ConsolePage({ username }: ConsolePageProps) {
   const [modules, setModules] = useState<ModuleBasicInfo[]>([]);
   const [installed, setInstalled] = useState<InstalledModuleInfo[]>([]);
   const [wsError, setWsError] = useState<string | null>(null);
-  const [lines, setLines] = useState<{ stream: "stdout" | "stderr" | "event"; text: string }[]>([]);
+  const [lines, setLines] = useState<
+    { stream: "stdout" | "stderr" | "event"; text: string }[]
+  >([]);
   const socketRef = useRef<WebSocket | null>(null);
   const consoleRef = useRef<HTMLDivElement | null>(null);
 
@@ -26,7 +44,9 @@ export default function ConsolePage({ username }: ConsolePageProps) {
     const fetchClientInformation = async () => {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get<ClientAllInfo>(`/client/get/${username}`);
+      const response = await apiClient.get<ClientAllInfo>(
+        `/client/get/${username}`,
+      );
 
       if (isApiError(response)) {
         setError(`Failed to fetch client information: ${response.detail}`);
@@ -36,7 +56,7 @@ export default function ConsolePage({ username }: ConsolePageProps) {
 
       setClientInfo(response);
       setLoading(false);
-    }
+    };
 
     fetchClientInformation();
   }, [username]);
@@ -61,7 +81,10 @@ export default function ConsolePage({ username }: ConsolePageProps) {
     const connectWs = async () => {
       try {
         setWsError(null);
-        const tokenResponse = await apiClient.post<object, TokenResponse>("/ws-token", {});
+        const tokenResponse = await apiClient.post<object, TokenResponse>(
+          "/ws-token",
+          {},
+        );
         if ("statusCode" in tokenResponse) {
           setWsError(tokenResponse.message || "Failed to get WebSocket token");
           return;
@@ -73,8 +96,8 @@ export default function ConsolePage({ username }: ConsolePageProps) {
           return;
         }
         const url = new URL(baseUrl);
-        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-        url.pathname = '/ws';
+        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+        url.pathname = "/ws";
         url.search = `token=${encodeURIComponent(wsToken)}`;
         const socket = new WebSocket(url.toString());
         socketRef.current = socket;
@@ -82,31 +105,43 @@ export default function ConsolePage({ username }: ConsolePageProps) {
         socket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            if (data.type === "console_output" && data.data?.username === username) {
+            if (
+              data.type === "console_output" &&
+              data.data?.username === username
+            ) {
               const line = data.data.line as string;
-              const stream = data.data.stream === "stderr" ? "stderr" : "stdout";
-              setLines(prev => {
-                const next = [...prev, { stream, text: line }];
+              const stream: "stdout" | "stderr" =
+                data.data.stream === "stderr" ? "stderr" : "stdout";
+              setLines((prev) => {
+                const next: typeof prev = [...prev, { stream, text: line }];
                 if (next.length > 2000) next.shift();
                 return next;
               });
-            } else if (data.type === "console_event" && data.data?.username === username) {
+            } else if (
+              data.type === "console_event" &&
+              data.data?.username === username
+            ) {
               const event = data.data.event as string;
               const moduleName = data.data.module_name as string;
               const code = data.data.code;
               let text = "";
               if (event === "module_started") text = `Started ${moduleName}`;
-              else if (event === "module_exit") text = `Exited ${moduleName} with code ${code}`;
-              else if (event === "module_canceled") text = `Canceled ${moduleName}`;
+              else if (event === "module_exit")
+                text = `Exited ${moduleName} with code ${code}`;
+              else if (event === "module_canceled")
+                text = `Canceled ${moduleName}`;
               if (text) {
-                setLines(prev => {
-                  const next = [...prev, { stream: "event", text }];
+                setLines((prev) => {
+                  const next: typeof prev = [
+                    ...prev,
+                    { stream: "event", text },
+                  ];
                   if (next.length > 2000) next.shift();
                   return next;
                 });
               }
             }
-          } catch (e) {
+          } catch {
             // ignore parse errors
           }
         };
@@ -114,7 +149,7 @@ export default function ConsolePage({ username }: ConsolePageProps) {
         socket.onclose = () => {
           // Optionally, could implement reconnect
         };
-      } catch (e) {
+      } catch {
         setWsError("Failed to initialize WebSocket");
       }
     };
@@ -122,7 +157,7 @@ export default function ConsolePage({ username }: ConsolePageProps) {
     connectWs();
     return () => {
       if (socketRef.current) socketRef.current.close();
-    }
+    };
   }, [username]);
 
   // Auto-scroll console
@@ -132,7 +167,7 @@ export default function ConsolePage({ username }: ConsolePageProps) {
     }
   }, [lines]);
 
-  const isInstalled = (name: string) => installed.some(m => m.name === name);
+  const isInstalled = (name: string) => installed.some((m) => m.name === name);
 
   const onRun = async (name: string) => {
     const res = await runModule(username, name);
@@ -150,9 +185,7 @@ export default function ConsolePage({ username }: ConsolePageProps) {
 
   return (
     <MainSkeleton baseName={`Console for ${username}`}>
-      {loading && (
-        <div>Loading...</div>
-      )}
+      {loading && <div>Loading...</div>}
 
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
@@ -160,11 +193,29 @@ export default function ConsolePage({ username }: ConsolePageProps) {
         </div>
       )}
 
+      {wsError && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mt-2">
+          <p className="text-yellow-800 dark:text-yellow-200">{wsError}</p>
+        </div>
+      )}
+
       {!loading && !error && clientInfo && clientInfo.alive && (
         <>
-          <div ref={consoleRef} className="w-full h-[62.5vh] bg-black rounded-lg p-3 overflow-auto font-mono text-sm">
+          <div
+            ref={consoleRef}
+            className="w-full h-[62.5vh] bg-black rounded-lg p-3 overflow-auto font-mono text-sm"
+          >
             {lines.map((l, idx) => (
-              <div key={idx} className={l.stream === 'stderr' ? 'text-red-400' : l.stream === 'event' ? 'text-yellow-300' : 'text-gray-100'}>
+              <div
+                key={idx}
+                className={
+                  l.stream === "stderr"
+                    ? "text-red-400"
+                    : l.stream === "event"
+                      ? "text-yellow-300"
+                      : "text-gray-100"
+                }
+              >
                 {l.text}
               </div>
             ))}
@@ -183,18 +234,39 @@ export default function ConsolePage({ username }: ConsolePageProps) {
               </TableHead>
               <TableBody className="divide-y">
                 {modules.map((m, i) => {
-                  const manual = (m.start || '').toLowerCase() === 'manual';
+                  const manual = (m.start || "").toLowerCase() === "manual";
                   const installedOnClient = isInstalled(m.name);
                   return (
-                    <TableRow key={`${m.name}-${i}`} className="bg-white dark:border-gray-700 dark:bg-gray-800">
-                      <TableCell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">{snakeCaseToTitle(m.name)}</TableCell>
-                      <TableCell className="whitespace-nowrap text-gray-900 dark:text-white">{m.description}</TableCell>
+                    <TableRow
+                      key={`${m.name}-${i}`}
+                      className="bg-white dark:border-gray-700 dark:bg-gray-800"
+                    >
+                      <TableCell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
+                        {snakeCaseToTitle(m.name)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-gray-900 dark:text-white">
+                        {m.description}
+                      </TableCell>
                       <TableCell>{m.version}</TableCell>
                       <TableCell>{m.start}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button size="xs" color="indigo" disabled={!manual || !installedOnClient} onClick={() => onRun(m.name)}>Run</Button>
-                          <Button size="xs" color="failure" disabled={!installedOnClient} onClick={() => onCancel(m.name)}>Cancel</Button>
+                          <Button
+                            size="xs"
+                            color="indigo"
+                            disabled={!manual || !installedOnClient}
+                            onClick={() => onRun(m.name)}
+                          >
+                            Run
+                          </Button>
+                          <Button
+                            size="xs"
+                            color="failure"
+                            disabled={!installedOnClient}
+                            onClick={() => onCancel(m.name)}
+                          >
+                            Cancel
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -208,7 +280,9 @@ export default function ConsolePage({ username }: ConsolePageProps) {
 
       {!loading && !error && clientInfo && !clientInfo.alive && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-          <p className="text-red-800 dark:text-red-200">Client is offline. Console is unavailable.</p>
+          <p className="text-red-800 dark:text-red-200">
+            Client is offline. Console is unavailable.
+          </p>
         </div>
       )}
     </MainSkeleton>

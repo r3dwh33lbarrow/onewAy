@@ -1,8 +1,8 @@
-import {Modal, ModalBody, ModalHeader} from "flowbite-react";
-import {useEffect, useState} from "react";
-import {apiClient, isApiError} from "../apiClient.ts";
+import { Modal, ModalBody, ModalHeader } from "flowbite-react";
+import { useEffect, useState } from "react";
 import { HiOutlineDocument, HiOutlineFolder } from "react-icons/hi";
 
+import { apiClient, isApiError } from "../apiClient";
 
 interface ModuleDirectoryContents {
   contents: Array<Record<string, string>>;
@@ -18,20 +18,26 @@ interface ModuleAddModalProps {
   onModuleAdded: () => void;
 }
 
-export default function ModuleAddModal({show, onClose, onModuleAdded}: ModuleAddModalProps) {
+export default function ModuleAddModal({
+  show,
+  onClose,
+  onModuleAdded,
+}: ModuleAddModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [directoryContents, setDirectoryContents] = useState<Array<Record<string, string>> | null>(null);
-  const [selectedContent, setSelectedContent] = useState<string |null>(null);
+  const [directoryContents, setDirectoryContents] = useState<Array<
+    Record<string, string>
+  > | null>(null);
+  const [selectedContent, setSelectedContent] = useState<string | null>(null);
 
   function hasKeyFile<T extends Record<string, string>>(
-    record: T
+    record: T,
   ): record is T & { file: string } {
     return "file" in record;
   }
 
   function hasKeyDirectory<T extends Record<string, string>>(
-    record: T
+    record: T,
   ): record is T & { directory: string } {
     return "directory" in record;
   }
@@ -43,34 +49,41 @@ export default function ModuleAddModal({show, onClose, onModuleAdded}: ModuleAdd
       try {
         setLoading(true);
         setError(null);
-        const result = await apiClient.get<ModuleDirectoryContents>("/user/modules/query-module-dir");
-        
+        const result = await apiClient.get<ModuleDirectoryContents>(
+          "/user/modules/query-module-dir",
+        );
+
         if (isApiError(result)) {
           setError(result.message);
           return;
         }
-        
+
         setDirectoryContents(result.contents || []);
       } catch {
         setError("Failed to fetch module directory");
       } finally {
         setLoading(false);
       }
-    }
-    
+    };
+
     fetchModuleDir();
   }, [show]);
 
   const handleAdd = async () => {
-    if (!selectedContent) { return; }
-    const response = await apiClient.post<ModuleAddRequest, { message: string }>("/user/modules/add", { module_path: selectedContent });
+    if (!selectedContent) {
+      return;
+    }
+    const response = await apiClient.post<
+      ModuleAddRequest,
+      { message: string }
+    >("/user/modules/add", { module_path: selectedContent });
     if (isApiError(response)) {
       console.error("Error adding module:", response.detail);
     }
 
     onClose();
     onModuleAdded();
-  }
+  };
 
   return (
     <Modal show={show} onClose={onClose} size="2xl">
@@ -97,10 +110,14 @@ export default function ModuleAddModal({show, onClose, onModuleAdded}: ModuleAdd
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Select a module from the directory:
                 </p>
-                { /* TODO: Bug with left content space. Feature for now */ }
+                {/* TODO: Bug with left content space. Feature for now */}
                 <div className="max-h-60 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 overflow-hidden">
                   {directoryContents.map((item, index) => {
-                    const itemValue = hasKeyFile(item) ? item.file : hasKeyDirectory(item) ? item.directory : null;
+                    const itemValue = hasKeyFile(item)
+                      ? item.file
+                      : hasKeyDirectory(item)
+                        ? item.directory
+                        : null;
                     const isSelected = selectedContent === itemValue;
                     const isFirst = index === 0;
                     const isLast = index === directoryContents.length - 1;
@@ -112,14 +129,10 @@ export default function ModuleAddModal({show, onClose, onModuleAdded}: ModuleAdd
                         className={`cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors relative ${
                           isSelected
                             ? `bg-blue-50 dark:bg-blue-900/20 ${
-                                isFirst ? 'rounded-t-lg' : ''
-                              } ${
-                                isLast ? 'rounded-b-lg' : ''
-                              }`
-                            : `${
-                                isFirst ? 'rounded-t-lg' : ''
-                              } ${
-                                isLast ? 'rounded-b-lg' : ''
+                                isFirst ? "rounded-t-lg" : ""
+                              } ${isLast ? "rounded-b-lg" : ""}`
+                            : `${isFirst ? "rounded-t-lg" : ""} ${
+                                isLast ? "rounded-b-lg" : ""
                               }`
                         }`}
                       >
@@ -127,7 +140,11 @@ export default function ModuleAddModal({show, onClose, onModuleAdded}: ModuleAdd
                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600"></div>
                         )}
                         <div className="p-3 flex items-center gap-3">
-                          {hasKeyFile(item) ? <HiOutlineDocument className="w-5 h-5 text-gray-500" /> : hasKeyDirectory(item) ? <HiOutlineFolder className="w-5 h-5 text-gray-500" /> : null}
+                          {hasKeyFile(item) ? (
+                            <HiOutlineDocument className="w-5 h-5 text-gray-500" />
+                          ) : hasKeyDirectory(item) ? (
+                            <HiOutlineFolder className="w-5 h-5 text-gray-500" />
+                          ) : null}
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-gray-900 dark:text-white truncate">
                               {itemValue}
@@ -135,8 +152,16 @@ export default function ModuleAddModal({show, onClose, onModuleAdded}: ModuleAdd
                           </div>
                           {isSelected && (
                             <div className="ml-2">
-                              <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              <svg
+                                className="w-5 h-5 text-blue-600"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
                               </svg>
                             </div>
                           )}
@@ -170,8 +195,8 @@ export default function ModuleAddModal({show, onClose, onModuleAdded}: ModuleAdd
                 disabled={!selectedContent}
                 className={`px-6 py-2 rounded-lg font-medium transition-colors ${
                   selectedContent
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400'
+                    ? "bg-blue-600 hover:bg-blue-700 text-white"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
                 }`}
               >
                 Add

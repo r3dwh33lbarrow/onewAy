@@ -1,19 +1,20 @@
-import LoginPanel from "./components/LoginPanel.tsx";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
-import { Login, Register } from "./services/authentication.ts";
-import RegisterPanel from "./components/RegisterPanel.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
-import ProtectedRoute from "./components/ProtectedRoute.tsx";
-import {useAuthStore} from "./stores/authStore.ts";
-import ClientPageWrapper from "./pages/ClientPageWrapper.tsx";
-import NotFound from "./pages/404.tsx";
-import ModulesPage from "./pages/ModulesPage.tsx";
-import ModulePageWrapper from "./pages/ModulePageWrapper.tsx";
-import SettingsPage from "./pages/SettingsPage.tsx";
-import ConsolePageWrapper from "./pages/ConsolePageWrapper.tsx";
+
+import LoginPanel from "./components/LoginPanel";
+import ProtectedRoute from "./components/ProtectedRoute";
+import RegisterPanel from "./components/RegisterPanel";
+import NotFound from "./pages/404";
+import ClientPageWrapper from "./pages/ClientPageWrapper";
+import ConsolePageWrapper from "./pages/ConsolePageWrapper";
+import Dashboard from "./pages/Dashboard";
+import ModulePageWrapper from "./pages/ModulePageWrapper";
+import ModulesPage from "./pages/ModulesPage";
+import SettingsPage from "./pages/SettingsPage";
+import { Login, Register } from "./services/authentication";
+import { useAuthStore } from "./stores/authStore";
 
 export default function App() {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   return (
     <BrowserRouter>
@@ -25,7 +26,10 @@ export default function App() {
           }
         />
         <Route path="/login" element={<LoginPanel onSubmit={Login} />} />
-        <Route path="/register" element={<RegisterPanel onSubmit={Register} />} />
+        <Route
+          path="/register"
+          element={<RegisterPanel onSubmit={Register} />}
+        />
         <Route
           path="/dashboard"
           element={
@@ -45,9 +49,9 @@ export default function App() {
         <Route
           path="/modules/:name"
           element={
-          <ProtectedRoute>
-            <ModulePageWrapper />
-          </ProtectedRoute>
+            <ProtectedRoute>
+              <ModulePageWrapper />
+            </ProtectedRoute>
           }
         />
         <Route
@@ -71,9 +75,9 @@ export default function App() {
         <Route
           path="/console/:username"
           element={
-          <ProtectedRoute>
-            <ConsolePageWrapper />
-          </ProtectedRoute>
+            <ProtectedRoute>
+              <ConsolePageWrapper />
+            </ProtectedRoute>
           }
         />
         <Route path="*" element={<NotFound />} />

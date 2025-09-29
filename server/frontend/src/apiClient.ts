@@ -6,10 +6,10 @@ export interface ApiError {
 
 export function isApiError(obj: unknown): obj is ApiError {
   return (
-    typeof obj === 'object' &&
-      obj !== null &&
-      'statusCode' in obj &&
-      'message' in obj
+    typeof obj === "object" &&
+    obj !== null &&
+    "statusCode" in obj &&
+    "message" in obj
   );
 }
 
@@ -21,9 +21,11 @@ class ApiClient {
     const apiUrl = localStorage.getItem("apiUrl");
     if (apiUrl) {
       this.apiUrl = apiUrl;
-      this.initializationPromise = this.validateAndSetUrl(apiUrl).catch((error) => {
-        console.warn('Failed to validate API URL on initialization:', error);
-      });
+      this.initializationPromise = this.validateAndSetUrl(apiUrl).catch(
+        (error) => {
+          console.warn("Failed to validate API URL on initialization:", error);
+        },
+      );
     }
   }
 
@@ -32,12 +34,14 @@ class ApiClient {
     if (!isValid) {
       this.apiUrl = undefined;
       localStorage.removeItem("apiUrl");
-      console.warn('Stored API URL is no longer valid, removing from localStorage');
+      console.warn(
+        "Stored API URL is no longer valid, removing from localStorage",
+      );
     }
   }
 
   public async setApiUrl(url: string): Promise<boolean> {
-    const trimmedUrl = url.trim().replace(/\/+$/, '');
+    const trimmedUrl = url.trim().replace(/\/+$/, "");
     const isValid = await this.validateApiUrl(trimmedUrl);
 
     if (isValid) {
@@ -54,22 +58,22 @@ class ApiClient {
   private async validateApiUrl(url: string): Promise<boolean> {
     try {
       const response = await fetch(url, {
-        credentials: 'include'
+        credentials: "include",
       });
 
       if (!response.ok) {
         return false;
       }
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType?.includes('application/json')) {
+      const contentType = response.headers.get("content-type");
+      if (!contentType?.includes("application/json")) {
         return false;
       }
 
       const data = await response.json();
-      return data.message === 'onewAy API';
+      return data.message === "onewAy API";
     } catch (error) {
-      console.warn('API URL validation failed:', error);
+      console.warn("API URL validation failed:", error);
       return false;
     }
   }
@@ -88,24 +92,27 @@ class ApiClient {
     return this.apiUrl;
   }
 
-  protected async request<T>(endpoint: string, options: RequestInit = {}): Promise<T | ApiError> {
+  protected async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<T | ApiError> {
     if (!this.apiUrl) {
       return {
         statusCode: -1,
-        message: 'API URL not configured. Please set a valid API URL first.',
+        message: "API URL not configured. Please set a valid API URL first.",
       };
     }
 
     try {
       const url = `${this.apiUrl}${endpoint}`;
-      console.log('API Request:', url);
+      console.log("API Request:", url);
 
       const response = await fetch(url, {
         headers: {
-          ...(options.body && { 'Content-Type': 'application/json' }),
+          ...(options.body && { "Content-Type": "application/json" }),
           ...options.headers,
         },
-        credentials: 'include',
+        credentials: "include",
         ...options,
       });
 
@@ -128,49 +135,59 @@ class ApiClient {
       }
 
       // Check if response has content before trying to parse JSON
-      const contentLength = response.headers.get('content-length');
-      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get("content-length");
+      const contentType = response.headers.get("content-type");
 
-      if (contentLength === '0' || !contentType?.includes('application/json')) {
+      if (contentLength === "0" || !contentType?.includes("application/json")) {
         return {} as T; // Return empty object for empty responses
       }
 
-      return await response.json() as T;
+      return (await response.json()) as T;
     } catch (error) {
       return {
         statusCode: -1,
-        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
 
   public async get<T>(endpoint: string): Promise<T | ApiError> {
-    return this.request<T>(endpoint, { method: 'GET' });
+    return this.request<T>(endpoint, { method: "GET" });
   }
 
-  public async post<TRequest, TResponse>(endpoint: string, data: TRequest): Promise<TResponse | ApiError> {
+  public async post<TRequest, TResponse>(
+    endpoint: string,
+    data: TRequest,
+  ): Promise<TResponse | ApiError> {
     return this.request<TResponse>(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  public async put<TRequest, TResponse>(endpoint: string, data: TRequest): Promise<TResponse | ApiError> {
+  public async put<TRequest, TResponse>(
+    endpoint: string,
+    data: TRequest,
+  ): Promise<TResponse | ApiError> {
     return this.request<TResponse>(endpoint, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
   public async delete<T>(endpoint: string): Promise<T | ApiError> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+    return this.request<T>(endpoint, { method: "DELETE" });
   }
 
-  public async requestBytes(endpoint: string, options: RequestInit = {}): Promise<ArrayBuffer | ApiError> {
+  public async requestBytes(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<ArrayBuffer | ApiError> {
     if (!this.apiUrl) {
       return {
         statusCode: -1,
-        message: 'API URL not configured. Please set a valid API URL first.',
+        message: "API URL not configured. Please set a valid API URL first.",
       };
     }
 
@@ -180,7 +197,7 @@ class ApiClient {
         headers: {
           ...options.headers,
         },
-        credentials: 'include',
+        credentials: "include",
         ...options,
       });
 
@@ -204,7 +221,8 @@ class ApiClient {
     } catch (error) {
       return {
         statusCode: -1,
-        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }

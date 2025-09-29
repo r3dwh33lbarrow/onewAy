@@ -9,4 +9,3 @@ export interface UserInfoResponse {
 export interface UserUpdateRequest {
   username?: string;
 }
-

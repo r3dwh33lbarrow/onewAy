@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import ClientCard from "../components/ClientCard.tsx";
-import { apiClient } from "../apiClient.ts";
-import type { ClientAllResponse, BasicClientInfo } from "../schemas/client.ts";
-import type { TokenResponse } from "../schemas/authentication.ts";
-import MainSkeleton from "../components/MainSkeleton.tsx";
+
+import { apiClient } from "../apiClient";
+import ClientCard from "../components/ClientCard";
+import MainSkeleton from "../components/MainSkeleton";
+import type { TokenResponse } from "../schemas/authentication";
+import type { ClientAllResponse, BasicClientInfo } from "../schemas/client";
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -13,12 +14,12 @@ export default function Dashboard() {
   const socketRef = useRef<WebSocket | null>(null);
 
   const updateClientAliveStatus = (username: string, alive: boolean) => {
-    setClients(prevClients =>
-      prevClients.map(client =>
+    setClients((prevClients) =>
+      prevClients.map((client) =>
         client.username === username
           ? { ...client, alive, last_contact: new Date().toISOString() }
-          : client
-      )
+          : client,
+      ),
     );
   };
 
@@ -46,9 +47,15 @@ export default function Dashboard() {
   useEffect(() => {
     const initializeWebSocket = async () => {
       try {
-        const tokenResponse = await apiClient.post<object, TokenResponse>("/ws-token", {});
+        const tokenResponse = await apiClient.post<object, TokenResponse>(
+          "/ws-token",
+          {},
+        );
         if ("statusCode" in tokenResponse) {
-          console.error("Failed to get WebSocket token:", tokenResponse.message);
+          console.error(
+            "Failed to get WebSocket token:",
+            tokenResponse.message,
+          );
           return;
         }
 
@@ -59,8 +66,8 @@ export default function Dashboard() {
           return;
         }
         const url = new URL(baseUrl);
-        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-        url.pathname = '/ws';
+        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+        url.pathname = "/ws";
         url.search = `token=${encodeURIComponent(wsToken)}`;
         const socket = new WebSocket(url.toString());
         socketRef.current = socket;
@@ -87,7 +94,6 @@ export default function Dashboard() {
         socket.onclose = (event) => {
           console.log("WebSocket connection closed:", event.code, event.reason);
         };
-
       } catch (error) {
         console.error("Failed to initialize WebSocket:", error);
       }
@@ -126,9 +132,5 @@ export default function Dashboard() {
     </div>
   );
 
-  return (
-    <MainSkeleton baseName="Dashboard">
-      {dashboardContents}
-    </MainSkeleton>
-  );
+  return <MainSkeleton baseName="Dashboard">{dashboardContents}</MainSkeleton>;
 }

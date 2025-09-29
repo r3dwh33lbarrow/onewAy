@@ -1,9 +1,10 @@
+import { Alert, Button, Label, TextInput } from "flowbite-react";
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Alert, Button, Label, TextInput } from "flowbite-react";
-import { apiClient } from "../apiClient.ts";
-import ApiUrlInput from "./ApiUrlInput.tsx";
-import { useAuthStore } from "../stores/authStore.ts";
+
+import { apiClient } from "../apiClient";
+import ApiUrlInput from "./ApiUrlInput";
+import { useAuthStore } from "../stores/authStore";
 
 interface AuthFormProps {
   title: string;
@@ -29,20 +30,22 @@ export default function AuthForm({
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [apiUrl, setApiUrl] = useState('http://localhost:8000/');
+  const [apiUrl, setApiUrl] = useState(
+    apiClient.getApiUrl() ?? "http://localhost:8000/",
+  );
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    username: '',
-    password: ''
+    username: "",
+    password: "",
   });
 
-  const setUser = useAuthStore(state => state.setUser);
+  const setUser = useAuthStore((state) => state.setUser);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setFormData(prevFormData => ({
+    setFormData((prevFormData) => ({
       ...prevFormData,
-      [id]: value
+      [id]: value,
     }));
   };
 
@@ -53,9 +56,9 @@ export default function AuthForm({
     if (isUrlValid) {
       const success = await onSubmit(formData);
       if (success) {
-        if (successRedirectPath === '/dashboard') {
+        if (successRedirectPath === "/dashboard") {
           setUser({ username: formData.username });
-          const from = location.state?.from?.pathname || '/dashboard';
+          const from = location.state?.from?.pathname || "/dashboard";
           navigate(from, { replace: true });
         } else {
           navigate(successRedirectPath);
@@ -64,7 +67,7 @@ export default function AuthForm({
         setError(errorMessage);
       }
     } else {
-      setError('Invalid API URL');
+      setError("Invalid API URL");
     }
   };
 
@@ -74,7 +77,11 @@ export default function AuthForm({
         <h1 className="text-xl font-bold dark:text-white mb-4">{title}</h1>
 
         {error && (
-          <Alert color="failure" className="mb-4 w-full" onDismiss={() => setError(null)}>
+          <Alert
+            color="failure"
+            className="mb-4 w-full"
+            onDismiss={() => setError(null)}
+          >
             <span>{error}</span>
           </Alert>
         )}
@@ -122,7 +129,7 @@ export default function AuthForm({
         </form>
 
         <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
-          {footerText}{' '}
+          {footerText}{" "}
           <span
             className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
             onClick={() => navigate(footerLinkPath)}

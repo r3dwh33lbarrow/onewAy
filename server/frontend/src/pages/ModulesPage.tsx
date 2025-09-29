@@ -1,19 +1,29 @@
-import MainSkeleton from "../components/MainSkeleton.tsx";
-import type {UserModuleAllResponse} from "../services/modules.ts";
-import { getAllModules, uploadModuleFolder } from "../services/modules.ts";
-import {Button, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow} from "flowbite-react";
+import {
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeadCell,
+  TableRow,
+} from "flowbite-react";
 import { useEffect, useState } from "react";
-import {snakeCaseToTitle} from "../utils.ts";
-import { HiMiniPlus } from "react-icons/hi2";
 import { HiOutlineUpload } from "react-icons/hi";
-import ModuleAddModal from "../components/ModuleAddModal.tsx";
+import { HiMiniPlus } from "react-icons/hi2";
+import { useNavigate } from "react-router-dom";
 
+import MainSkeleton from "../components/MainSkeleton";
+import ModuleAddModal from "../components/ModuleAddModal";
+import type { UserModuleAllResponse } from "../services/modules";
+import { getAllModules, uploadModuleFolder } from "../services/modules";
+import { snakeCaseToTitle } from "../utils";
 
 export default function ModulesPage() {
   const [modules, setModules] = useState<UserModuleAllResponse["modules"]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchModules = async () => {
@@ -40,11 +50,11 @@ export default function ModulesPage() {
   }, []);
 
   const uploadAndAdd = () => {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
     fileInput.webkitdirectory = true; // Enable directory selection
     fileInput.multiple = true; // Required for directory uploads
-    fileInput.style.display = 'none';
+    fileInput.style.display = "none";
 
     fileInput.onchange = async (event) => {
       const target = event.target as HTMLInputElement;
@@ -62,12 +72,15 @@ export default function ModulesPage() {
 
         // You can now process the files with their relative paths
         // files[i].webkitRelativePath contains the path relative to the selected folder
-        console.log('Selected files:', filesArray.map(f => f.webkitRelativePath));
+        console.log(
+          "Selected files:",
+          filesArray.map((f) => f.webkitRelativePath),
+        );
 
         const result = await uploadModuleFolder(filesArray);
 
         if ("result" in result) {
-          alert('Module uploaded successfully!');
+          alert("Module uploaded successfully!");
           // Refresh the modules list
           const modulesResult = await getAllModules();
           if ("modules" in modulesResult) {
@@ -75,12 +88,12 @@ export default function ModulesPage() {
           }
         } else {
           // Handle ApiError
-          console.error('Upload API Error:', result);
-          alert(`Upload failed: ${result.message || 'Unknown error'}`);
+          console.error("Upload API Error:", result);
+          alert(`Upload failed: ${result.message || "Unknown error"}`);
         }
       } catch (error) {
-        console.error('Upload error:', error);
-        alert('Upload failed. Please try again.');
+        console.error("Upload error:", error);
+        alert("Upload failed. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -92,7 +105,7 @@ export default function ModulesPage() {
     // Trigger folder selection dialog immediately on user click
     document.body.appendChild(fileInput);
     fileInput.click();
-  }
+  };
 
   const refreshModules = async () => {
     try {
@@ -117,12 +130,22 @@ export default function ModulesPage() {
     <MainSkeleton baseName="Modules">
       <div className="space-y-6">
         <div className="flex gap-4">
-          <Button color="indigo" pill className="px-6 gap-1" onClick={uploadAndAdd}>
+          <Button
+            color="indigo"
+            pill
+            className="px-6 gap-1"
+            onClick={uploadAndAdd}
+          >
             <HiOutlineUpload className="h-5 w-5" />
             Upload & Add
           </Button>
 
-          <Button color="indigo" pill className="px-6 gap-1" onClick={() => setShowAddModal(true)}>
+          <Button
+            color="indigo"
+            pill
+            className="px-6 gap-1"
+            onClick={() => setShowAddModal(true)}
+          >
             <HiMiniPlus className="h-5 w-5" />
             Add
           </Button>
@@ -164,7 +187,7 @@ export default function ModulesPage() {
                   <TableRow
                     key={`${module.name}-${module.version}-${index}`}
                     className="bg-white dark:border-gray-700 dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                    onClick={() => window.location.href = `/modules/${module.name}`}
+                    onClick={() => navigate(`/modules/${module.name}`)}
                   >
                     <TableCell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
                       {snakeCaseToTitle(module.name)}
@@ -172,22 +195,20 @@ export default function ModulesPage() {
                     <TableCell className="whitespace-nowrap text-gray-900 dark:text-white">
                       {module.description}
                     </TableCell>
-                    <TableCell>
-                      {module.version}
-                    </TableCell>
-                    <TableCell>
-                      {module.start}
-                    </TableCell>
+                    <TableCell>{module.version}</TableCell>
+                    <TableCell>{module.start}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {module.binaries_platform.map((platform, platformIndex) => (
-                          <span
-                            key={platformIndex}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                          >
-                            {platform}
-                          </span>
-                        ))}
+                        {module.binaries_platform.map(
+                          (platform, platformIndex) => (
+                            <span
+                              key={platformIndex}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                            >
+                              {platform}
+                            </span>
+                          ),
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -199,7 +220,9 @@ export default function ModulesPage() {
 
         {!loading && !error && modules.length === 0 && (
           <div className="text-center py-8">
-            <p className="text-gray-500 dark:text-gray-400">No modules found.</p>
+            <p className="text-gray-500 dark:text-gray-400">
+              No modules found.
+            </p>
           </div>
         )}
       </div>

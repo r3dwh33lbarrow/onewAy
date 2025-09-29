@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { apiClient, isApiError } from "../apiClient.ts";
+
+import { apiClient, isApiError } from "../apiClient";
 
 interface AvatarState {
   avatarUrl: string | null;

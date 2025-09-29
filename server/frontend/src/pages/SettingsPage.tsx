@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import MainSkeleton from "../components/MainSkeleton.tsx";
-import { apiClient, isApiError } from "../apiClient.ts";
-import { HiOutlineCamera } from "react-icons/hi";
 import { Button, Label, TextInput } from "flowbite-react";
-import type { UserInfoResponse, UserUpdateRequest } from "../schemas/user.ts";
-import type { BasicTaskResponse } from "../schemas/general.ts";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { HiOutlineCamera } from "react-icons/hi";
 
+import { apiClient, isApiError } from "../apiClient";
+import MainSkeleton from "../components/MainSkeleton";
+import type { BasicTaskResponse } from "../schemas/general";
+import type { UserInfoResponse, UserUpdateRequest } from "../schemas/user";
 
 export default function SettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -19,7 +19,10 @@ export default function SettingsPage() {
   const [lastLogin, setLastLogin] = useState<string>("");
   const avatarUrlRef = useRef<string | null>(null);
 
-  const dirty = useMemo(() => username.trim() !== initialUsername.trim(), [username, initialUsername]);
+  const dirty = useMemo(
+    () => username.trim() !== initialUsername.trim(),
+    [username, initialUsername],
+  );
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -35,7 +38,9 @@ export default function SettingsPage() {
       setCreatedAt(userResp.created_at);
       setLastLogin(userResp.last_login);
 
-      const avatarData = await apiClient.requestBytes("/user/get-avatar", { method: "GET" });
+      const avatarData = await apiClient.requestBytes("/user/get-avatar", {
+        method: "GET",
+      });
       if (!isApiError(avatarData)) {
         const blob = new Blob([avatarData], { type: "image/png" });
         const url = URL.createObjectURL(blob);
@@ -49,7 +54,6 @@ export default function SettingsPage() {
     return () => {
       if (avatarUrlRef.current) URL.revokeObjectURL(avatarUrlRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const changeAvatar = () => {
@@ -83,7 +87,9 @@ export default function SettingsPage() {
           throw new Error(err.detail || response.statusText);
         }
         // Refresh avatar
-        const avatarData = await apiClient.requestBytes("/user/get-avatar", { method: "GET" });
+        const avatarData = await apiClient.requestBytes("/user/get-avatar", {
+          method: "GET",
+        });
         if (isApiError(avatarData)) {
           setStatus("Avatar updated, but failed to refresh preview.");
           return;
@@ -107,7 +113,10 @@ export default function SettingsPage() {
     setError(null);
     setStatus(null);
     const payload: UserUpdateRequest = { username: username.trim() };
-    const resp = await apiClient.put<UserUpdateRequest, BasicTaskResponse>("/user/me", payload);
+    const resp = await apiClient.put<UserUpdateRequest, BasicTaskResponse>(
+      "/user/me",
+      payload,
+    );
     setLoading(false);
     if (isApiError(resp)) {
       setError(resp.detail || resp.message);
@@ -122,7 +131,6 @@ export default function SettingsPage() {
       {!error ? (
         <div className="flex min-h-[60vh] w-full">
           <div className="flex flex-col gap-4 w-full">
-
             {status && (
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-800 dark:text-green-200">
                 {status}
@@ -139,13 +147,19 @@ export default function SettingsPage() {
                   >
                     {avatarUrl ? (
                       <>
-                        <img src={avatarUrl} alt="User Avatar" className="w-full h-full object-cover" />
+                        <img
+                          src={avatarUrl}
+                          alt="User Avatar"
+                          className="w-full h-full object-cover"
+                        />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors duration-200 flex items-center justify-center">
                           <HiOutlineCamera className="text-white text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                         </div>
                       </>
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-sm text-gray-400">No avatar</div>
+                      <div className="w-full h-full flex items-center justify-center text-sm text-gray-400">
+                        No avatar
+                      </div>
                     )}
                   </button>
                   <div className="w-full">
@@ -163,34 +177,48 @@ export default function SettingsPage() {
 
               <div className="md:col-span-2">
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
-                  <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">Account</h2>
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                    Account
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">Created</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        Created
+                      </div>
                       <div className="text-sm text-gray-900 dark:text-gray-100">
                         {createdAt ? new Date(createdAt).toLocaleString() : "—"}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">Last Login</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        Last Login
+                      </div>
                       <div className="text-sm text-gray-900 dark:text-gray-100">
                         {lastLogin ? new Date(lastLogin).toLocaleString() : "—"}
                       </div>
                     </div>
                   </div>
                   <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                    Manage your profile information and avatar. Username must be unique.
+                    Manage your profile information and avatar. Username must be
+                    unique.
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center justify-start gap-3">
-              <Button color="blue" size="lg" onClick={saveSettings} disabled={loading || !dirty}>
+              <Button
+                color="blue"
+                size="lg"
+                onClick={saveSettings}
+                disabled={loading || !dirty}
+              >
                 {loading ? "Saving..." : "Save changes"}
               </Button>
               {dirty && !loading && (
-                <span className="text-sm text-gray-500 dark:text-gray-400">Unsaved changes</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Unsaved changes
+                </span>
               )}
             </div>
           </div>

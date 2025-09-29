@@ -1,5 +1,6 @@
-import {useParams} from "react-router-dom";
-import ModulePage from "./ModulePage.tsx";
+import { useParams } from "react-router-dom";
+
+import ModulePage from "./ModulePage";
 
 export default function ModulePageWrapper() {
   const { name } = useParams<{ name: string }>();

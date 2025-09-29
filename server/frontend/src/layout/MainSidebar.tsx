@@ -23,11 +23,19 @@ export default function MainSidebar({ onNavigate }: Props) {
 
       <SidebarItems>
         <SidebarItemGroup>
-          <SidebarItem href="/dashboard" icon={HiOutlineViewGrid} onClick={onNavigate}>
+          <SidebarItem
+            href="/dashboard"
+            icon={HiOutlineViewGrid}
+            onClick={onNavigate}
+          >
             Dashboard
           </SidebarItem>
 
-          <SidebarItem href="/modules" icon={HiOutlineCube} onClick={onNavigate}>
+          <SidebarItem
+            href="/modules"
+            icon={HiOutlineCube}
+            onClick={onNavigate}
+          >
             Modules
           </SidebarItem>
         </SidebarItemGroup>

@@ -1,59 +1,75 @@
-import MainSkeleton from "../components/MainSkeleton.tsx";
-import {useEffect, useState, useRef, useCallback} from "react";
-import {apiClient, isApiError} from "../apiClient.ts";
-import type {ClientInfo} from "../schemas/client.ts";
-import type {TokenResponse} from "../schemas/authentication.ts";
-import {useNavigate} from "react-router-dom";
-import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Button } from "flowbite-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeadCell,
+  TableRow,
+  Button,
+} from "flowbite-react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { MdInstallDesktop } from "react-icons/md";
-import InstallModuleModal from "../components/InstallModuleModal.tsx";
-import type {BasicTaskResponse} from "../schemas/general.ts";
+import { useNavigate } from "react-router-dom";
+
+import { apiClient, isApiError } from "../apiClient";
+import InstallModuleModal from "../components/InstallModuleModal";
+import MainSkeleton from "../components/MainSkeleton";
+import type { TokenResponse } from "../schemas/authentication";
+import type { ClientInfo } from "../schemas/client";
+import type { BasicTaskResponse } from "../schemas/general";
+import type { InstalledModuleInfo } from "../services/modules";
 
 interface ClientPageProps {
   username: string;
 }
 
-interface InstalledModuleInfo {
-  name: string;
-  description?: string;
-  version: string;
-  status: string;
-}
+// Use shared InstalledModuleInfo type from services
 
 export default function ClientPage({ username }: ClientPageProps) {
   const navigate = useNavigate();
   const socketRef = useRef<WebSocket | null>(null);
 
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
-  const [installedModules, setInstalledModules] = useState<InstalledModuleInfo[]>([]);
+  const [installedModules, setInstalledModules] = useState<
+    InstalledModuleInfo[]
+  >([]);
   const [error, setError] = useState<string | null>(null);
   const [showInstallModal, setShowInstallModal] = useState(false);
 
-  const updateClientAliveStatus = useCallback((clientUsername: string, alive: boolean) => {
-    if (clientUsername === username) {
-      setClientInfo(prevClientInfo =>
-        prevClientInfo ? {
-          ...prevClientInfo,
-          alive,
-          last_contact: new Date().toISOString()
-        } : null
-      );
-    }
-  }, [username]);
+  const updateClientAliveStatus = useCallback(
+    (clientUsername: string, alive: boolean) => {
+      if (clientUsername === username) {
+        setClientInfo((prevClientInfo) =>
+          prevClientInfo
+            ? {
+                ...prevClientInfo,
+                alive,
+                last_contact: new Date().toISOString(),
+              }
+            : null,
+        );
+      }
+    },
+    [username],
+  );
 
   useEffect(() => {
-    const fetchClientInfo = async() => {
+    const fetchClientInfo = async () => {
       setError(null);
-      const response = await apiClient.get<ClientInfo>("/client/get/" + username);
+      const response = await apiClient.get<ClientInfo>(
+        "/client/get/" + username,
+      );
 
       if (isApiError(response)) {
         if (response.statusCode === 404) {
-          navigate("/404")
+          navigate("/404");
         } else if (response.statusCode === 401) {
           navigate("/login");
         }
 
-        setError(`Failed to fetch client info (${response.statusCode}): ${response.detail}`);
+        setError(
+          `Failed to fetch client info (${response.statusCode}): ${response.detail}`,
+        );
         return;
       }
       setClientInfo(response);
@@ -65,20 +81,24 @@ export default function ClientPage({ username }: ClientPageProps) {
   useEffect(() => {
     const fetchInstalledModules = async () => {
       setError(null);
-      const response = await apiClient.get<InstalledModuleInfo[]>("/user/modules/installed/" + username);
+      const response = await apiClient.get<InstalledModuleInfo[]>(
+        "/user/modules/installed/" + username,
+      );
       if (isApiError(response)) {
         if (response.statusCode === 401) {
           navigate("/login");
         }
 
-        setError(`Failed to fetch installed modules (${response.statusCode}): ${response.detail}`);
+        setError(
+          `Failed to fetch installed modules (${response.statusCode}): ${response.detail}`,
+        );
         return;
       }
 
       console.log("API Response:", response);
       // Since response is directly an array, not an object with modules property
       setInstalledModules(response || []);
-    }
+    };
 
     fetchInstalledModules();
   }, [navigate, username]);
@@ -86,9 +106,15 @@ export default function ClientPage({ username }: ClientPageProps) {
   useEffect(() => {
     const initializeWebSocket = async () => {
       try {
-        const tokenResponse = await apiClient.post<object, TokenResponse>("/ws-token", {});
+        const tokenResponse = await apiClient.post<object, TokenResponse>(
+          "/ws-token",
+          {},
+        );
         if ("statusCode" in tokenResponse) {
-          console.error("Failed to get WebSocket token:", tokenResponse.message);
+          console.error(
+            "Failed to get WebSocket token:",
+            tokenResponse.message,
+          );
           return;
         }
 
@@ -99,8 +125,8 @@ export default function ClientPage({ username }: ClientPageProps) {
           return;
         }
         const url = new URL(baseUrl);
-        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-        url.pathname = '/ws';
+        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+        url.pathname = "/ws";
         url.search = `token=${encodeURIComponent(wsToken)}`;
         const socket = new WebSocket(url.toString());
         socketRef.current = socket;
@@ -127,7 +153,6 @@ export default function ClientPage({ username }: ClientPageProps) {
         socket.onclose = (event) => {
           console.log("WebSocket connection closed:", event.code, event.reason);
         };
-
       } catch (error) {
         console.error("Failed to initialize WebSocket:", error);
       }
@@ -143,24 +168,31 @@ export default function ClientPage({ username }: ClientPageProps) {
   }, [updateClientAliveStatus]);
 
   const handleInstallModule = async (moduleName: string) => {
-    const response = await apiClient.post<object, { message: string }>("/user/modules/set-installed/" + username + "?module_name=" + moduleName, {});
+    const response = await apiClient.post<object, { message: string }>(
+      "/user/modules/set-installed/" + username + "?module_name=" + moduleName,
+      {},
+    );
     if (isApiError(response)) {
       setError(`Failed to install module: ${response.detail}`);
       return;
     }
 
-    const refresh = await apiClient.get<InstalledModuleInfo[]>("/user/modules/installed/" + username);
+    const refresh = await apiClient.get<InstalledModuleInfo[]>(
+      "/user/modules/installed/" + username,
+    );
     if (!isApiError(refresh)) {
       setInstalledModules(refresh || []);
     }
   };
 
   const handleRunModule = async (moduleName: string) => {
-    const response = await apiClient.get<BasicTaskResponse>("/user/modules/run/"+ moduleName + "?client_username=" + username);
+    const response = await apiClient.get<BasicTaskResponse>(
+      "/user/modules/run/" + moduleName + "?client_username=" + username,
+    );
     if (isApiError(response)) {
       setError(`Failed to run module: ${response.detail}`);
     }
-  }
+  };
 
   return (
     <MainSkeleton baseName={"Client " + username}>
@@ -179,14 +211,18 @@ export default function ClientPage({ username }: ClientPageProps) {
                   src="/windows_default_logo.png"
                   alt="Windows Logo"
                   className="object-contain max-w-none"
-                  style={{ height: 'calc(2.5rem + 7 * 1.75rem + 6 * 0.75rem + 3rem)' }}
+                  style={{
+                    height: "calc(2.5rem + 7 * 1.75rem + 6 * 0.75rem + 3rem)",
+                  }}
                 />
                 <Button
                   pill
                   color="dark"
                   size="sm"
                   className="absolute bottom-5 right-5"
-                  onClick={() => navigate(`/console/${encodeURIComponent(username)}`)}
+                  onClick={() =>
+                    navigate(`/console/${encodeURIComponent(username)}`)
+                  }
                   disabled={clientInfo?.alive !== true}
                 >
                   Open Console
@@ -195,47 +231,77 @@ export default function ClientPage({ username }: ClientPageProps) {
 
               {/* Second column - Client information (determines the height) */}
               <div className="flex-1 border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800 shadow-sm">
-                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 text-center">Client Information</h2>
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 text-center">
+                  Client Information
+                </h2>
                 <div className="space-y-3">
                   <div>
-                    <span className="font-medium text-gray-600 dark:text-gray-300">Username:</span>
-                    <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.username}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600 dark:text-gray-300">UUID:</span>
-                    <span className="ml-2 text-gray-900 dark:text-gray-100 font-mono text-sm">{clientInfo.uuid}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600 dark:text-gray-300">IP Address:</span>
-                    <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.ip_address}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600 dark:text-gray-300">Hostname:</span>
-                    <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.hostname}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600 dark:text-gray-300">Status:</span>
-                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                      clientInfo.alive 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                    }`}>
-                      {clientInfo.alive ? 'Online' : 'Offline'}
+                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                      Username:
+                    </span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">
+                      {clientInfo.username}
                     </span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-600 dark:text-gray-300">Last Contact:</span>
-                    <span className="ml-2 text-gray-900 dark:text-gray-100">{new Date(clientInfo.last_contact).toLocaleString()}</span>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                      UUID:
+                    </span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100 font-mono text-sm">
+                      {clientInfo.uuid}
+                    </span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-600 dark:text-gray-300">Location:</span>
-                    <span className="ml-2 text-gray-900 dark:text-gray-100">{clientInfo.last_known_location}</span>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                      IP Address:
+                    </span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">
+                      {clientInfo.ip_address}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                      Hostname:
+                    </span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">
+                      {clientInfo.hostname}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                      Status:
+                    </span>
+                    <span
+                      className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                        clientInfo.alive
+                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                          : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                      }`}
+                    >
+                      {clientInfo.alive ? "Online" : "Offline"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                      Last Contact:
+                    </span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">
+                      {new Date(clientInfo.last_contact).toLocaleString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                      Location:
+                    </span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">
+                      {clientInfo.last_known_location}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
 
-              <div className="p-6">
+            <div className="p-6">
               <div className="flex items-center justify-between mb-6 gap-3">
                 <div className="flex gap-3">
                   <Button
@@ -249,10 +315,11 @@ export default function ClientPage({ username }: ClientPageProps) {
                     Install
                   </Button>
                 </div>
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 flex-1 text-center">Installed Modules</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 flex-1 text-center">
+                  Installed Modules
+                </h2>
                 <div className="w-24"></div>
               </div>
-
 
               <div className="overflow-x-auto">
                 <Table striped>
@@ -275,13 +342,16 @@ export default function ClientPage({ username }: ClientPageProps) {
                             {module.name}
                           </TableCell>
                           <TableCell>{module.version}</TableCell>
-                          <TableCell>{module.description || 'No description available'}</TableCell>
                           <TableCell>
-                              {module.status}
+                            {module.description || "No description available"}
                           </TableCell>
+                          <TableCell>{module.status}</TableCell>
                           <TableCell>
-                            <button className="font-medium text-cyan-600 hover:underline dark:text-cyan-500 disabled:opacity-50 disabled:no-underline"
-                            disabled={clientInfo?.alive !== true} onClick={() => handleRunModule(module.name)}>
+                            <button
+                              className="font-medium text-cyan-600 hover:underline dark:text-cyan-500 disabled:opacity-50 disabled:no-underline"
+                              disabled={clientInfo?.alive !== true}
+                              onClick={() => handleRunModule(module.name)}
+                            >
                               Run
                             </button>
                           </TableCell>
@@ -289,7 +359,10 @@ export default function ClientPage({ username }: ClientPageProps) {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-gray-500 dark:text-gray-400">
+                        <TableCell
+                          colSpan={5}
+                          className="text-center text-gray-500 dark:text-gray-400"
+                        >
                           No modules installed
                         </TableCell>
                       </TableRow>

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
 import { Label, TextInput } from "flowbite-react";
-import { apiClient } from "../apiClient.ts";
+import React, { useState } from "react";
+
+import { apiClient } from "../apiClient";
 
 interface ApiUrlInputProps {
   value: string;
@@ -8,8 +9,14 @@ interface ApiUrlInputProps {
   onValidationChange: (isValid: boolean) => void;
 }
 
-export default function ApiUrlInput({ value, onChange, onValidationChange }: ApiUrlInputProps) {
-  const [urlValidation, setUrlValidation] = useState<'valid' | 'invalid' | 'pending'>('pending');
+export default function ApiUrlInput({
+  value,
+  onChange,
+  onValidationChange,
+}: ApiUrlInputProps) {
+  const [urlValidation, setUrlValidation] = useState<
+    "valid" | "invalid" | "pending"
+  >("pending");
 
   const handleApiUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value: newValue } = e.target;
@@ -17,9 +24,9 @@ export default function ApiUrlInput({ value, onChange, onValidationChange }: Api
   };
 
   const handleApiUrlBlur = async () => {
-    setUrlValidation('pending');
+    setUrlValidation("pending");
     const isUrlValid = await apiClient.setApiUrl(value);
-    setUrlValidation(isUrlValid ? 'valid' : 'invalid');
+    setUrlValidation(isUrlValid ? "valid" : "invalid");
     onValidationChange(isUrlValid);
   };
 
@@ -35,7 +42,13 @@ export default function ApiUrlInput({ value, onChange, onValidationChange }: Api
         required={true}
         onChange={handleApiUrlChange}
         onBlur={handleApiUrlBlur}
-        color={urlValidation === 'valid' ? 'success' : urlValidation === 'invalid' ? 'failure' : 'gray'}
+        color={
+          urlValidation === "valid"
+            ? "success"
+            : urlValidation === "invalid"
+              ? "failure"
+              : "gray"
+        }
       />
     </div>
   );
