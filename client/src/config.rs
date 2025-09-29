@@ -6,7 +6,7 @@ use std::io;
 use std::sync::Arc;
 use toml;
 
-pub static CONFIG_PATH: Lazy<String> =
+static CONFIG_PATH: Lazy<String> =
     Lazy::new(|| utils::resolve_current_dir("[CURRENT_DIR]/config.toml"));
 
 #[derive(Serialize, Deserialize, Debug)]

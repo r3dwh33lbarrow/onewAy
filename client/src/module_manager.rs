@@ -37,13 +37,13 @@ pub enum ModuleStart {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Binaries {
+pub(crate) struct Binaries {
     pub windows: Option<String>,
     pub mac: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct ModuleConfig {
+pub(crate) struct ModuleConfig {
     name: String,
     binaries: Binaries,
     start: ModuleStart,
@@ -57,7 +57,7 @@ pub struct ModuleManager {
 }
 
 impl ModuleConfig {
-    pub fn resolve_binaries(&self) -> Option<&str> {
+    pub(crate) fn resolve_binaries(&self) -> Option<&str> {
         #[cfg(target_os = "windows")]
         {
             return self.binaries.windows.as_deref();
@@ -82,7 +82,7 @@ impl ModuleManager {
         }
     }
 
-    pub async fn load_module(
+    async fn load_module(
         &mut self,
         config_path: &str,
         parent_dir: Option<String>,
@@ -132,18 +132,18 @@ impl ModuleManager {
         Ok(())
     }
 
-    pub async fn start_module(&self, module: ModuleConfig) -> Result<(), ModuleManagerError> {
+    async fn start_module(&self, module: ModuleConfig) -> Result<(), ModuleManagerError> {
         if let Some(binary) = module.resolve_binaries() {
             let relative_path = Path::new(&self.modules_directory)
                 .join(str_to_snake_case(&module.name))
                 .join(binary);
 
             let child = if relative_path.is_file() {
-                tokio::process::Command::new(&relative_path)
+                Command::new(&relative_path)
                     .spawn()
                     .map_err(ModuleManagerError::IO)?
             } else if Path::new(binary).is_file() {
-                tokio::process::Command::new(binary)
+                Command::new(binary)
                     .spawn()
                     .map_err(ModuleManagerError::IO)?
             } else {
@@ -164,7 +164,7 @@ impl ModuleManager {
         }
     }
     
-    pub async fn start_module_streaming(
+    pub(crate) async fn start_module_streaming(
         &self,
         name: &str,
         sender: UnboundedSender<String>,
@@ -290,7 +290,7 @@ impl ModuleManager {
         Ok(())
     }
 
-    pub async fn get_module(&self, name: &str) -> Option<ModuleConfig> {
+    pub(crate) async fn get_module(&self, name: &str) -> Option<ModuleConfig> {
         let configs = self.module_configs.lock().await;
         configs
             .iter()
@@ -302,11 +302,11 @@ impl ModuleManager {
             .cloned()
     }
 
-    pub fn get_modules_directory(&self) -> String {
+    fn get_modules_directory(&self) -> String {
         self.modules_directory.to_string()
     }
 
-    pub async fn cancel_module(&self, name: &str) -> bool {
+    pub(crate) async fn cancel_module(&self, name: &str) -> bool {
         let map = self.running.lock().await;
         if let Some(child_arc) = map.get(name) {
             let mut child = child_arc.lock().await;

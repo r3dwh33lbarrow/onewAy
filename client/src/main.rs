@@ -1,17 +1,8 @@
-mod config;
-mod http;
-mod logger;
-mod module_manager;
-mod schemas;
-mod update;
-mod utils;
-
-use crate::config::CONFIG;
-use crate::http::api_client::ApiClient;
-use crate::http::auth::{enroll, login};
-use crate::http::websockets::start_websocket_client;
-use crate::module_manager::{ModuleManager, ModuleStart};
-use client::config::set_enrolled;
+use client::{
+    debug, error, info, warn, // macros
+    ApiClient, ModuleManager, ModuleStart, CONFIG, enroll, login, set_enrolled,
+    start_websocket_client,
+};
 use std::sync::Arc;
 
 #[tokio::main]
