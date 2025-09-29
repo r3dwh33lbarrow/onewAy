@@ -7,7 +7,7 @@ async def test_client_me(client: AsyncClient):
     enroll_payload = {
         "username": "testuser",
         "password": "pw123",
-        "client_version": "0.1.0"
+        "client_version": "0.1.0",
     }
     r = await client.post("/client/auth/enroll", json=enroll_payload)
     assert r.status_code == 200
@@ -25,12 +25,13 @@ async def test_client_me(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_client_get_and_all(client: AsyncClient):
-    await client.post("/client/auth/enroll", json={
-        "username": "alice",
-        "password": "pw",
-        "client_version": "0.2.0"
-    })
-    r = await client.post("/client/auth/login", json={"username": "alice", "password": "pw"})
+    await client.post(
+        "/client/auth/enroll",
+        json={"username": "alice", "password": "pw", "client_version": "0.2.0"},
+    )
+    r = await client.post(
+        "/client/auth/login", json={"username": "alice", "password": "pw"}
+    )
     token = r.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}", "user-agent": "oneway-client"}
 
@@ -46,12 +47,13 @@ async def test_client_get_and_all(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_client_update_info(client: AsyncClient):
-    await client.post("/client/auth/enroll", json={
-        "username": "bob",
-        "password": "pw",
-        "client_version": "0.5.0"
-    })
-    r = await client.post("/client/auth/login", json={"username": "bob", "password": "pw"})
+    await client.post(
+        "/client/auth/enroll",
+        json={"username": "bob", "password": "pw", "client_version": "0.5.0"},
+    )
+    r = await client.post(
+        "/client/auth/login", json={"username": "bob", "password": "pw"}
+    )
     token = r.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}", "user-agent": "oneway-client"}
 

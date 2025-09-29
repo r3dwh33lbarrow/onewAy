@@ -12,19 +12,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
+from app.logger import get_logger
 from app.models.client import Client
 from app.models.user import User
 from app.schemas.general import TokenResponse
 from app.services.authentication import (
+    TokenType,
     create_access_token,
     get_current_client,
     get_current_user,
     verify_websocket_access_token,
-    TokenType,
 )
 from app.services.client_websockets import client_websocket_manager
 from app.services.user_websockets import user_websocket_manager
-from app.logger import get_logger
 
 router = APIRouter()
 logger = get_logger()

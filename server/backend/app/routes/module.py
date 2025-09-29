@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_db
+from app.logger import get_logger
 from app.models.client_module import ClientModule
 from app.schemas.general import BasicTaskResponse
 from app.schemas.module import *
@@ -13,7 +14,6 @@ from app.services.client_websockets import client_websocket_manager
 from app.services.module import *
 from app.settings import settings
 from app.utils import convert_to_snake_case, hyphen_to_snake_case
-from app.logger import get_logger
 
 router = APIRouter(prefix="/module")
 logger = get_logger()

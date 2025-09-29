@@ -9,11 +9,11 @@ from fastapi import HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.logger import get_logger
 from app.models.client import Client
 from app.models.module import Module
 from app.settings import settings
 from app.utils import convert_to_snake_case
-from app.logger import get_logger
 
 logger = get_logger()
 

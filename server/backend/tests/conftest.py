@@ -7,9 +7,9 @@ from typing import AsyncGenerator
 import httpx
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 from httpx_ws.transport import ASGIWebSocketTransport
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -31,13 +31,15 @@ settings = settings.inject_testing()
 
 
 test_engine = create_async_engine(
-            settings.database.url,
-            echo=settings.database.echo,
-            future=True,
-            pool_size=settings.database.pool_size,
-            pool_timeout=settings.database.pool_timeout
+    settings.database.url,
+    echo=settings.database.echo,
+    future=True,
+    pool_size=settings.database.pool_size,
+    pool_timeout=settings.database.pool_timeout,
 )
-TestAsyncSessionLocal = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+TestAsyncSessionLocal = async_sessionmaker(
+    test_engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
 @pytest.fixture(scope="session")
@@ -69,7 +71,9 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_db] = override_get_db
     transport = ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as ac:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://testserver"
+    ) as ac:
         yield ac
 
     app.dependency_overrides.clear()

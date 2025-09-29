@@ -8,10 +8,10 @@ from app.models.client import Client
 from app.schemas.client_auth import *
 from app.schemas.general import BasicTaskResponse, TokenResponse
 from app.services.authentication import (
+    TokenType,
     create_access_token,
     create_refresh_token,
     rotate_refresh_token,
-    TokenType
 )
 from app.services.password import hash_password
 

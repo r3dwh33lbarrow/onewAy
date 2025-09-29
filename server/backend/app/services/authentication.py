@@ -10,12 +10,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
+from app.logger import get_logger
 from app.models.client import Client
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.services.password import pwd_context
 from app.settings import settings
-from app.logger import get_logger
 
 security = HTTPBearer(auto_error=False)
 logger = get_logger()

@@ -3,8 +3,12 @@ from httpx import AsyncClient
 
 
 async def _register_and_login(client: AsyncClient, username="tester", password="pw"):
-    await client.post("/user/auth/register", json={"username": username, "password": password})
-    r = await client.post("/user/auth/login", json={"username": username, "password": password})
+    await client.post(
+        "/user/auth/register", json={"username": username, "password": password}
+    )
+    r = await client.post(
+        "/user/auth/login", json={"username": username, "password": password}
+    )
     assert r.status_code == 200
     client.cookies.set("access_token", r.cookies.get("access_token"))
     return username, password
@@ -30,7 +34,9 @@ async def test_user_patch_username_success(client: AsyncClient):
     assert r.status_code == 200
     assert r.json() == {"result": "success"}
     await client.post("/user/auth/logout")
-    r = await client.post("/user/auth/login", json={"username": "newname", "password": password})
+    r = await client.post(
+        "/user/auth/login", json={"username": "newname", "password": password}
+    )
     assert r.status_code == 200
 
 

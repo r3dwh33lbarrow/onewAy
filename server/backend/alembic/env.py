@@ -3,10 +3,11 @@ import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+
+from alembic import context
 
 sys.path.append(str(Path(__file__).parent.parent))
 from app.settings import settings
@@ -28,9 +29,10 @@ if config.config_file_name is not None:
 from app.db.base import Base
 from app.models.client import Client  # noqa
 from app.models.client_module import ClientModule  # noqa
-from app.models.refresh_token import RefreshToken  # noqa
 from app.models.module import Module  # noqa
+from app.models.refresh_token import RefreshToken  # noqa
 from app.models.user import User  # noqa
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

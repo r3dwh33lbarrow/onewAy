@@ -4,10 +4,10 @@ from fastapi import FastAPI
 from sqlalchemy import update
 from starlette.middleware.cors import CORSMiddleware
 
-from app.dependencies import init_db, get_db, cleanup_db
+from app.dependencies import cleanup_db, get_db, init_db
 from app.logger import get_logger
 from app.models.client import Client
-from app.routes import client, client_auth, user, user_auth, module, websockets
+from app.routes import client, client_auth, module, user, user_auth, websockets
 from app.settings import settings
 
 
