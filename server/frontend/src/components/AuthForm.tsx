@@ -1,17 +1,19 @@
 import { Alert, Button, Label, TextInput } from "flowbite-react";
 import React, { useState } from "react";
+import { HiMiniExclamationCircle } from "react-icons/hi2";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { apiClient } from "../apiClient";
+import { apiClient, type ApiError, isApiError } from "../apiClient";
 import ApiUrlInput from "./ApiUrlInput";
+import type { AuthRequest } from "../schemas/authentication.ts";
+import type { BasicTaskResponse } from "../schemas/general.ts";
 import { useAuthStore } from "../stores/authStore";
 
 interface AuthFormProps {
   title: string;
   submitButtonText: string;
-  onSubmit: (data: { username: string; password: string }) => Promise<boolean>;
+  onSubmit: (data: AuthRequest) => Promise<BasicTaskResponse | ApiError>;
   successRedirectPath: string;
-  errorMessage: string;
   footerText: string;
   footerLinkText: string;
   footerLinkPath: string;
@@ -22,7 +24,6 @@ export default function AuthForm({
   submitButtonText,
   onSubmit,
   successRedirectPath,
-  errorMessage,
   footerText,
   footerLinkText,
   footerLinkPath,
@@ -54,8 +55,8 @@ export default function AuthForm({
 
     const isUrlValid = await apiClient.setApiUrl(apiUrl);
     if (isUrlValid) {
-      const success = await onSubmit(formData);
-      if (success) {
+      const response = await onSubmit(formData);
+      if (!isApiError(response)) {
         if (successRedirectPath === "/dashboard") {
           setUser({ username: formData.username });
           const from = location.state?.from?.pathname || "/dashboard";
@@ -64,7 +65,7 @@ export default function AuthForm({
           navigate(successRedirectPath);
         }
       } else {
-        setError(errorMessage);
+        setError(`${response.message}: ${response.detail}`);
       }
     } else {
       setError("Invalid API URL");
@@ -73,11 +74,10 @@ export default function AuthForm({
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-      <div className="w-full max-w-md rounded-lg shadow-xl flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800">
-        <h1 className="text-xl font-bold dark:text-white mb-4">{title}</h1>
-
+      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 w-3/4 px-4 z-50">
         {error && (
           <Alert
+            icon={HiMiniExclamationCircle}
             color="failure"
             className="mb-4 w-full"
             onDismiss={() => setError(null)}
@@ -85,6 +85,10 @@ export default function AuthForm({
             <span>{error}</span>
           </Alert>
         )}
+      </div>
+
+      <div className="w-full max-w-md rounded-lg shadow-xl flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800">
+        <h1 className="text-xl font-bold dark:text-white mb-4">{title}</h1>
 
         <ApiUrlInput
           value={apiUrl}

@@ -1,7 +1,10 @@
 import AuthForm from "./AuthForm";
+import type { ApiError } from "../apiClient.ts";
+import type { AuthRequest } from "../schemas/authentication.ts";
+import type { BasicTaskResponse } from "../schemas/general.ts";
 
 interface RegisterPanelProps {
-  onSubmit: (data: { username: string; password: string }) => Promise<boolean>;
+  onSubmit: (data: AuthRequest) => Promise<BasicTaskResponse | ApiError>;
 }
 
 export default function RegisterPanel({ onSubmit }: RegisterPanelProps) {
@@ -11,7 +14,6 @@ export default function RegisterPanel({ onSubmit }: RegisterPanelProps) {
       submitButtonText="Register"
       onSubmit={onSubmit}
       successRedirectPath="/login"
-      errorMessage="Failed to register"
       footerText="Already have an account?"
       footerLinkText="Login"
       footerLinkPath="/login"
