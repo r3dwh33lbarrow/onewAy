@@ -9,7 +9,7 @@ import {
 } from "flowbite-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { MdInstallDesktop } from "react-icons/md";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { apiClient, isApiError } from "../apiClient";
 import InstallModuleModal from "../components/InstallModuleModal";
@@ -19,13 +19,9 @@ import type { ClientInfo } from "../schemas/client";
 import type { BasicTaskResponse } from "../schemas/general";
 import type { InstalledModuleInfo } from "../services/modules";
 
-interface ClientPageProps {
-  username: string;
-}
-
 // Use shared InstalledModuleInfo type from services
-
-export default function ClientPage({ username }: ClientPageProps) {
+export default function ClientPage() {
+  const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -54,6 +50,7 @@ export default function ClientPage({ username }: ClientPageProps) {
   );
 
   useEffect(() => {
+    if (!username) return;
     const fetchClientInfo = async () => {
       setError(null);
       const response = await apiClient.get<ClientInfo>(
@@ -79,6 +76,7 @@ export default function ClientPage({ username }: ClientPageProps) {
   }, [username, navigate]);
 
   useEffect(() => {
+    if (!username) return;
     const fetchInstalledModules = async () => {
       setError(null);
       const response = await apiClient.get<InstalledModuleInfo[]>(
@@ -168,6 +166,7 @@ export default function ClientPage({ username }: ClientPageProps) {
   }, [updateClientAliveStatus]);
 
   const handleInstallModule = async (moduleName: string) => {
+    if (!username) return;
     const response = await apiClient.post<object, { message: string }>(
       "/user/modules/set-installed/" + username + "?module_name=" + moduleName,
       {},
@@ -186,6 +185,7 @@ export default function ClientPage({ username }: ClientPageProps) {
   };
 
   const handleRunModule = async (moduleName: string) => {
+    if (!username) return;
     const response = await apiClient.get<BasicTaskResponse>(
       "/user/modules/run/" + moduleName + "?client_username=" + username,
     );
@@ -195,14 +195,19 @@ export default function ClientPage({ username }: ClientPageProps) {
   };
 
   return (
-    <MainSkeleton baseName={"Client " + username}>
+    <MainSkeleton baseName={"Client " + (username ?? "")}>
       <div>
+        {!username && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            No username provided
+          </div>
+        )}
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
             {error}
           </div>
         )}
-        {clientInfo && !error ? (
+        {username && clientInfo && !error ? (
           <>
             <div className="flex gap-6 p-6 items-start">
               {/* First column - Windows logo with overlay button */}

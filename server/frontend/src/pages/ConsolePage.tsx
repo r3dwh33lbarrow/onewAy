@@ -8,6 +8,7 @@ import {
   TableRow,
 } from "flowbite-react";
 import { useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 
 import { apiClient, isApiError } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
@@ -23,11 +24,8 @@ import {
 } from "../services/modules";
 import { snakeCaseToTitle } from "../utils";
 
-interface ConsolePageProps {
-  username: string;
-}
-
-export default function ConsolePage({ username }: ConsolePageProps) {
+export default function ConsolePage() {
+  const { username } = useParams<{ username: string }>();
   const [clientInfo, setClientInfo] = useState<ClientAllInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +42,11 @@ export default function ConsolePage({ username }: ConsolePageProps) {
     const fetchClientInformation = async () => {
       setLoading(true);
       setError(null);
+      if (!username) {
+        setError("No username provided");
+        setLoading(false);
+        return;
+      }
       const response = await apiClient.get<ClientAllInfo>(
         `/client/get/${username}`,
       );
@@ -64,6 +67,7 @@ export default function ConsolePage({ username }: ConsolePageProps) {
   // Fetch modules and installed modules
   useEffect(() => {
     const fetchModules = async () => {
+      if (!username) return;
       const allResult = await getAllModules();
       if ("modules" in allResult) {
         setModules(allResult.modules);
@@ -170,6 +174,7 @@ export default function ConsolePage({ username }: ConsolePageProps) {
   const isInstalled = (name: string) => installed.some((m) => m.name === name);
 
   const onRun = async (name: string) => {
+    if (!username) return;
     const res = await runModule(username, name);
     if ("statusCode" in res) {
       alert(res.message || "Failed to run module");
@@ -177,6 +182,7 @@ export default function ConsolePage({ username }: ConsolePageProps) {
   };
 
   const onCancel = async (name: string) => {
+    if (!username) return;
     const res = await cancelModule(username, name);
     if ("statusCode" in res) {
       alert(res.message || "Failed to cancel module");
@@ -184,8 +190,14 @@ export default function ConsolePage({ username }: ConsolePageProps) {
   };
 
   return (
-    <MainSkeleton baseName={`Console for ${username}`}>
+    <MainSkeleton baseName={`Console for ${username ?? ""}`}>
       {loading && <div>Loading...</div>}
+
+      {!username && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+          <p className="text-red-800 dark:text-red-200">No username provided</p>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">

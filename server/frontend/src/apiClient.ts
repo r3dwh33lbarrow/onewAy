@@ -29,9 +29,6 @@ class ApiClient {
     if (!isValid) {
       this.apiUrl = undefined;
       localStorage.removeItem("apiUrl");
-      console.warn(
-        "Stored API URL is no longer valid, removing from localStorage",
-      );
     }
   }
 
@@ -67,8 +64,7 @@ class ApiClient {
 
       const data = await response.json();
       return data.message === "onewAy API";
-    } catch (error) {
-      console.warn("API URL validation failed:", error);
+    } catch {
       return false;
     }
   }
@@ -89,7 +85,6 @@ class ApiClient {
 
     try {
       const url = `${this.apiUrl}${endpoint}`;
-      console.log("API Request:", url);
 
       const response = await fetch(url, {
         headers: {

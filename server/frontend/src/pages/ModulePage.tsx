@@ -1,14 +1,12 @@
 import { Button } from "flowbite-react";
 import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { HiOutlineTrash, HiRefresh } from "react-icons/hi";
 
 import { apiClient, isApiError } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
 import { snakeCaseToDashCase, snakeCaseToTitle } from "../utils";
 
-interface ModulePageProps {
-  name: string;
-}
 
 interface ModuleInfo {
   name: string;
@@ -17,13 +15,15 @@ interface ModuleInfo {
   binaries: Record<string, string>;
 }
 
-export default function ModulePage({ name }: ModulePageProps) {
+export default function ModulePage() {
+  const { name } = useParams<{ name: string }>();
   const [moduleInfo, setModuleInfo] = useState<ModuleInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchModuleInfo = async () => {
       setError(null);
+      if (!name) return;
       const response = await apiClient.get<ModuleInfo>(
         "/user/modules/get/" + snakeCaseToDashCase(name),
       );
@@ -42,6 +42,11 @@ export default function ModulePage({ name }: ModulePageProps) {
 
   const handleUpdate = async () => {
     setError(null);
+    const moduleName = name;
+    if (!moduleName) {
+      setError("No module name provided");
+      return;
+    }
 
     // Dynamically create file input
     const fileInput = document.createElement("input");
@@ -70,7 +75,7 @@ export default function ModulePage({ name }: ModulePageProps) {
         }
 
         const response = await fetch(
-          `${baseUrl}/user/modules/update/${snakeCaseToDashCase(name)}`,
+          `${baseUrl}/user/modules/update/${snakeCaseToDashCase(moduleName)}`,
           {
             method: "PUT",
             body: formData,
@@ -103,8 +108,10 @@ export default function ModulePage({ name }: ModulePageProps) {
   const handleDelete = async () => {
     setError(null);
     try {
+      const moduleName = name;
+      if (!moduleName) return;
       const response = await apiClient.delete<{ result: string }>(
-        `/user/modules/delete/${snakeCaseToDashCase(name)}`,
+        `/user/modules/delete/${snakeCaseToDashCase(moduleName)}`,
       );
 
       if (isApiError(response)) {
@@ -125,6 +132,9 @@ export default function ModulePage({ name }: ModulePageProps) {
 
   return (
     <MainSkeleton baseName="Module View">
+      {!name && (
+        <p>No module name provided</p>
+      )}
       {error && <p>{error}</p>}
       {moduleInfo && (
         <div className="flex flex-col items-center justify-center">

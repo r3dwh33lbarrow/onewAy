@@ -4,10 +4,10 @@ import LoginPanel from "./components/LoginPanel";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RegisterPanel from "./components/RegisterPanel";
 import NotFound from "./pages/404";
-import ClientPageWrapper from "./pages/ClientPageWrapper";
-import ConsolePageWrapper from "./pages/ConsolePageWrapper";
+import ClientPage from "./pages/ClientPage";
+import ConsolePage from "./pages/ConsolePage";
 import Dashboard from "./pages/Dashboard";
-import ModulePageWrapper from "./pages/ModulePageWrapper";
+import ModulePage from "./pages/ModulePage";
 import ModulesPage from "./pages/ModulesPage";
 import SettingsPage from "./pages/SettingsPage";
 import { Login, Register } from "./services/authentication";
@@ -42,7 +42,7 @@ export default function App() {
           path="/client/:username"
           element={
             <ProtectedRoute>
-              <ClientPageWrapper />
+              <ClientPage />
             </ProtectedRoute>
           }
         />
@@ -50,7 +50,7 @@ export default function App() {
           path="/modules/:name"
           element={
             <ProtectedRoute>
-              <ModulePageWrapper />
+              <ModulePage />
             </ProtectedRoute>
           }
         />
@@ -76,7 +76,7 @@ export default function App() {
           path="/console/:username"
           element={
             <ProtectedRoute>
-              <ConsolePageWrapper />
+              <ConsolePage />
             </ProtectedRoute>
           }
         />
