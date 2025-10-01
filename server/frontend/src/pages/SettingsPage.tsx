@@ -38,7 +38,7 @@ export default function SettingsPage() {
       setCreatedAt(userResp.created_at);
       setLastLogin(userResp.last_login);
 
-      const avatarData = await apiClient.requestBytes("/user/get-avatar", {
+      const avatarData = await apiClient.requestBytes("/user/avatar", {
         method: "GET",
       });
       if (!isApiError(avatarData)) {

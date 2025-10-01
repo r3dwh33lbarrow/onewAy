@@ -25,7 +25,7 @@ export default function ModulePage() {
       setError(null);
       if (!name) return;
       const response = await apiClient.get<ModuleInfo>(
-        "/user/modules/get/" + snakeCaseToDashCase(name),
+        "/module/get/" + snakeCaseToDashCase(name),
       );
       if (isApiError(response)) {
         setError(
@@ -111,7 +111,7 @@ export default function ModulePage() {
       const moduleName = name;
       if (!moduleName) return;
       const response = await apiClient.delete<{ result: string }>(
-        `/user/modules/delete/${snakeCaseToDashCase(moduleName)}`,
+        `/module/delete/${snakeCaseToDashCase(moduleName)}`,
       );
 
       if (isApiError(response)) {

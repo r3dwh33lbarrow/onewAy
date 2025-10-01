@@ -35,7 +35,7 @@ export default function InstallModuleModal({
       setLoading(true);
       setError(null);
       const response =
-        await apiClient.get<UserModuleAllResponse>("/user/modules/all");
+        await apiClient.get<UserModuleAllResponse>("/module/all");
       if (isApiError(response)) {
         setError(
           `Failed to fetch modules (${response.statusCode}): ${response.detail}`,

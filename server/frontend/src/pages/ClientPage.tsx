@@ -80,7 +80,7 @@ export default function ClientPage() {
     const fetchInstalledModules = async () => {
       setError(null);
       const response = await apiClient.get<InstalledModuleInfo[]>(
-        "/user/modules/installed/" + username,
+        "/module/installed/" + username,
       );
       if (isApiError(response)) {
         if (response.statusCode === 401) {
@@ -94,7 +94,6 @@ export default function ClientPage() {
       }
 
       console.log("API Response:", response);
-      // Since response is directly an array, not an object with modules property
       setInstalledModules(response || []);
     };
 
@@ -105,7 +104,7 @@ export default function ClientPage() {
     const initializeWebSocket = async () => {
       try {
         const tokenResponse = await apiClient.post<object, TokenResponse>(
-          "/ws-token",
+          "/ws-user-token",
           {},
         );
         if ("statusCode" in tokenResponse) {
@@ -124,7 +123,7 @@ export default function ClientPage() {
         }
         const url = new URL(baseUrl);
         url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-        url.pathname = "/ws";
+        url.pathname = "/ws-user";
         url.search = `token=${encodeURIComponent(wsToken)}`;
         const socket = new WebSocket(url.toString());
         socketRef.current = socket;
@@ -177,7 +176,7 @@ export default function ClientPage() {
     }
 
     const refresh = await apiClient.get<InstalledModuleInfo[]>(
-      "/user/modules/installed/" + username,
+      "/module/installed/" + username,
     );
     if (!isApiError(refresh)) {
       setInstalledModules(refresh || []);

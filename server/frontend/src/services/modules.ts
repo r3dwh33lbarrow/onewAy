@@ -16,7 +16,7 @@ export interface UserModuleAllResponse {
 export async function getAllModules(): Promise<
   UserModuleAllResponse | ApiError
 > {
-  return await apiClient.get<UserModuleAllResponse>("/user/modules/all");
+  return await apiClient.get<UserModuleAllResponse>("/module/all");
 }
 
 export interface InstalledModuleInfo {
@@ -30,7 +30,7 @@ export async function getInstalledModules(
   clientUsername: string,
 ): Promise<InstalledModuleInfo[] | ApiError> {
   return await apiClient.get<InstalledModuleInfo[]>(
-    `/user/modules/installed/${encodeURIComponent(clientUsername)}`,
+    `/module/installed/${encodeURIComponent(clientUsername)}`,
   );
 }
 

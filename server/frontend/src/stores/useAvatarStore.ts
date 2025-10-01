@@ -39,7 +39,7 @@ export const useAvatarStore = create<AvatarState>((set) => ({
 
   fetchAvatar: async () => {
     try {
-      const avatarData = await apiClient.requestBytes("/user/get-avatar", {
+      const avatarData = await apiClient.requestBytes("/user/avatar", {
         method: "GET",
       });
 
