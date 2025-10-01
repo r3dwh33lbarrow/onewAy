@@ -50,7 +50,7 @@ export default function ModuleAddModal({
         setLoading(true);
         setError(null);
         const result = await apiClient.get<ModuleDirectoryContents>(
-          "/user/modules/query-module-dir",
+          "/module/query-module-dir",
         );
 
         if (isApiError(result)) {
@@ -73,10 +73,10 @@ export default function ModuleAddModal({
     if (!selectedContent) {
       return;
     }
-    const response = await apiClient.post<
+    const response = await apiClient.put<
       ModuleAddRequest,
-      { message: string }
-    >("/user/modules/add", { module_path: selectedContent });
+      { module_path: string }
+    >("/module/add", { module_path: selectedContent });
     if (isApiError(response)) {
       console.error("Error adding module:", response.detail);
     }

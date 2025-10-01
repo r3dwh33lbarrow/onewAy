@@ -137,7 +137,6 @@ async def module_upload(
         HTTPException: 409 if module already exists
         HTTPException: 500 if upload processing or database operation fails
     """
-    module_dir = None
     logger.debug("Module upload received %d files", len(files))
     try:
         saved, module_dir = await process_uploaded_files(files)
@@ -338,6 +337,7 @@ async def module_delete(
         delete_client_modules_stmt = delete(ClientModule).where(
             ClientModule.module_name == module_name
         )
+        await db.execute(delete_client_modules_stmt)
         await db.delete(module)
         await db.commit()
 

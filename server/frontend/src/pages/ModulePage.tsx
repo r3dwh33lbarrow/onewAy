@@ -74,14 +74,11 @@ export default function ModulePage() {
           formData.append("files", files[i]);
         }
 
-        const response = await fetch(
-          `${baseUrl}/user/modules/update/${snakeCaseToDashCase(moduleName)}`,
-          {
-            method: "PUT",
-            body: formData,
-            credentials: "include",
-          },
-        );
+        const response = await fetch(`${baseUrl}/module/upload/`, {
+          method: "PUT",
+          body: formData,
+          credentials: "include",
+        });
 
         if (!response.ok) {
           const err = await response.json();
@@ -132,9 +129,7 @@ export default function ModulePage() {
 
   return (
     <MainSkeleton baseName="Module View">
-      {!name && (
-        <p>No module name provided</p>
-      )}
+      {!name && <p>No module name provided</p>}
       {error && <p>{error}</p>}
       {moduleInfo && (
         <div className="flex flex-col items-center justify-center">
