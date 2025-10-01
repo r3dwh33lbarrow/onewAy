@@ -39,7 +39,7 @@ async def client_me(client: Client = Depends(authentication.get_current_client))
 async def client_get_username(
     username: str,
     db: AsyncSession = Depends(get_db),
-    _=Depends(authentication.get_current_client),
+    _=Depends(authentication.verify_refresh_token),
 ):
     """
     Retrieve detailed information for a specific client by username.
@@ -47,7 +47,7 @@ async def client_get_username(
     Args:
         username: The unique username of the client to retrieve
         db: Database session for executing queries
-        _: Current authenticated client (required for authorization)
+        _: Current authenticated user or client
 
     Returns:
         Complete client information including UUID, network details, and status
