@@ -20,7 +20,7 @@ class ApiClient {
     const apiUrl = localStorage.getItem("apiUrl");
     if (apiUrl) {
       this.apiUrl = apiUrl;
-      this.validateAndSetUrl(apiUrl).then((_) => {});
+      this.validateAndSetUrl(apiUrl).catch((_) => {});
     }
   }
 

@@ -226,7 +226,7 @@ def is_client(request: Request) -> bool:
     return "oneway" in request.headers.get("user-agent")
 
 
-def verify_access_token(request: Request):
+def _verify_access_token(request: Request):
     if is_client(request):
         authorization_header = request.headers.get("Authorization")
         if not authorization_header or not authorization_header.startswith("Bearer "):
@@ -273,6 +273,10 @@ def verify_access_token(request: Request):
     except JWTError:
         logger.warning("Failed to decode access token", exc_info=True)
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+def verify_access_token(request: Request) -> str:
+    return _verify_access_token(request)
 
 
 async def get_current_user(

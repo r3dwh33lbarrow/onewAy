@@ -17,7 +17,9 @@ export default function ClientCard({
       <div className="flex items-center justify-between">
         <div className="flex flex-col items-center">
           <HiOutlineDesktopComputer className="text-2xl mb-1" />
-          <p className="text-sm font-medium text-gray-800">{username}</p>
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            {username}
+          </p>
         </div>
 
         <div className="flex items-center gap-4">
