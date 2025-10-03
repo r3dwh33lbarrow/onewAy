@@ -86,7 +86,7 @@ export default function ConsolePage() {
       try {
         setWsError(null);
         const tokenResponse = await apiClient.post<object, TokenResponse>(
-          "/ws-token",
+          "/ws-user-token",
           {},
         );
         if ("statusCode" in tokenResponse) {
@@ -101,7 +101,7 @@ export default function ConsolePage() {
         }
         const url = new URL(baseUrl);
         url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-        url.pathname = "/ws";
+        url.pathname = "/ws-user";
         url.search = `token=${encodeURIComponent(wsToken)}`;
         const socket = new WebSocket(url.toString());
         socketRef.current = socket;

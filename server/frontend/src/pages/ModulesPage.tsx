@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "flowbite-react";
 import { useEffect, useState } from "react";
-import { HiCheck, HiInformationCircle, HiOutlineUpload } from "react-icons/hi";
+import { HiInformationCircle, HiOutlineUpload } from "react-icons/hi";
 import { HiMiniPlus } from "react-icons/hi2";
 import { useNavigate } from "react-router-dom";
 
@@ -37,11 +37,10 @@ export default function ModulesPage() {
         if ("modules" in result) {
           setModules(result.modules);
         } else {
-          setError(result.message || "Failed to fetch modules");
+          setError(result.message || "Failed to fetch modules: Unknown error");
         }
       } catch (err) {
-        setError("An unexpected error occurred");
-        console.error("Error fetching modules:", err);
+        setError("Failed to fetch modules: " + err);
       } finally {
         setLoading(false);
       }
@@ -80,7 +79,6 @@ export default function ModulesPage() {
             setModules(modulesResult.modules);
           }
         } else {
-          // Handle ApiError
           setError(`Upload failed: ${result.message || "Unknown error"}`);
         }
       } catch (error) {
@@ -105,11 +103,10 @@ export default function ModulesPage() {
       if ("modules" in result) {
         setModules(result.modules);
       } else {
-        setError(result.message || "Failed to fetch modules");
+        setError(result.message || "Failed to fetch modules: Unknown error");
       }
     } catch (err) {
-      setError("An unexpected error occurred");
-      console.error("Error fetching modules:", err);
+      setError("Failed to fetch modules: " + err);
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,5 @@
+from datetime import datetime, UTC
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -114,6 +116,7 @@ async def client_auth_login(
 
     client.ip_address = request.client.host
     client.alive = True
+    client.last_contact = datetime.now(UTC)
 
     try:
         access_token = create_access_token(client.uuid, TokenType.CLIENT)

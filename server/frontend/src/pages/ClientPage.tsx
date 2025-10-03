@@ -93,7 +93,6 @@ export default function ClientPage() {
         return;
       }
 
-      console.log("API Response:", response);
       setInstalledModules(response || []);
     };
 

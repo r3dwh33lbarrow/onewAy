@@ -26,7 +26,9 @@ export default function ClientCard({
           <div className="flex flex-col text-right">
             <p className="text-sm">{hostname ? hostname : "N/A"}</p>
             <p className="text-xs text-gray-500">
-              {last_contact ? last_contact : "N/A"}
+              {new Date(last_contact).toLocaleString()
+                ? new Date(last_contact).toLocaleString()
+                : "N/A"}
             </p>
           </div>
           <div
