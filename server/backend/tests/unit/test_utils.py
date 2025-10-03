@@ -15,4 +15,3 @@ def test_resolve_root_placeholder():
     s = resolve_root("[ROOT]/some/path")
     # Should replace [ROOT] and return an absolute-like path containing 'some/path'
     assert "some/path" in s or "some\\path" in s
-

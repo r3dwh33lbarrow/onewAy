@@ -41,7 +41,6 @@ export interface UploadModuleResponse {
 export async function uploadModuleFolder(
   files: File[],
 ): Promise<UploadModuleResponse | ApiError> {
-  // Handle multiple file upload for folder-based modules
   const apiUrl = apiClient.getApiUrl();
   if (!apiUrl) {
     return {
@@ -53,7 +52,6 @@ export async function uploadModuleFolder(
   try {
     const formData = new FormData();
 
-    // Add all files to the form data
     files.forEach((file) => {
       formData.append("files", file);
     });
@@ -89,7 +87,6 @@ export async function uploadModuleFolder(
         }
       } catch (e) {
         console.log("Failed to parse error response:", e);
-        // If we can't parse the error response, use the status text
       }
 
       return {

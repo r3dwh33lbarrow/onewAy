@@ -1,13 +1,14 @@
 import uuid
+
 import pytest
 from jose import jwt
 
 from app.services.authentication import (
     TokenType,
     create_access_token,
-    verify_websocket_access_token,
     hash_jti,
     verify_jti,
+    verify_websocket_access_token,
 )
 from app.settings import settings
 
@@ -45,4 +46,3 @@ def test_hash_and_verify_jti_roundtrip():
     h = hash_jti(jti)
     assert verify_jti(jti, h)
     assert not verify_jti(jti + "x", h)
-

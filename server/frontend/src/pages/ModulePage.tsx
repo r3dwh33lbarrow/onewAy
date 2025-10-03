@@ -1,12 +1,11 @@
 import { Button } from "flowbite-react";
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
 import { HiOutlineTrash, HiRefresh } from "react-icons/hi";
+import { useParams } from "react-router-dom";
 
 import { apiClient, isApiError } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
 import { snakeCaseToDashCase, snakeCaseToTitle } from "../utils";
-
 
 interface ModuleInfo {
   name: string;

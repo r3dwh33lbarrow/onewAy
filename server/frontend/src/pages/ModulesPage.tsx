@@ -1,4 +1,5 @@
 import {
+  Alert,
   Button,
   Table,
   TableBody,
@@ -8,7 +9,7 @@ import {
   TableRow,
 } from "flowbite-react";
 import { useEffect, useState } from "react";
-import { HiOutlineUpload } from "react-icons/hi";
+import { HiCheck, HiInformationCircle, HiOutlineUpload } from "react-icons/hi";
 import { HiMiniPlus } from "react-icons/hi2";
 import { useNavigate } from "react-router-dom";
 
@@ -22,6 +23,7 @@ export default function ModulesPage() {
   const [modules, setModules] = useState<UserModuleAllResponse["modules"]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const navigate = useNavigate();
 
@@ -35,7 +37,6 @@ export default function ModulesPage() {
         if ("modules" in result) {
           setModules(result.modules);
         } else {
-          // Handle ApiError
           setError(result.message || "Failed to fetch modules");
         }
       } catch (err) {
@@ -52,8 +53,8 @@ export default function ModulesPage() {
   const uploadAndAdd = () => {
     const fileInput = document.createElement("input");
     fileInput.type = "file";
-    fileInput.webkitdirectory = true; // Enable directory selection
-    fileInput.multiple = true; // Required for directory uploads
+    fileInput.webkitdirectory = true;
+    fileInput.multiple = true;
     fileInput.style.display = "none";
 
     fileInput.onchange = async (event) => {
@@ -66,43 +67,31 @@ export default function ModulesPage() {
 
       try {
         setLoading(true);
+        setError(null);
+        setAlertMsg(null);
 
-        // Convert FileList to Array for easier handling
         const filesArray = Array.from(files);
-
-        // You can now process the files with their relative paths
-        // files[i].webkitRelativePath contains the path relative to the selected folder
-        console.log(
-          "Selected files:",
-          filesArray.map((f) => f.webkitRelativePath),
-        );
-
         const result = await uploadModuleFolder(filesArray);
 
         if ("result" in result) {
-          alert("Module uploaded successfully!");
-          // Refresh the modules list
+          setAlertMsg("Module uploaded successfully!");
           const modulesResult = await getAllModules();
           if ("modules" in modulesResult) {
             setModules(modulesResult.modules);
           }
         } else {
           // Handle ApiError
-          console.error("Upload API Error:", result);
-          alert(`Upload failed: ${result.message || "Unknown error"}`);
+          setError(`Upload failed: ${result.message || "Unknown error"}`);
         }
       } catch (error) {
-        console.error("Upload error:", error);
-        alert("Upload failed. Please try again.");
+        setError(`Upload failed: ${error}`);
       } finally {
         setLoading(false);
       }
 
-      // Clean up
       document.body.removeChild(fileInput);
     };
 
-    // Trigger folder selection dialog immediately on user click
     document.body.appendChild(fileInput);
     fileInput.click();
   };
@@ -128,27 +117,41 @@ export default function ModulesPage() {
 
   return (
     <MainSkeleton baseName="Modules">
-      <div className="space-y-6">
-        <div className="flex gap-4">
-          <Button
-            color="indigo"
-            pill
-            className="px-6 gap-1"
-            onClick={uploadAndAdd}
-          >
-            <HiOutlineUpload className="h-5 w-5" />
-            Upload & Add
-          </Button>
+      <div className="max-w-full">
+        <div className="flex gap-4 flex-col">
+          {alertMsg && (
+            <Alert
+              icon={HiInformationCircle}
+              color="info"
+              className="mb-4 w-full"
+              onDismiss={() => setAlertMsg(null)}
+            >
+              <span>{alertMsg}</span>
+            </Alert>
+          )}
 
-          <Button
-            color="indigo"
-            pill
-            className="px-6 gap-1"
-            onClick={() => setShowAddModal(true)}
-          >
-            <HiMiniPlus className="h-5 w-5" />
-            Add
-          </Button>
+          {!error && (
+            <div className="flex gap-4">
+              <Button
+                color="indigo"
+                pill
+                className="px-6 gap-1"
+                onClick={uploadAndAdd}
+              >
+                <HiOutlineUpload className="h-5 w-5" />
+                Upload & Add
+              </Button>
+              <Button
+                color="indigo"
+                pill
+                className="px-6 gap-1"
+                onClick={() => setShowAddModal(true)}
+              >
+                <HiMiniPlus className="h-5 w-5" />
+                Add
+              </Button>
+            </div>
+          )}
         </div>
 
         {loading && (
@@ -166,12 +169,12 @@ export default function ModulesPage() {
 
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <p className="text-red-800 dark:text-red-200">Error: {error}</p>
+            <p className="text-red-800 dark:text-red-200">{error}</p>
           </div>
         )}
 
         {!loading && !error && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow mt-6">
             <Table>
               <TableHead>
                 <TableRow>

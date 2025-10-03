@@ -1,9 +1,9 @@
 import os
 
 from fastapi import APIRouter, Depends, File
+from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
-from sqlalchemy import delete
 
 from app.dependencies import get_db
 from app.logger import get_logger
@@ -329,11 +329,6 @@ async def module_delete(
         raise HTTPException(status_code=404, detail="Module not found")
 
     try:
-        # First, delete all client_modules that reference this module
-        from app.models.client_module import ClientModule
-        from sqlalchemy import delete
-
-        # Delete related client_modules first
         delete_client_modules_stmt = delete(ClientModule).where(
             ClientModule.module_name == module_name
         )

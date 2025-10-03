@@ -1,7 +1,7 @@
 import React from "react";
 
-import TopIcons from "./TopIcons";
 import MainSidebar from "../layout/MainSidebar";
+import TopIcons from "../layout/TopIcons";
 
 interface MainSkeletonProps {
   baseName: string;
