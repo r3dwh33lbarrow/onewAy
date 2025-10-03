@@ -36,3 +36,7 @@ class InstalledModuleInfo(BaseModel):
     description: str | None = None
     version: str = Field(min_length=1)
     status: str | None = None
+
+
+class AllInstalledResponse(BaseModel):
+    all_installed: list[InstalledModuleInfo]

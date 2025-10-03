@@ -6,6 +6,7 @@ use crate::{debug, error, info};
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
+use tokio::sync::Mutex;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Bytes;
 use tungstenite::Message;
@@ -17,9 +18,10 @@ pub enum OutgoingMessage {
 
 pub async fn start_websocket_client(
     url: &str,
-    api_client: &ApiClient,
+    api_client: Arc<Mutex<ApiClient>>,
     module_manager: Arc<ModuleManager>,
 ) -> anyhow::Result<()> {
+    let api_client = api_client.lock().await;
     let access_token = api_client
         .post::<(), AccessTokenResponse>("/ws-client-token", &())
         .await?;

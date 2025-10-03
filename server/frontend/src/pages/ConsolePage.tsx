@@ -64,7 +64,6 @@ export default function ConsolePage() {
     fetchClientInformation();
   }, [username]);
 
-  // Fetch modules and installed modules
   useEffect(() => {
     const fetchModules = async () => {
       if (!username) return;
@@ -80,7 +79,6 @@ export default function ConsolePage() {
     fetchModules();
   }, [username]);
 
-  // WebSocket connection for console streaming
   useEffect(() => {
     const connectWs = async () => {
       try {
@@ -192,6 +190,7 @@ export default function ConsolePage() {
   return (
     <MainSkeleton baseName={`Console for ${username ?? ""}`}>
       {loading && <div>Loading...</div>}
+      {console.log(installed)}
 
       {!username && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">

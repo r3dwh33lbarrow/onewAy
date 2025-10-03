@@ -1,7 +1,8 @@
 use crate::utils::{str_to_snake_case, title_case_to_camel_case};
-use crate::{debug, error};
+use crate::{debug, error, ApiClient};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::fmt::format;
 use std::io;
 use std::path::Path;
 use std::sync::Arc;
@@ -10,6 +11,9 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::UnboundedSender;
+use crate::schemas::modules::AllInstalledResponse;
+use crate::config::CONFIG;
+use crate::schemas::BasicTaskResponse;
 
 #[derive(Debug, Error)]
 pub enum ModuleManagerError {
@@ -57,7 +61,7 @@ pub struct ModuleManager {
 }
 
 impl ModuleConfig {
-    pub(crate) fn resolve_binaries(&self) -> Option<&str> {
+    pub fn resolve_binaries(&self) -> Option<&str> {
         #[cfg(target_os = "windows")]
         {
             return self.binaries.windows.as_deref();
@@ -318,5 +322,51 @@ impl ModuleManager {
         }
 
         false
+    }
+
+    pub async fn check_installed_discrepancies(&self, api_client: Arc<Mutex<ApiClient>>) -> anyhow::Result<Vec<String>> {
+        let mut correct: Vec<String> = Vec::new();
+        let mut incorrect: Vec<String> = Vec::new();
+        let local_modules = self.module_configs.lock().await;
+        let local_module_names: Vec<String> = local_modules
+            .iter()
+            .map(|x| x.name.to_string())
+            .collect();
+
+        let api_client = api_client.lock().await;
+        let remote_modules = api_client.get::<AllInstalledResponse>(&format!("/module/installed/{}", CONFIG.auth.username)).await?;
+        let remote_module_names: Vec<String> = remote_modules
+            .all_installed
+            .iter()
+            .map(|x| x.name.to_string())
+            .collect();
+
+        for local_mod_name in &local_module_names {
+            for remote_mod_name in &remote_module_names {
+                if local_mod_name == remote_mod_name {
+                    correct.push(local_mod_name.to_string());
+                }
+            }
+        }
+
+        for remote_name in &remote_module_names {
+            let mut match_found = false;
+            for correct_name in &correct {
+                if correct_name == remote_name {
+                    match_found = true;
+                }
+            }
+
+            if !match_found {
+                incorrect.push(remote_name.to_string());
+            }
+        }
+
+        Ok(incorrect)
+    }
+
+    pub async fn set_installed(&self, module_name: &str, api_client: Arc<Mutex<ApiClient>>) -> anyhow::Result<BasicTaskResponse> {
+        let api_client = api_client.lock().await;
+        api_client.post::<(), BasicTaskResponse>(&*format!("/module/set-installed/{}?module_name={}", CONFIG.auth.username, module_name), &()).await
     }
 }

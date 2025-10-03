@@ -1,10 +1,12 @@
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use crate::http::api_client::ApiClient;
 use crate::schemas::BasicTaskResponse;
 use crate::schemas::auth::{ClientEnrollRequest, ClientLoginRequest, TokenResponse};
 use crate::{error, info};
 
 pub async fn enroll(
-    api_client: &ApiClient,
+    api_client: Arc<Mutex<ApiClient>>,
     username: &str,
     password: &str,
     client_version: &str,
@@ -14,6 +16,7 @@ pub async fn enroll(
     enroll_data.password = password.to_string();
     enroll_data.client_version = client_version.to_string();
 
+    let api_client = api_client.lock().await;
     let response = api_client
         .post::<ClientEnrollRequest, BasicTaskResponse>("/client/auth/enroll", &enroll_data)
         .await;
@@ -30,11 +33,12 @@ pub async fn enroll(
     }
 }
 
-pub async fn login(api_client: &mut ApiClient, username: &str, password: &str) -> bool {
+pub async fn login(api_client: Arc<Mutex<ApiClient>>, username: &str, password: &str) -> bool {
     let mut login_data = ClientLoginRequest::default();
     login_data.username = username.to_string();
     login_data.password = password.to_string();
 
+    let mut api_client = api_client.lock().await;
     let response = api_client
         .post::<ClientLoginRequest, TokenResponse>("/client/auth/login", &login_data)
         .await;
