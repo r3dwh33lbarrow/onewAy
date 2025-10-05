@@ -10,11 +10,24 @@ import Dashboard from "./pages/Dashboard";
 import ModulePage from "./pages/ModulePage";
 import ModulesPage from "./pages/ModulesPage";
 import SettingsPage from "./pages/SettingsPage";
-import { Login, Register } from "./services/authentication";
+import { apiClient, type ApiError } from "./apiClient";
+import type { AuthRequest } from "./schemas/authentication";
+import type { BasicTaskResponse } from "./schemas/general";
 import { useAuthStore } from "./stores/authStore";
 
 export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  const Login = (data: AuthRequest): Promise<BasicTaskResponse | ApiError> =>
+    apiClient.post<AuthRequest, BasicTaskResponse>("/user/auth/login", data);
+
+  const Register = (
+    data: AuthRequest,
+  ): Promise<BasicTaskResponse | ApiError> =>
+    apiClient.post<AuthRequest, BasicTaskResponse>(
+      "/user/auth/register",
+      data,
+    );
 
   return (
     <BrowserRouter>

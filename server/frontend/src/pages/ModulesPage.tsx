@@ -15,9 +15,9 @@ import { useNavigate } from "react-router-dom";
 
 import MainSkeleton from "../components/MainSkeleton";
 import ModuleAddModal from "../components/ModuleAddModal";
-import { getAllModules, uploadModuleFolder } from "../services/modules";
+import { apiClient } from "../apiClient";
 import { snakeCaseToTitle } from "../utils";
-import type {UserModuleAllResponse} from "../schemas/module.ts";
+import type { UserModuleAllResponse, UploadModuleResponse } from "../schemas/module.ts";
 
 export default function ModulesPage() {
   const [modules, setModules] = useState<UserModuleAllResponse["modules"]>([]);
@@ -32,7 +32,7 @@ export default function ModulesPage() {
       try {
         setLoading(true);
         setError(null);
-        const result = await getAllModules();
+        const result = await apiClient.get<UserModuleAllResponse>("/module/all");
 
         if ("modules" in result) {
           setModules(result.modules);
@@ -70,11 +70,17 @@ export default function ModulesPage() {
         setAlertMsg(null);
 
         const filesArray = Array.from(files);
-        const result = await uploadModuleFolder(filesArray);
+        const result = await apiClient.uploadFolder<UploadModuleResponse>(
+          "/module/upload",
+          filesArray,
+          "PUT",
+        );
 
         if ("result" in result) {
           setAlertMsg("Module uploaded successfully!");
-          const modulesResult = await getAllModules();
+          const modulesResult = await apiClient.get<UserModuleAllResponse>(
+            "/module/all",
+          );
           if ("modules" in modulesResult) {
             setModules(modulesResult.modules);
           }
@@ -98,7 +104,7 @@ export default function ModulesPage() {
     try {
       setLoading(true);
       setError(null);
-      const result = await getAllModules();
+      const result = await apiClient.get<UserModuleAllResponse>("/module/all");
 
       if ("modules" in result) {
         setModules(result.modules);

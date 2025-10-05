@@ -14,13 +14,8 @@ import { apiClient, isApiError } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
 import type { TokenResponse } from "../schemas/authentication";
 import type { ClientAllInfo } from "../schemas/client";
-import {
-  cancelModule,
-  getAllModules,
-  getInstalledModules,
-  runModule,
-
-} from "../services/modules";
+import type { BasicTaskResponse } from "../schemas/general";
+import type { UserModuleAllResponse } from "../schemas/module";
 import { snakeCaseToTitle } from "../utils";
 import type {InstalledModuleInfo, ModuleBasicInfo} from "../schemas/module.ts";
 
@@ -67,11 +62,15 @@ export default function ConsolePage() {
   useEffect(() => {
     const fetchModules = async () => {
       if (!username) return;
-      const allResult = await getAllModules();
+      const allResult = await apiClient.get<UserModuleAllResponse>(
+        "/module/all",
+      );
       if ("modules" in allResult) {
         setModules(allResult.modules);
       }
-      const instResult = await getInstalledModules(username);
+      const instResult = await apiClient.get<InstalledModuleInfo[]>(
+        `/module/installed/${encodeURIComponent(username)}`,
+      );
       if (Array.isArray(instResult)) {
         setInstalled(instResult);
       }
@@ -173,7 +172,11 @@ export default function ConsolePage() {
 
   const onRun = async (name: string) => {
     if (!username) return;
-    const res = await runModule(username, name);
+    const res = await apiClient.get<BasicTaskResponse>(
+      `/user/modules/run/${encodeURIComponent(name)}?client_username=${encodeURIComponent(
+        username,
+      )}`,
+    );
     if ("statusCode" in res) {
       alert(res.message || "Failed to run module");
     }
@@ -181,7 +184,11 @@ export default function ConsolePage() {
 
   const onCancel = async (name: string) => {
     if (!username) return;
-    const res = await cancelModule(username, name);
+    const res = await apiClient.get<BasicTaskResponse>(
+      `/user/modules/cancel/${encodeURIComponent(name)}?client_username=${encodeURIComponent(
+        username,
+      )}`,
+    );
     if ("statusCode" in res) {
       alert(res.message || "Failed to cancel module");
     }
