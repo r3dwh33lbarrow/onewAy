@@ -7,6 +7,7 @@ use serde::de::DeserializeOwned;
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
+use crate::{debug, error};
 
 #[derive(Debug, Clone)]
 pub struct ApiClient {

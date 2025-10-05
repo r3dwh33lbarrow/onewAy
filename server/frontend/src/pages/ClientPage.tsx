@@ -17,7 +17,8 @@ import MainSkeleton from "../components/MainSkeleton";
 import type { TokenResponse } from "../schemas/authentication";
 import type { ClientInfo } from "../schemas/client";
 import type { BasicTaskResponse } from "../schemas/general";
-import type { InstalledModuleInfo } from "../services/modules";
+
+import type {InstalledModuleInfo} from "../schemas/module.ts";
 
 // Use shared InstalledModuleInfo type from services
 export default function ClientPage() {

@@ -19,10 +19,10 @@ import {
   getAllModules,
   getInstalledModules,
   runModule,
-  type InstalledModuleInfo,
-  type ModuleBasicInfo,
+
 } from "../services/modules";
 import { snakeCaseToTitle } from "../utils";
+import type {InstalledModuleInfo, ModuleBasicInfo} from "../schemas/module.ts";
 
 export default function ConsolePage() {
   const { username } = useParams<{ username: string }>();

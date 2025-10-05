@@ -21,7 +21,7 @@ function cacheAvatar(dataUrl: string) {
   try {
     localStorage.setItem("avatarDataUrl", dataUrl);
   } catch {
-    // Ignore quota or privacy mode errors
+    /* empty */
   }
 }
 
@@ -29,7 +29,7 @@ function clearCachedAvatar() {
   try {
     localStorage.removeItem("avatarDataUrl");
   } catch {
-    // ignore
+    /* empty */
   }
 }
 
@@ -51,7 +51,6 @@ export const useAvatarStore = create<AvatarState>((set) => ({
         return;
       }
 
-      // Convert to base64 data URL for stable caching across navigations
       const bytes = new Uint8Array(avatarData as ArrayBuffer);
       let binary = "";
       for (let i = 0; i < bytes.byteLength; i++) {

@@ -384,7 +384,7 @@ async def module_query_module_dir(_=Depends(get_current_user)):
     return {"contents": contents_list}
 
 
-@router.get("/installed/{client_username}")
+@router.get("/installed/{client_username}", response_model=AllInstalledResponse)
 async def module_installed_client_username(
     client_username: str,
     db: AsyncSession = Depends(get_db),
@@ -434,7 +434,7 @@ async def module_installed_client_username(
     logger.debug(
         "Client '%s' has %d installed modules", client_username, len(mod_names)
     )
-    return mod_names
+    return AllInstalledResponse(all_installed=mod_names)
 
 
 @router.post("/set-installed/{client_username}")

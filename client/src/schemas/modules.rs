@@ -22,5 +22,5 @@ pub struct InstalledModuleInfo {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AllInstalledResponse {
-    pub all_installed: Vec<InstalledModuleInfo>,
+    pub all_installed: Option<Vec<InstalledModuleInfo>>,
 }

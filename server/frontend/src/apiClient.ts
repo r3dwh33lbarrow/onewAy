@@ -68,6 +68,7 @@ class ApiClient {
       return false;
     }
   }
+
   public getApiUrl(): string | undefined {
     return this.apiUrl;
   }
@@ -194,6 +195,31 @@ class ApiClient {
       }
 
       return await response.arrayBuffer();
+    } catch (error) {
+      return {
+        statusCode: -1,
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      };
+    }
+  }
+
+  public async uploadFolder<T>(
+    endpoint: string,
+    files: File[],
+    method: "PUT" | "POST" = "POST",
+  ): Promise<T | ApiError> {
+    try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      return await this.request<T>(endpoint, {
+        method: method,
+        body: formData,
+        credentials: "include",
+      });
     } catch (error) {
       return {
         statusCode: -1,

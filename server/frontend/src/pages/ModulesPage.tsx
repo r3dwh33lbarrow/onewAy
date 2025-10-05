@@ -15,9 +15,9 @@ import { useNavigate } from "react-router-dom";
 
 import MainSkeleton from "../components/MainSkeleton";
 import ModuleAddModal from "../components/ModuleAddModal";
-import type { UserModuleAllResponse } from "../services/modules";
 import { getAllModules, uploadModuleFolder } from "../services/modules";
 import { snakeCaseToTitle } from "../utils";
+import type {UserModuleAllResponse} from "../schemas/module.ts";
 
 export default function ModulesPage() {
   const [modules, setModules] = useState<UserModuleAllResponse["modules"]>([]);

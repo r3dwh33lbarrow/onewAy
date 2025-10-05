@@ -6,9 +6,10 @@ import { apiClient, isApiError } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
 import type { BasicTaskResponse } from "../schemas/general";
 import type { UserInfoResponse, UserUpdateRequest } from "../schemas/user";
+import { useAvatarStore } from "../stores/useAvatarStore.ts";
 
 export default function SettingsPage() {
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [, setAvatarUrlState] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -18,6 +19,7 @@ export default function SettingsPage() {
   const [createdAt, setCreatedAt] = useState<string>("");
   const [lastLogin, setLastLogin] = useState<string>("");
   const avatarUrlRef = useRef<string | null>(null);
+  const { avatarUrl, fetchAvatar } = useAvatarStore();
 
   const dirty = useMemo(
     () => username.trim() !== initialUsername.trim(),
@@ -46,7 +48,7 @@ export default function SettingsPage() {
         const url = URL.createObjectURL(blob);
         if (avatarUrlRef.current) URL.revokeObjectURL(avatarUrlRef.current);
         avatarUrlRef.current = url;
-        setAvatarUrl(url);
+        setAvatarUrlState(url);
       }
     };
 
@@ -77,8 +79,8 @@ export default function SettingsPage() {
         }
         const formData = new FormData();
         formData.append("file", file);
-        const response = await fetch(`${baseUrl}/user/update-avatar`, {
-          method: "POST",
+        const response = await fetch(`${baseUrl}/user/avatar`, {
+          method: "PUT",
           body: formData,
           credentials: "include",
         });
@@ -86,8 +88,7 @@ export default function SettingsPage() {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.detail || response.statusText);
         }
-        // Refresh avatar
-        const avatarData = await apiClient.requestBytes("/user/get-avatar", {
+        const avatarData = await apiClient.requestBytes("/user/avatar", {
           method: "GET",
         });
         if (isApiError(avatarData)) {
@@ -98,7 +99,8 @@ export default function SettingsPage() {
         const url = URL.createObjectURL(blob);
         if (avatarUrlRef.current) URL.revokeObjectURL(avatarUrlRef.current);
         avatarUrlRef.current = url;
-        setAvatarUrl(url);
+        setAvatarUrlState(url);
+        await fetchAvatar();
         setStatus("Avatar updated successfully.");
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to update avatar");

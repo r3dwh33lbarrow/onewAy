@@ -325,8 +325,6 @@ impl ModuleManager {
     }
 
     pub async fn check_installed_discrepancies(&self, api_client: Arc<Mutex<ApiClient>>) -> anyhow::Result<Vec<String>> {
-        let mut correct: Vec<String> = Vec::new();
-        let mut incorrect: Vec<String> = Vec::new();
         let local_modules = self.module_configs.lock().await;
         let local_module_names: Vec<String> = local_modules
             .iter()
@@ -337,32 +335,24 @@ impl ModuleManager {
         let remote_modules = api_client.get::<AllInstalledResponse>(&format!("/module/installed/{}", CONFIG.auth.username)).await?;
         let remote_module_names: Vec<String> = remote_modules
             .all_installed
+            .unwrap_or(vec![])
             .iter()
             .map(|x| x.name.to_string())
             .collect();
 
-        for local_mod_name in &local_module_names {
+        let mut local_and_remote: Vec<String> = local_module_names.clone();
+        let mut counter = 0;
+        for local_mod_name in local_module_names {
             for remote_mod_name in &remote_module_names {
-                if local_mod_name == remote_mod_name {
-                    correct.push(local_mod_name.to_string());
-                }
-            }
-        }
-
-        for remote_name in &remote_module_names {
-            let mut match_found = false;
-            for correct_name in &correct {
-                if correct_name == remote_name {
-                    match_found = true;
+                if *remote_mod_name == local_mod_name {
+                    local_and_remote.remove(counter);
                 }
             }
 
-            if !match_found {
-                incorrect.push(remote_name.to_string());
-            }
+            counter += 1;
         }
 
-        Ok(incorrect)
+        Ok(local_and_remote)
     }
 
     pub async fn set_installed(&self, module_name: &str, api_client: Arc<Mutex<ApiClient>>) -> anyhow::Result<BasicTaskResponse> {

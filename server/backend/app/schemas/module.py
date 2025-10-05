@@ -39,4 +39,4 @@ class InstalledModuleInfo(BaseModel):
 
 
 class AllInstalledResponse(BaseModel):
-    all_installed: list[InstalledModuleInfo]
+    all_installed: list[InstalledModuleInfo] | None = None
