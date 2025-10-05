@@ -1,5 +1,5 @@
 import { Button, Label, TextInput } from "flowbite-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HiOutlineCamera } from "react-icons/hi";
 
 import { apiClient, isApiError } from "../apiClient";
@@ -9,7 +9,6 @@ import type { UserInfoResponse, UserUpdateRequest } from "../schemas/user";
 import { useAvatarStore } from "../stores/useAvatarStore.ts";
 
 export default function SettingsPage() {
-  const [, setAvatarUrlState] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -18,8 +17,8 @@ export default function SettingsPage() {
   const [initialUsername, setInitialUsername] = useState<string>("");
   const [createdAt, setCreatedAt] = useState<string>("");
   const [lastLogin, setLastLogin] = useState<string>("");
-  const avatarUrlRef = useRef<string | null>(null);
-  const { avatarUrl, fetchAvatar } = useAvatarStore();
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
+  const { fetchAvatar } = useAvatarStore();
 
   const dirty = useMemo(
     () => username.trim() !== initialUsername.trim(),
@@ -27,6 +26,8 @@ export default function SettingsPage() {
   );
 
   useEffect(() => {
+    let avatarUrl: string | null = null;
+
     const fetchUserData = async () => {
       setError(null);
       setStatus(null);
@@ -45,16 +46,17 @@ export default function SettingsPage() {
       });
       if (!isApiError(avatarData)) {
         const blob = new Blob([avatarData], { type: "image/png" });
-        const url = URL.createObjectURL(blob);
-        if (avatarUrlRef.current) URL.revokeObjectURL(avatarUrlRef.current);
-        avatarUrlRef.current = url;
-        setAvatarUrlState(url);
+        avatarUrl = URL.createObjectURL(blob);
+        setLocalAvatarUrl(avatarUrl);
       }
     };
 
-    fetchUserData();
+    fetchUserData().catch((e) => {
+      setError(e instanceof Error ? e.message : "Failed to fetch user data");
+    });
+
     return () => {
-      if (avatarUrlRef.current) URL.revokeObjectURL(avatarUrlRef.current);
+      if (avatarUrl) URL.revokeObjectURL(avatarUrl);
     };
   }, []);
 
@@ -97,9 +99,8 @@ export default function SettingsPage() {
         }
         const blob = new Blob([avatarData], { type: "image/png" });
         const url = URL.createObjectURL(blob);
-        if (avatarUrlRef.current) URL.revokeObjectURL(avatarUrlRef.current);
-        avatarUrlRef.current = url;
-        setAvatarUrlState(url);
+        if (localAvatarUrl) URL.revokeObjectURL(localAvatarUrl);
+        setLocalAvatarUrl(url);
         await fetchAvatar();
         setStatus("Avatar updated successfully.");
       } catch (e) {
@@ -147,10 +148,10 @@ export default function SettingsPage() {
                     onClick={changeAvatar}
                     aria-label="Change avatar"
                   >
-                    {avatarUrl ? (
+                    {localAvatarUrl ? (
                       <>
                         <img
-                          src={avatarUrl}
+                          src={localAvatarUrl}
                           alt="User Avatar"
                           className="w-full h-full object-cover"
                         />

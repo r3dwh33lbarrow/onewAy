@@ -1,8 +1,8 @@
 export interface UserInfoResponse {
   username: string;
   is_admin: boolean;
-  last_login: string; // ISO datetime
-  created_at: string; // ISO datetime
+  last_login: string;
+  created_at: string;
   avatar_set: boolean;
 }
 
