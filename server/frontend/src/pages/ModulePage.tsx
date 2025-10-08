@@ -1,18 +1,12 @@
 import { Button } from "flowbite-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { HiOutlineTrash, HiRefresh } from "react-icons/hi";
 import { useParams } from "react-router-dom";
 
 import { apiClient, isApiError } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
+import type { ModuleInfo } from "../schemas/module.ts";
 import { snakeCaseToDashCase, snakeCaseToTitle } from "../utils";
-
-interface ModuleInfo {
-  name: string;
-  description?: string;
-  version: string;
-  binaries: Record<string, string>;
-}
 
 export default function ModulePage() {
   const { name } = useParams<{ name: string }>();
@@ -41,13 +35,11 @@ export default function ModulePage() {
 
   const handleUpdate = async () => {
     setError(null);
-    const moduleName = name;
-    if (!moduleName) {
+    if (!name) {
       setError("No module name provided");
       return;
     }
 
-    // Dynamically create file input
     const fileInput = document.createElement("input");
     fileInput.type = "file";
     fileInput.webkitdirectory = true;
@@ -63,41 +55,25 @@ export default function ModulePage() {
       }
 
       try {
-        const baseUrl = apiClient.getApiUrl();
-        if (!baseUrl) {
-          setError("API URL not configured");
-          return;
-        }
-        const formData = new FormData();
-        for (let i = 0; i < files.length; i++) {
-          formData.append("files", files[i]);
-        }
+        const response = await apiClient.uploadFolder(
+          "/module/upload/",
+          Array.from(files),
+          "PUT",
+        );
 
-        const response = await fetch(`${baseUrl}/module/upload/`, {
-          method: "PUT",
-          body: formData,
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          const err = await response.json();
+        if (isApiError(response)) {
           setError(
-            `Failed to update module (${response.status}): ${
-              err.detail || response.statusText
+            `Failed to update module (${response.statusCode}): ${
+              response.detail || response.message
             }`,
           );
           return;
         }
-
-        console.log("Update result:", await response.json());
-        // Refresh module info
         window.location.reload();
       } catch (err) {
         setError(`Error during update: ${(err as Error).message}`);
       }
     };
-
-    // Trigger file selection
     fileInput.click();
   };
 
@@ -119,8 +95,7 @@ export default function ModulePage() {
         return;
       }
 
-      console.log("Delete result:", response);
-      setModuleInfo(null); // Clear view
+      setModuleInfo(null);
     } catch (err) {
       setError(`Error during delete: ${(err as Error).message}`);
     }

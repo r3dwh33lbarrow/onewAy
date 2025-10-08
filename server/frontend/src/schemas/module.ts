@@ -20,3 +20,18 @@ export interface InstalledModuleInfo {
 export interface UploadModuleResponse {
   result: string;
 }
+
+export interface ModuleInfo {
+  name: string;
+  description?: string;
+  version: string;
+  binaries: Record<string, string>;
+}
+
+export interface ModuleAddRequest {
+  module_path: string;
+}
+
+export interface UserModuleAllResponse {
+  modules: ModuleBasicInfo[];
+}

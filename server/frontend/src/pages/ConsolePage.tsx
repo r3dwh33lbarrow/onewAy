@@ -7,17 +7,19 @@ import {
   TableHeadCell,
   TableRow,
 } from "flowbite-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { apiClient, isApiError } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
-import type { TokenResponse } from "../schemas/authentication";
 import type { ClientAllInfo } from "../schemas/client";
 import type { BasicTaskResponse } from "../schemas/general";
 import type { UserModuleAllResponse } from "../schemas/module";
-import { snakeCaseToTitle } from "../utils";
-import type {InstalledModuleInfo, ModuleBasicInfo} from "../schemas/module.ts";
+import type {
+  InstalledModuleInfo,
+  ModuleBasicInfo,
+} from "../schemas/module.ts";
+import { apiErrorToString, snakeCaseToTitle } from "../utils";
 
 export default function ConsolePage() {
   const { username } = useParams<{ username: string }>();
@@ -26,12 +28,54 @@ export default function ConsolePage() {
   const [error, setError] = useState<string | null>(null);
   const [modules, setModules] = useState<ModuleBasicInfo[]>([]);
   const [installed, setInstalled] = useState<InstalledModuleInfo[]>([]);
-  const [wsError, setWsError] = useState<string | null>(null);
   const [lines, setLines] = useState<
     { stream: "stdout" | "stderr" | "event"; text: string }[]
   >([]);
   const socketRef = useRef<WebSocket | null>(null);
   const consoleRef = useRef<HTMLDivElement | null>(null);
+
+  const onMessage = useCallback(
+    (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (
+          data.type === "console_output" &&
+          data.data?.username === username
+        ) {
+          const line = data.data.line as string;
+          const stream: "stdout" | "stderr" =
+            data.data.stream === "stderr" ? "stderr" : "stdout";
+          setLines((prev) => {
+            const next: typeof prev = [...prev, { stream, text: line }];
+            if (next.length > 2000) next.shift();
+            return next;
+          });
+        } else if (
+          data.type === "console_event" &&
+          data.data?.username === username
+        ) {
+          const event = data.data.event as string;
+          const moduleName = data.data.module_name as string;
+          const code = data.data.code;
+          let text = "";
+          if (event === "module_started") text = `Started ${moduleName}`;
+          else if (event === "module_exit")
+            text = `Exited ${moduleName} with code ${code}`;
+          else if (event === "module_canceled") text = `Canceled ${moduleName}`;
+          if (text) {
+            setLines((prev) => {
+              const next: typeof prev = [...prev, { stream: "event", text }];
+              if (next.length > 2000) next.shift();
+              return next;
+            });
+          }
+        }
+      } catch {
+        // ignore parse errors
+      }
+    },
+    [username],
+  );
 
   useEffect(() => {
     const fetchClientInformation = async () => {
@@ -62,9 +106,8 @@ export default function ConsolePage() {
   useEffect(() => {
     const fetchModules = async () => {
       if (!username) return;
-      const allResult = await apiClient.get<UserModuleAllResponse>(
-        "/module/all",
-      );
+      const allResult =
+        await apiClient.get<UserModuleAllResponse>("/module/all");
       if ("modules" in allResult) {
         setModules(allResult.modules);
       }
@@ -79,87 +122,20 @@ export default function ConsolePage() {
   }, [username]);
 
   useEffect(() => {
-    const connectWs = async () => {
-      try {
-        setWsError(null);
-        const tokenResponse = await apiClient.post<object, TokenResponse>(
-          "/ws-user-token",
-          {},
-        );
-        if ("statusCode" in tokenResponse) {
-          setWsError(tokenResponse.message || "Failed to get WebSocket token");
-          return;
-        }
-        const wsToken = tokenResponse.access_token;
-        const baseUrl = apiClient.getApiUrl();
-        if (!baseUrl) {
-          setWsError("API URL not configured for WebSocket");
-          return;
-        }
-        const url = new URL(baseUrl);
-        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-        url.pathname = "/ws-user";
-        url.search = `token=${encodeURIComponent(wsToken)}`;
-        const socket = new WebSocket(url.toString());
-        socketRef.current = socket;
+    if (!socketRef.current) {
+      apiClient.startWebSocket(socketRef, onMessage, (error) =>
+        setError(apiErrorToString(error)),
+      );
+    }
 
-        socket.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (
-              data.type === "console_output" &&
-              data.data?.username === username
-            ) {
-              const line = data.data.line as string;
-              const stream: "stdout" | "stderr" =
-                data.data.stream === "stderr" ? "stderr" : "stdout";
-              setLines((prev) => {
-                const next: typeof prev = [...prev, { stream, text: line }];
-                if (next.length > 2000) next.shift();
-                return next;
-              });
-            } else if (
-              data.type === "console_event" &&
-              data.data?.username === username
-            ) {
-              const event = data.data.event as string;
-              const moduleName = data.data.module_name as string;
-              const code = data.data.code;
-              let text = "";
-              if (event === "module_started") text = `Started ${moduleName}`;
-              else if (event === "module_exit")
-                text = `Exited ${moduleName} with code ${code}`;
-              else if (event === "module_canceled")
-                text = `Canceled ${moduleName}`;
-              if (text) {
-                setLines((prev) => {
-                  const next: typeof prev = [
-                    ...prev,
-                    { stream: "event", text },
-                  ];
-                  if (next.length > 2000) next.shift();
-                  return next;
-                });
-              }
-            }
-          } catch {
-            // ignore parse errors
-          }
-        };
+    const currentSocket = socketRef.current;
 
-        socket.onclose = () => {
-          // Optionally, could implement reconnect
-        };
-      } catch {
-        setWsError("Failed to initialize WebSocket");
+    return () => {
+      if (currentSocket) {
+        currentSocket.close();
       }
     };
-
-    connectWs();
-    return () => {
-      if (socketRef.current) socketRef.current.close();
-    };
-  }, [username]);
+  }, [onMessage]);
 
   // Auto-scroll console
   useEffect(() => {
@@ -197,7 +173,6 @@ export default function ConsolePage() {
   return (
     <MainSkeleton baseName={`Console for ${username ?? ""}`}>
       {loading && <div>Loading...</div>}
-      {console.log(installed)}
 
       {!username && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
@@ -208,12 +183,6 @@ export default function ConsolePage() {
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
           <p className="text-red-800 dark:text-red-200">{error}</p>
-        </div>
-      )}
-
-      {wsError && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mt-2">
-          <p className="text-yellow-800 dark:text-yellow-200">{wsError}</p>
         </div>
       )}
 

@@ -14,13 +14,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiClient, isApiError } from "../apiClient";
 import InstallModuleModal from "../components/InstallModuleModal";
 import MainSkeleton from "../components/MainSkeleton";
-import type { TokenResponse } from "../schemas/authentication";
 import type { ClientInfo } from "../schemas/client";
 import type { BasicTaskResponse } from "../schemas/general";
+import type { InstalledModuleInfo } from "../schemas/module.ts";
 
-import type {InstalledModuleInfo} from "../schemas/module.ts";
-
-// Use shared InstalledModuleInfo type from services
 export default function ClientPage() {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
@@ -100,69 +97,33 @@ export default function ClientPage() {
     fetchInstalledModules();
   }, [navigate, username]);
 
-  useEffect(() => {
-    const initializeWebSocket = async () => {
+  const onMessage = useCallback(
+    (event: MessageEvent) => {
       try {
-        const tokenResponse = await apiClient.post<object, TokenResponse>(
-          "/ws-user-token",
-          {},
-        );
-        if ("statusCode" in tokenResponse) {
-          console.error(
-            "Failed to get WebSocket token:",
-            tokenResponse.message,
-          );
-          return;
+        const data = JSON.parse(event.data);
+        if (data.type === "alive_update") {
+          updateClientAliveStatus(data.data.username, data.data.alive);
         }
-
-        const wsToken = tokenResponse.access_token;
-        const baseUrl = apiClient.getApiUrl();
-        if (!baseUrl) {
-          console.error("API URL not configured for WebSocket");
-          return;
-        }
-        const url = new URL(baseUrl);
-        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-        url.pathname = "/ws-user";
-        url.search = `token=${encodeURIComponent(wsToken)}`;
-        const socket = new WebSocket(url.toString());
-        socketRef.current = socket;
-
-        socket.onopen = () => {
-          console.log("WebSocket connected");
-        };
-
-        socket.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === "alive_update") {
-              updateClientAliveStatus(data.data.username, data.data.alive);
-            }
-          } catch (error) {
-            console.error("Error parsing WebSocket message:", error);
-          }
-        };
-
-        socket.onerror = (error) => {
-          console.error("WebSocket error:", error);
-        };
-
-        socket.onclose = (event) => {
-          console.log("WebSocket connection closed:", event.code, event.reason);
-        };
       } catch (error) {
-        console.error("Failed to initialize WebSocket:", error);
+        setError("Error parsing WebSocket message: " + error);
       }
-    };
+    },
+    [updateClientAliveStatus],
+  );
 
-    initializeWebSocket();
+  useEffect(() => {
+    if (!socketRef.current) {
+      apiClient.startWebSocket(socketRef, onMessage);
+    }
+
+    const currentSocket = socketRef.current;
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.close();
+      if (currentSocket) {
+        currentSocket?.close();
       }
     };
-  }, [updateClientAliveStatus]);
+  }, [onMessage]);
 
   const handleInstallModule = async (moduleName: string) => {
     if (!username) return;

@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 
+import { apiClient, type ApiError } from "./apiClient";
 import LoginPanel from "./components/LoginPanel";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RegisterPanel from "./components/RegisterPanel";
@@ -10,7 +11,6 @@ import Dashboard from "./pages/Dashboard";
 import ModulePage from "./pages/ModulePage";
 import ModulesPage from "./pages/ModulesPage";
 import SettingsPage from "./pages/SettingsPage";
-import { apiClient, type ApiError } from "./apiClient";
 import type { AuthRequest } from "./schemas/authentication";
 import type { BasicTaskResponse } from "./schemas/general";
 import { useAuthStore } from "./stores/authStore";
@@ -21,13 +21,8 @@ export default function App() {
   const Login = (data: AuthRequest): Promise<BasicTaskResponse | ApiError> =>
     apiClient.post<AuthRequest, BasicTaskResponse>("/user/auth/login", data);
 
-  const Register = (
-    data: AuthRequest,
-  ): Promise<BasicTaskResponse | ApiError> =>
-    apiClient.post<AuthRequest, BasicTaskResponse>(
-      "/user/auth/register",
-      data,
-    );
+  const Register = (data: AuthRequest): Promise<BasicTaskResponse | ApiError> =>
+    apiClient.post<AuthRequest, BasicTaskResponse>("/user/auth/register", data);
 
   return (
     <BrowserRouter>

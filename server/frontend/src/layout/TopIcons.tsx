@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { HiOutlineCog, HiOutlineBell } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 
-import { apiClient, isApiError } from "../apiClient";
+import { apiClient } from "../apiClient";
 import { useAuthStore } from "../stores/authStore";
 import { useAvatarStore } from "../stores/useAvatarStore";
 
@@ -57,24 +57,12 @@ export default function TopIcons() {
   }, [avatarUrl, fetchAvatar]);
 
   const handleLogout = async () => {
-    try {
-      const resp = await apiClient.post<object, { result: string }>(
-        "/user/auth/logout",
-        {},
-      );
-      if (isApiError(resp)) {
-        console.error("Logout failed:", resp.detail || resp.message);
-      }
-    } catch (e) {
-      console.error("Logout error:", e);
-    } finally {
-      clearUser();
-      clearAvatar();
-      navigate("/login");
-    }
+    await apiClient.post<object, { result: string }>("/user/auth/logout", {});
+    clearUser();
+    clearAvatar();
+    navigate("/login");
   };
 
-  // Close notifications panel on outside click / Escape
   useEffect(() => {
     if (!notifOpen) return;
 
@@ -115,7 +103,6 @@ export default function TopIcons() {
           className="relative"
         >
           <HiOutlineBell className="h-5 w-5" />
-          {/* Unread dot scaffold: enable when you have unread */}
           {/* <span className="absolute -top-0.5 -right-0.5 inline-flex h-2 w-2 rounded-full bg-red-500" /> */}
         </Button>
 

@@ -4,9 +4,7 @@ const TIMEOUT = 10000;
 
 describe("AuthStore Tests", () => {
   beforeEach(() => {
-    // Clear the store state before each test
     useAuthStore.getState().clearUser();
-    // Clear localStorage
     localStorage.clear();
     jest.clearAllMocks();
   }, TIMEOUT);
@@ -47,13 +45,11 @@ describe("AuthStore Tests", () => {
         const firstUser = { username: "firstuser" };
         const secondUser = { username: "seconduser" };
 
-        // Set first user
         useAuthStore.getState().setUser(firstUser);
         let state = useAuthStore.getState();
         expect(state.user).toEqual(firstUser);
         expect(state.isAuthenticated).toBe(true);
 
-        // Set second user
         useAuthStore.getState().setUser(secondUser);
         state = useAuthStore.getState();
         expect(state.user).toEqual(secondUser);
@@ -97,13 +93,11 @@ describe("AuthStore Tests", () => {
       () => {
         const testUser = { username: "testuser123" };
 
-        // First set a user
         useAuthStore.getState().setUser(testUser);
         let state = useAuthStore.getState();
         expect(state.user).toEqual(testUser);
         expect(state.isAuthenticated).toBe(true);
 
-        // Then clear the user
         useAuthStore.getState().clearUser();
         state = useAuthStore.getState();
         expect(state.user).toBeNull();
@@ -115,7 +109,6 @@ describe("AuthStore Tests", () => {
     it(
       "should work when no user is set",
       () => {
-        // Clear user when already cleared
         useAuthStore.getState().clearUser();
         const state = useAuthStore.getState();
 
@@ -130,10 +123,8 @@ describe("AuthStore Tests", () => {
       () => {
         const testUser = { username: "testuser123" };
 
-        // Set user
         useAuthStore.getState().setUser(testUser);
 
-        // Clear multiple times
         useAuthStore.getState().clearUser();
         useAuthStore.getState().clearUser();
         useAuthStore.getState().clearUser();
@@ -152,13 +143,11 @@ describe("AuthStore Tests", () => {
       () => {
         const testUser = { username: "flowuser123" };
 
-        // Login (setUser)
         useAuthStore.getState().setUser(testUser);
         let state = useAuthStore.getState();
         expect(state.user).toEqual(testUser);
         expect(state.isAuthenticated).toBe(true);
 
-        // Logout (clearUser)
         useAuthStore.getState().clearUser();
         state = useAuthStore.getState();
         expect(state.user).toBeNull();
@@ -173,14 +162,12 @@ describe("AuthStore Tests", () => {
         const testUser1 = { username: "user1" };
         const testUser2 = { username: "user2" };
 
-        // First cycle
         useAuthStore.getState().setUser(testUser1);
         expect(useAuthStore.getState().isAuthenticated).toBe(true);
 
         useAuthStore.getState().clearUser();
         expect(useAuthStore.getState().isAuthenticated).toBe(false);
 
-        // Second cycle with different user
         useAuthStore.getState().setUser(testUser2);
         expect(useAuthStore.getState().user).toEqual(testUser2);
         expect(useAuthStore.getState().isAuthenticated).toBe(true);
@@ -198,12 +185,10 @@ describe("AuthStore Tests", () => {
       () => {
         const testUser = { username: "persistuser123" };
 
-        // Clear localStorage first
         localStorage.clear();
 
         useAuthStore.getState().setUser(testUser);
 
-        // Check if data was persisted to localStorage
         const storedData = localStorage.getItem("auth-storage");
         expect(storedData).not.toBeNull();
 
@@ -221,13 +206,10 @@ describe("AuthStore Tests", () => {
       () => {
         const testUser = { username: "clearuser123" };
 
-        // Set user first
         useAuthStore.getState().setUser(testUser);
 
-        // Clear user
         useAuthStore.getState().clearUser();
 
-        // Check if cleared state was persisted
         const storedData = localStorage.getItem("auth-storage");
         expect(storedData).not.toBeNull();
 
@@ -248,11 +230,9 @@ describe("AuthStore Tests", () => {
         localStorage.clear();
         useAuthStore.getState().setUser(testUser);
 
-        // Check that the correct key was used
         const storedData = localStorage.getItem("auth-storage");
         expect(storedData).not.toBeNull();
 
-        // Verify other keys are not used
         expect(localStorage.getItem("user-storage")).toBeNull();
         expect(localStorage.getItem("auth")).toBeNull();
       },
@@ -264,7 +244,6 @@ describe("AuthStore Tests", () => {
       () => {
         const testUser = { username: "restoreuser123" };
 
-        // Manually set data in localStorage as if it was persisted before
         const mockStoredData = {
           state: {
             user: testUser,
@@ -275,8 +254,6 @@ describe("AuthStore Tests", () => {
 
         localStorage.setItem("auth-storage", JSON.stringify(mockStoredData));
 
-        // Note: In a real scenario, this would test store rehydration on app restart
-        // For this test, we're just verifying the localStorage interaction
         const storedData = localStorage.getItem("auth-storage");
         expect(storedData).not.toBeNull();
 
@@ -296,13 +273,11 @@ describe("AuthStore Tests", () => {
       () => {
         const testUser = { username: "consistencyuser" };
 
-        // When user is set, isAuthenticated should be true
         useAuthStore.getState().setUser(testUser);
         let state = useAuthStore.getState();
         expect(state.user).not.toBeNull();
         expect(state.isAuthenticated).toBe(true);
 
-        // When user is cleared, isAuthenticated should be false
         useAuthStore.getState().clearUser();
         state = useAuthStore.getState();
         expect(state.user).toBeNull();
@@ -320,7 +295,6 @@ describe("AuthStore Tests", () => {
           { username: "rapid3" },
         ];
 
-        // Rapid setting of different users
         users.forEach((user) => {
           useAuthStore.getState().setUser(user);
           const state = useAuthStore.getState();
@@ -328,7 +302,6 @@ describe("AuthStore Tests", () => {
           expect(state.isAuthenticated).toBe(true);
         });
 
-        // Final clear
         useAuthStore.getState().clearUser();
         const finalState = useAuthStore.getState();
         expect(finalState.user).toBeNull();

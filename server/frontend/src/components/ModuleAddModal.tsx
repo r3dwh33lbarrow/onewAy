@@ -3,13 +3,10 @@ import { useEffect, useState } from "react";
 import { HiOutlineDocument, HiOutlineFolder } from "react-icons/hi";
 
 import { apiClient, isApiError } from "../apiClient";
+import type { ModuleAddRequest } from "../schemas/module.ts";
 
 interface ModuleDirectoryContents {
   contents: Array<Record<string, string>>;
-}
-
-interface ModuleAddRequest {
-  module_path: string;
 }
 
 interface ModuleAddModalProps {
@@ -78,7 +75,7 @@ export default function ModuleAddModal({
       { module_path: string }
     >("/module/add", { module_path: selectedContent });
     if (isApiError(response)) {
-      console.error("Error adding module:", response.detail);
+      /* Create global error */
     }
 
     onClose();
@@ -110,7 +107,6 @@ export default function ModuleAddModal({
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Select a module from the directory:
                 </p>
-                {/* TODO: Bug with left content space. Feature for now */}
                 <div className="max-h-60 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 overflow-hidden">
                   {directoryContents.map((item, index) => {
                     const itemValue = hasKeyFile(item)

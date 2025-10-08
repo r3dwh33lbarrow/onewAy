@@ -1,18 +1,8 @@
-import { Modal, ModalBody, ModalHeader, Button } from "flowbite-react";
-import { useState, useEffect } from "react";
+import { Button, Modal, ModalBody, ModalHeader } from "flowbite-react";
+import { useEffect, useState } from "react";
 
 import { apiClient, isApiError } from "../apiClient";
-
-interface ModuleBasicInfo {
-  name: string;
-  description?: string;
-  version: string;
-  binaries_platform: string[];
-}
-
-interface UserModuleAllResponse {
-  modules: ModuleBasicInfo[];
-}
+import type { UserModuleAllResponse } from "../schemas/module.ts";
 
 interface InstallModuleModalProps {
   show: boolean;

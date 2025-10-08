@@ -1,3 +1,7 @@
+import type { RefObject } from "react";
+
+import type { TokenResponse } from "./schemas/authentication.ts";
+
 export interface ApiError {
   statusCode: number;
   message: string;
@@ -226,6 +230,54 @@ class ApiClient {
         message:
           error instanceof Error ? error.message : "Unknown error occurred",
       };
+    }
+  }
+
+  public async startWebSocket(
+    sockRef: RefObject<WebSocket | null>,
+    onMessage: (event: MessageEvent) => void,
+    onError?: (error: ApiError) => void,
+  ): Promise<void> {
+    if (sockRef.current) {
+      sockRef.current.close();
+    }
+
+    if (!this.apiUrl) {
+      onError?.({
+        statusCode: -1,
+        message: "API URL not configured. Please set a valid API URL first.",
+      });
+      return;
+    }
+
+    try {
+      const tokenResponse = await this.post<object, TokenResponse>(
+        "/ws-user-token",
+        {},
+      );
+      if (isApiError(tokenResponse)) {
+        onError?.(tokenResponse);
+        return;
+      }
+
+      const wsToken = tokenResponse.access_token;
+      const baseUrl = this.apiUrl;
+      const url = new URL(baseUrl);
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+      url.pathname = "/ws-user";
+      url.search = `token=${encodeURIComponent(wsToken)}`;
+      const socket = new WebSocket(url.toString());
+      sockRef.current = socket;
+
+      socket.onmessage = (event) => {
+        onMessage(event);
+      };
+    } catch (error) {
+      onError?.({
+        statusCode: -1,
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      });
     }
   }
 }

@@ -13,11 +13,14 @@ import { HiInformationCircle, HiOutlineUpload } from "react-icons/hi";
 import { HiMiniPlus } from "react-icons/hi2";
 import { useNavigate } from "react-router-dom";
 
+import { apiClient } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
 import ModuleAddModal from "../components/ModuleAddModal";
-import { apiClient } from "../apiClient";
+import type {
+  UserModuleAllResponse,
+  UploadModuleResponse,
+} from "../schemas/module.ts";
 import { snakeCaseToTitle } from "../utils";
-import type { UserModuleAllResponse, UploadModuleResponse } from "../schemas/module.ts";
 
 export default function ModulesPage() {
   const [modules, setModules] = useState<UserModuleAllResponse["modules"]>([]);
@@ -27,25 +30,25 @@ export default function ModulesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchModules = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const result = await apiClient.get<UserModuleAllResponse>("/module/all");
+  const fetchModules = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await apiClient.get<UserModuleAllResponse>("/module/all");
 
-        if ("modules" in result) {
-          setModules(result.modules);
-        } else {
-          setError(result.message || "Failed to fetch modules: Unknown error");
-        }
-      } catch (err) {
-        setError("Failed to fetch modules: " + err);
-      } finally {
-        setLoading(false);
+      if ("modules" in result) {
+        setModules(result.modules);
+      } else {
+        setError(result.message || "Failed to fetch modules: Unknown error");
       }
-    };
+    } catch (err) {
+      setError("Failed to fetch modules: " + err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchModules();
   }, []);
 
@@ -78,9 +81,8 @@ export default function ModulesPage() {
 
         if ("result" in result) {
           setAlertMsg("Module uploaded successfully!");
-          const modulesResult = await apiClient.get<UserModuleAllResponse>(
-            "/module/all",
-          );
+          const modulesResult =
+            await apiClient.get<UserModuleAllResponse>("/module/all");
           if ("modules" in modulesResult) {
             setModules(modulesResult.modules);
           }
@@ -98,24 +100,6 @@ export default function ModulesPage() {
 
     document.body.appendChild(fileInput);
     fileInput.click();
-  };
-
-  const refreshModules = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const result = await apiClient.get<UserModuleAllResponse>("/module/all");
-
-      if ("modules" in result) {
-        setModules(result.modules);
-      } else {
-        setError(result.message || "Failed to fetch modules: Unknown error");
-      }
-    } catch (err) {
-      setError("Failed to fetch modules: " + err);
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -236,7 +220,7 @@ export default function ModulesPage() {
       <ModuleAddModal
         show={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onModuleAdded={refreshModules}
+        onModuleAdded={fetchModules}
       />
     </MainSkeleton>
   );
