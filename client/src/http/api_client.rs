@@ -1,13 +1,12 @@
 use crate::schemas::{ApiError, ApiErrorResponse};
 use anyhow::Context;
-use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::{Client, Method};
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
-use crate::{debug, error};
 
 #[derive(Debug, Clone)]
 pub struct ApiClient {

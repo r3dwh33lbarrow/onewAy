@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 #[tokio::main]
 async fn main() {
     let config = CONFIG.clone();
-    let mut api_client =
+    let api_client =
         Arc::new(Mutex::new(ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient")));
 
     if !config.auth.enrolled {

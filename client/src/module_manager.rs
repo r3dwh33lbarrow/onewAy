@@ -1,19 +1,18 @@
+use crate::config::CONFIG;
+use crate::schemas::modules::AllInstalledResponse;
+use crate::schemas::BasicTaskResponse;
 use crate::utils::{str_to_snake_case, title_case_to_camel_case};
 use crate::{debug, error, ApiClient};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::fmt::format;
 use std::io;
 use std::path::Path;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
-use tokio::sync::Mutex;
 use tokio::sync::mpsc::UnboundedSender;
-use crate::schemas::modules::AllInstalledResponse;
-use crate::config::CONFIG;
-use crate::schemas::BasicTaskResponse;
+use tokio::sync::Mutex;
 
 #[derive(Debug, Error)]
 pub enum ModuleManagerError {

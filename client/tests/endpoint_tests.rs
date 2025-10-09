@@ -2,6 +2,8 @@ use client::ApiClient;
 use client::http::auth::{enroll, login, refresh_access_token};
 use client::schemas::{ApiError, RootResponse};
 use serde::Deserialize;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio_tungstenite::connect_async;
 
 fn base_url() -> &'static str {
@@ -31,33 +33,37 @@ struct ClientMeResponse {
 
 #[tokio::test]
 async fn test_enroll_login_and_me() {
-    let mut api = ApiClient::new(base_url()).expect("api client");
+    let api = ApiClient::new(base_url()).expect("api client");
+    let api = Arc::new(Mutex::new(api));
     let username = unique_username("rust_int");
     let password = "pw123";
 
-    let enrolled = enroll(&api, &username, password, "0.1.0").await;
+    let enrolled = enroll(api.clone(), &username, password, "0.1.0").await;
     assert!(enrolled, "expected enroll to succeed");
 
-    let logged_in = login(&mut api, &username, password).await;
+    let logged_in = login(api.clone(), &username, password).await;
     assert!(logged_in, "expected login to succeed");
 
-    let me: ClientMeResponse = api.get("/client/me").await.expect("/client/me");
+    let me: ClientMeResponse = api.lock().await.get("/client/me").await.expect("/client/me");
     assert_eq!(me.username, username);
 }
 
 #[tokio::test]
 async fn test_refresh_access_token_and_me() {
-    let mut api = ApiClient::new(base_url()).expect("api client");
+    let api = ApiClient::new(base_url()).expect("api client");
+    let api = Arc::new(Mutex::new(api));
     let username = unique_username("rust_refresh");
     let password = "pw123";
 
-    assert!(enroll(&api, &username, password, "0.1.0").await);
-    assert!(login(&mut api, &username, password).await);
+    assert!(enroll(api.clone(), &username, password, "0.1.0").await);
+    assert!(login(api.clone(), &username, password).await);
 
-    let refreshed = refresh_access_token(&mut api).await;
+    let refreshed = refresh_access_token(&mut *api.lock().await).await;
     assert!(refreshed, "expected refresh token to succeed");
 
     let me: ClientMeResponse = api
+        .lock()
+        .await
         .get("/client/me")
         .await
         .expect("/client/me after refresh");
@@ -66,14 +72,15 @@ async fn test_refresh_access_token_and_me() {
 
 #[tokio::test]
 async fn test_client_get_unknown_404() {
-    let mut api = ApiClient::new(base_url()).expect("api client");
+    let api = ApiClient::new(base_url()).expect("api client");
+    let api = Arc::new(Mutex::new(api));
     let username = unique_username("rust_unknown");
     let password = "pw123";
 
-    assert!(enroll(&api, &username, password, "0.1.0").await);
-    assert!(login(&mut api, &username, password).await);
+    assert!(enroll(api.clone(), &username, password, "0.1.0").await);
+    assert!(login(api.clone(), &username, password).await);
 
-    let res: anyhow::Result<serde_json::Value> = api.get("/client/get/no_such_user").await;
+    let res: anyhow::Result<serde_json::Value> = api.lock().await.get("/client/get/no_such_user").await;
     assert!(res.is_err(), "expected 404 error");
 
     let err = res.err().unwrap();
@@ -87,15 +94,16 @@ async fn test_client_get_unknown_404() {
 
 #[tokio::test]
 async fn test_client_update_missing_binary_500() {
-    let mut api = ApiClient::new(base_url()).expect("api client");
+    let api = ApiClient::new(base_url()).expect("api client");
+    let api = Arc::new(Mutex::new(api));
     let username = unique_username("rust_update");
     let password = "pw123";
 
-    assert!(enroll(&api, &username, password, "0.0.1").await);
-    assert!(login(&mut api, &username, password).await);
+    assert!(enroll(api.clone(), &username, password, "0.0.1").await);
+    assert!(login(api.clone(), &username, password).await);
 
     let tmp_path = std::env::temp_dir().join(format!("{}_client_update.bin", username));
-    let res = api.get_file("/client/update", &tmp_path).await;
+    let res = api.lock().await.get_file("/client/update", &tmp_path).await;
     assert!(res.is_err(), "expected error due to missing server binary");
 
     let err = res.err().unwrap();
@@ -110,14 +118,15 @@ async fn test_client_update_missing_binary_500() {
 #[tokio::test]
 async fn test_ws_client_token_and_ping_pong() {
     // Login as a client
-    let mut api = ApiClient::new(base_url()).expect("api client");
+    let api = ApiClient::new(base_url()).expect("api client");
+    let api = Arc::new(Mutex::new(api));
     let username = unique_username("rust_ws");
     let password = "pw123";
 
-    assert!(enroll(&api, &username, password, "0.1.0").await);
-    assert!(login(&mut api, &username, password).await);
+    assert!(enroll(api.clone(), &username, password, "0.1.0").await);
+    assert!(login(api.clone(), &username, password).await);
 
-    let token_val: serde_json::Value = api.post("/ws-client-token", &()).await.expect("ws token");
+    let token_val: serde_json::Value = api.lock().await.post("/ws-client-token", &()).await.expect("ws token");
     let access = token_val
         .get("access_token")
         .and_then(|v| v.as_str())
