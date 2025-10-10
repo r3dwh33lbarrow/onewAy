@@ -7,11 +7,10 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::io;
 use std::path::Path;
+use std::process::Stdio;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::{Child, Command};
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::process::{Child, ChildStdin, ChildStdout, ChildStderr, Command};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Error)]
@@ -53,10 +52,22 @@ pub(crate) struct ModuleConfig {
     pub parent_directory: Option<String>,
 }
 
+#[derive(Debug)]
+pub struct RunningModule {
+    pub child: Child,
+    pub stdin: ChildStdin,
+}
+
+// Struct to return stdout/stderr to the caller
+pub struct ModuleStreams {
+    pub stdout: ChildStdout,
+    pub stderr: ChildStderr,
+}
+
 pub struct ModuleManager {
     modules_directory: String,
     module_configs: Arc<Mutex<Vec<ModuleConfig>>>,
-    running: Arc<Mutex<HashMap<String, Arc<Mutex<Child>>>>>,
+    running: Arc<Mutex<HashMap<String, Arc<Mutex<RunningModule>>>>>,
 }
 
 impl ModuleConfig {
@@ -141,12 +152,16 @@ impl ModuleManager {
                 .join(str_to_snake_case(&module.name))
                 .join(binary);
 
-            let child = if relative_path.is_file() {
+            let mut child = if relative_path.is_file() {
                 Command::new(&relative_path)
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
                     .spawn()
                     .map_err(ModuleManagerError::IO)?
             } else if Path::new(binary).is_file() {
                 Command::new(binary)
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
                     .spawn()
                     .map_err(ModuleManagerError::IO)?
             } else {
@@ -157,8 +172,11 @@ impl ModuleManager {
                 )));
             };
 
+            let stdin = child.stdin.take().unwrap();
+            let running_module = RunningModule { child, stdin };
+
             let mut running = self.running.lock().await;
-            running.insert(module.name.clone(), Arc::new(Mutex::new(child)));
+            running.insert(module.name.clone(), Arc::new(Mutex::new(running_module)));
 
             debug!("Started module: {}", module.name);
             Ok(())
@@ -167,11 +185,11 @@ impl ModuleManager {
         }
     }
 
+    // Returns streams so the caller can handle them
     pub(crate) async fn start_module_streaming(
         &self,
         name: &str,
-        sender: UnboundedSender<String>,
-    ) -> Result<(), ModuleManagerError> {
+    ) -> Result<ModuleStreams, ModuleManagerError> {
         let module_opt = self.get_module(name).await;
         let Some(module) = module_opt else {
             return Err(ModuleManagerError::ModuleNotFound(name.to_string()));
@@ -187,91 +205,38 @@ impl ModuleManager {
         }
         full_path.push(binary);
 
-        let mut cmd = Command::new(&full_path);
-        cmd.stdout(std::process::Stdio::piped());
-        cmd.stderr(std::process::Stdio::piped());
-        let mut child = cmd.spawn()?;
+        let mut child = Command::new(&full_path)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(ModuleManagerError::IO)?;
 
-        let stdout = child.stdout.take();
-        let stderr = child.stderr.take();
+        let stdin = child.stdin.take().unwrap();
+        let stdout = child.stdout.take().unwrap();
+        let stderr = child.stderr.take().unwrap();
 
-        let child_arc = Arc::new(Mutex::new(child));
+        let running_module = RunningModule { child, stdin };
+
+        let running_arc = Arc::new(Mutex::new(running_module));
         {
             let mut map = self.running.lock().await;
-            map.insert(name.to_string(), Arc::clone(&child_arc));
+            map.insert(name.to_string(), Arc::clone(&running_arc));
         }
 
-        let module_name = name.to_string();
-        let _ = sender.send(
-            serde_json::json!({
-                "message_type": "module_started",
-                "module_name": module_name
-            })
-            .to_string(),
-        );
-
-        if let Some(stdout) = stdout {
-            let sender_clone = sender.clone();
-            let module_name = name.to_string();
-            tokio::spawn(async move {
-                let mut reader = BufReader::new(stdout).lines();
-                while let Ok(Some(line)) = reader.next_line().await {
-                    let _ = sender_clone.send(
-                        serde_json::json!({
-                            "message_type": "module_output",
-                            "module_name": module_name,
-                            "stream": "stdout",
-                            "line": line
-                        })
-                        .to_string(),
-                    );
-                }
-            });
-        }
-
-        if let Some(stderr) = stderr {
-            let sender_clone = sender.clone();
-            let module_name = name.to_string();
-            tokio::spawn(async move {
-                let mut reader = BufReader::new(stderr).lines();
-                while let Ok(Some(line)) = reader.next_line().await {
-                    let _ = sender_clone.send(
-                        serde_json::json!({
-                            "message_type": "module_output",
-                            "module_name": module_name,
-                            "stream": "stderr",
-                            "line": line
-                        })
-                        .to_string(),
-                    );
-                }
-            });
-        }
-
-        let sender_clone = sender.clone();
+        // Spawn a task to clean up when the process exits
         let running_map = Arc::clone(&self.running);
         let module_name = name.to_string();
-        let child_for_wait = Arc::clone(&child_arc);
         tokio::spawn(async move {
-            let code = {
-                let mut child = child_for_wait.lock().await;
-                let status = child.wait().await.ok();
-                status.and_then(|s| s.code()).unwrap_or_default()
-            };
+            let mut module = running_arc.lock().await;
+            let _ = module.child.wait().await;
+            drop(module);
+
             let mut map = running_map.lock().await;
             map.remove(&module_name);
-
-            let _ = sender_clone.send(
-                serde_json::json!({
-                    "message_type": "module_exit",
-                    "module_name": module_name,
-                    "code": code
-                })
-                .to_string(),
-            );
         });
 
-        Ok(())
+        Ok(ModuleStreams { stdout, stderr })
     }
 
     pub async fn start_all_modules_by_start(
@@ -316,7 +281,7 @@ impl ModuleManager {
         let map = self.running.lock().await;
         if let Some(child_arc) = map.get(name) {
             let mut child = child_arc.lock().await;
-            let _ = child.kill().await;
+            let _ = child.child.kill().await;
             return true;
         }
 

@@ -5,6 +5,7 @@ use crate::warn;
 use crate::{debug, error, info};
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::sync::Mutex;
 use tokio_tungstenite::connect_async;
@@ -113,14 +114,69 @@ async fn handle_websocket_message(
                 return;
             }
 
-            if let Err(e) = module_manager
-                .start_module_streaming(&message.module_name, tx.clone())
+            // Start the module and get the streams
+            let streams = match module_manager
+                .start_module_streaming(&message.module_name)
                 .await
             {
-                error!(
-                    "Failed to run and stream module {}: {}",
-                    message.module_name, e
-                );
+                Ok(s) => s,
+                Err(e) => {
+                    error!(
+                        "Failed to run and stream module {}: {}",
+                        message.module_name, e
+                    );
+                    return;
+                }
+            };
+
+            let _ = tx.send(
+                serde_json::json!({
+                    "message_type": "module_started",
+                    "module_name": message.module_name
+                })
+                    .to_string(),
+            );
+
+            {
+                let tx_clone = tx.clone();
+                let module_name = message.module_name.clone();
+                let stdout = streams.stdout;
+
+                tokio::spawn(async move {
+                    let mut reader = BufReader::new(stdout).lines();
+                    while let Ok(Some(line)) = reader.next_line().await {
+                        let _ = tx_clone.send(
+                            serde_json::json!({
+                                "message_type": "module_output",
+                                "module_name": module_name,
+                                "stream": "stdout",
+                                "line": line
+                            })
+                                .to_string(),
+                        );
+                    }
+                });
+            }
+
+            {
+                let tx_clone = tx.clone();
+                let module_name = message.module_name.clone();
+                let stderr = streams.stderr;
+
+                tokio::spawn(async move {
+                    let mut reader = BufReader::new(stderr).lines();
+                    while let Ok(Some(line)) = reader.next_line().await {
+                        let _ = tx_clone.send(
+                            serde_json::json!({
+                                "message_type": "module_output",
+                                "module_name": module_name,
+                                "stream": "stderr",
+                                "line": line
+                            })
+                                .to_string(),
+                        );
+                    }
+                });
             }
         }
         "module_cancel" => {
@@ -131,7 +187,7 @@ async fn handle_websocket_message(
                         "message_type": "module_canceled",
                         "module_name": message.module_name
                     })
-                    .to_string(),
+                        .to_string(),
                 );
             }
         }
