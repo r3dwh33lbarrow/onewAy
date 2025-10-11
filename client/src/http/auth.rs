@@ -1,9 +1,9 @@
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use crate::http::api_client::ApiClient;
 use crate::schemas::BasicTaskResponse;
 use crate::schemas::auth::{ClientEnrollRequest, ClientLoginRequest, TokenResponse};
 use crate::{error, info};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub async fn enroll(
     api_client: Arc<Mutex<ApiClient>>,

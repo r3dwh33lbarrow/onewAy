@@ -1,9 +1,9 @@
 use crate::schemas::{ApiError, ApiErrorResponse};
 use anyhow::Context;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use reqwest::{Client, Method};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;

@@ -1,17 +1,18 @@
 use crate::config::CONFIG;
-use crate::schemas::modules::AllInstalledResponse;
 use crate::schemas::BasicTaskResponse;
+use crate::schemas::modules::AllInstalledResponse;
 use crate::utils::{str_to_snake_case, title_case_to_camel_case};
-use crate::{debug, error, ApiClient};
+use crate::{ApiClient, debug, error};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::io;
 use std::path::Path;
-use std::process::Stdio;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::process::{Child, ChildStdin, ChildStdout, ChildStderr, Command};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug, Error)]
 pub enum ModuleManagerError {
@@ -29,6 +30,12 @@ pub enum ModuleManagerError {
 
     #[error("Not a valid module: {0}")]
     NotAValidModule(String),
+
+    #[error("Module {0} isn't running")]
+    ModuleNotRunning(String),
+
+    #[error("Module has no stdin")]
+    ModuleHasNoStdin,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
@@ -53,21 +60,15 @@ pub(crate) struct ModuleConfig {
 }
 
 #[derive(Debug)]
-pub struct RunningModule {
-    pub child: Child,
-    pub stdin: ChildStdin,
-}
-
-// Struct to return stdout/stderr to the caller
-pub struct ModuleStreams {
-    pub stdout: ChildStdout,
-    pub stderr: ChildStderr,
+pub(crate) struct RunningChild {
+    child: Child,
+    child_stdin: Option<ChildStdin>,
 }
 
 pub struct ModuleManager {
     modules_directory: String,
     module_configs: Arc<Mutex<Vec<ModuleConfig>>>,
-    running: Arc<Mutex<HashMap<String, Arc<Mutex<RunningModule>>>>>,
+    running: Arc<Mutex<HashMap<String, Arc<Mutex<RunningChild>>>>>,
 }
 
 impl ModuleConfig {
@@ -152,16 +153,12 @@ impl ModuleManager {
                 .join(str_to_snake_case(&module.name))
                 .join(binary);
 
-            let mut child = if relative_path.is_file() {
+            let child = if relative_path.is_file() {
                 Command::new(&relative_path)
-                    .stdin(Stdio::piped())
-                    .stdout(Stdio::piped())
                     .spawn()
                     .map_err(ModuleManagerError::IO)?
             } else if Path::new(binary).is_file() {
                 Command::new(binary)
-                    .stdin(Stdio::piped())
-                    .stdout(Stdio::piped())
                     .spawn()
                     .map_err(ModuleManagerError::IO)?
             } else {
@@ -172,11 +169,14 @@ impl ModuleManager {
                 )));
             };
 
-            let stdin = child.stdin.take().unwrap();
-            let running_module = RunningModule { child, stdin };
-
             let mut running = self.running.lock().await;
-            running.insert(module.name.clone(), Arc::new(Mutex::new(running_module)));
+            running.insert(
+                module.name.clone(),
+                Arc::new(Mutex::new(RunningChild {
+                    child,
+                    child_stdin: None,
+                })),
+            );
 
             debug!("Started module: {}", module.name);
             Ok(())
@@ -185,11 +185,11 @@ impl ModuleManager {
         }
     }
 
-    // Returns streams so the caller can handle them
     pub(crate) async fn start_module_streaming(
         &self,
         name: &str,
-    ) -> Result<ModuleStreams, ModuleManagerError> {
+        sender: UnboundedSender<String>,
+    ) -> Result<(), ModuleManagerError> {
         let module_opt = self.get_module(name).await;
         let Some(module) = module_opt else {
             return Err(ModuleManagerError::ModuleNotFound(name.to_string()));
@@ -205,38 +205,134 @@ impl ModuleManager {
         }
         full_path.push(binary);
 
-        let mut child = Command::new(&full_path)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(ModuleManagerError::IO)?;
+        let mut cmd = Command::new(&full_path);
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+        cmd.stdin(std::process::Stdio::piped());
+        let mut child = cmd.spawn()?;
 
-        let stdin = child.stdin.take().unwrap();
-        let stdout = child.stdout.take().unwrap();
-        let stderr = child.stderr.take().unwrap();
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+        let stdin = child.stdin.take().ok_or_else(|| {
+            ModuleManagerError::IO(io::Error::new(
+                io::ErrorKind::Other,
+                "Failed to capture stdin",
+            ))
+        })?;
 
-        let running_module = RunningModule { child, stdin };
-
-        let running_arc = Arc::new(Mutex::new(running_module));
+        let child_arc = Arc::new(Mutex::new(RunningChild {
+            child,
+            child_stdin: Some(stdin),
+        }));
         {
             let mut map = self.running.lock().await;
-            map.insert(name.to_string(), Arc::clone(&running_arc));
+            map.insert(name.to_string(), Arc::clone(&child_arc));
         }
 
-        // Spawn a task to clean up when the process exits
+        let module_name = name.to_string();
+        let _ = sender.send(
+            serde_json::json!({
+                "message_type": "module_started",
+                "module_name": module_name
+            })
+            .to_string(),
+        );
+
+        if let Some(stdout) = stdout {
+            let sender_clone = sender.clone();
+            let module_name = name.to_string();
+            tokio::spawn(async move {
+                let mut reader = BufReader::new(stdout).lines();
+                while let Ok(Some(line)) = reader.next_line().await {
+                    let _ = sender_clone.send(
+                        serde_json::json!({
+                            "message_type": "module_output",
+                            "module_name": module_name,
+                            "stream": "stdout",
+                            "line": line
+                        })
+                        .to_string(),
+                    );
+                }
+            });
+        }
+
+        if let Some(stderr) = stderr {
+            let sender_clone = sender.clone();
+            let module_name = name.to_string();
+            tokio::spawn(async move {
+                let mut reader = BufReader::new(stderr).lines();
+                while let Ok(Some(line)) = reader.next_line().await {
+                    let _ = sender_clone.send(
+                        serde_json::json!({
+                            "message_type": "module_output",
+                            "module_name": module_name,
+                            "stream": "stderr",
+                            "line": line
+                        })
+                        .to_string(),
+                    );
+                }
+            });
+        }
+
+        let sender_clone = sender.clone();
         let running_map = Arc::clone(&self.running);
         let module_name = name.to_string();
+        let child_for_wait = Arc::clone(&child_arc);
         tokio::spawn(async move {
-            let mut module = running_arc.lock().await;
-            let _ = module.child.wait().await;
-            drop(module);
-
+            let code = {
+                let mut child = child_for_wait.lock().await;
+                let status = child.child.wait().await.ok();
+                status.and_then(|s| s.code()).unwrap_or_default()
+            };
             let mut map = running_map.lock().await;
             map.remove(&module_name);
+
+            let _ = sender_clone.send(
+                serde_json::json!({
+                    "message_type": "module_exit",
+                    "module_name": module_name,
+                    "code": code
+                })
+                .to_string(),
+            );
         });
 
-        Ok(ModuleStreams { stdout, stderr })
+        Ok(())
+    }
+
+    pub async fn give_to_stdin(
+        &self,
+        module_name: &str,
+        bytes: &Vec<u8>,
+    ) -> Result<(), ModuleManagerError> {
+        let module = self.get_module(module_name).await;
+        if module.is_none() {
+            return Err(ModuleManagerError::ModuleNotFound(module_name.to_string()));
+        }
+
+        let running = self.running.lock().await;
+        let running_module = running.get(module_name);
+        if running_module.is_none() {
+            return Err(ModuleManagerError::ModuleNotRunning(
+                module_name.to_string(),
+            ));
+        }
+
+        let running_child = running_module.unwrap();
+        let mut child_lock = running_child.lock().await;
+
+        if let Some(ref mut stdin) = child_lock.child_stdin {
+            stdin
+                .write_all(bytes)
+                .await
+                .map_err(ModuleManagerError::IO)?;
+            stdin.flush().await.map_err(ModuleManagerError::IO)?;
+            Ok(())
+        } else {
+            Err(ModuleManagerError::ModuleHasNoStdin)
+        }
     }
 
     pub async fn start_all_modules_by_start(
@@ -288,15 +384,18 @@ impl ModuleManager {
         false
     }
 
-    pub async fn check_installed_discrepancies(&self, api_client: Arc<Mutex<ApiClient>>) -> anyhow::Result<Vec<String>> {
+    pub async fn check_installed_discrepancies(
+        &self,
+        api_client: Arc<Mutex<ApiClient>>,
+    ) -> anyhow::Result<Vec<String>> {
         let local_modules = self.module_configs.lock().await;
-        let local_module_names: Vec<String> = local_modules
-            .iter()
-            .map(|x| x.name.to_string())
-            .collect();
+        let local_module_names: Vec<String> =
+            local_modules.iter().map(|x| x.name.to_string()).collect();
 
         let api_client = api_client.lock().await;
-        let remote_modules = api_client.get::<AllInstalledResponse>(&format!("/module/installed/{}", CONFIG.auth.username)).await?;
+        let remote_modules = api_client
+            .get::<AllInstalledResponse>(&format!("/module/installed/{}", CONFIG.auth.username))
+            .await?;
         let remote_module_names: Vec<String> = remote_modules
             .all_installed
             .unwrap_or(vec![])
@@ -319,8 +418,20 @@ impl ModuleManager {
         Ok(local_and_remote)
     }
 
-    pub async fn set_installed(&self, module_name: &str, api_client: Arc<Mutex<ApiClient>>) -> anyhow::Result<BasicTaskResponse> {
+    pub async fn set_installed(
+        &self,
+        module_name: &str,
+        api_client: Arc<Mutex<ApiClient>>,
+    ) -> anyhow::Result<BasicTaskResponse> {
         let api_client = api_client.lock().await;
-        api_client.post::<(), BasicTaskResponse>(&*format!("/module/set-installed/{}?module_name={}", CONFIG.auth.username, module_name), &()).await
+        api_client
+            .post::<(), BasicTaskResponse>(
+                &*format!(
+                    "/module/set-installed/{}?module_name={}",
+                    CONFIG.auth.username, module_name
+                ),
+                &(),
+            )
+            .await
     }
 }

@@ -5,9 +5,8 @@ use crate::warn;
 use crate::{debug, error, info};
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Bytes;
 use tungstenite::Message;
@@ -114,69 +113,57 @@ async fn handle_websocket_message(
                 return;
             }
 
-            // Start the module and get the streams
-            let streams = match module_manager
-                .start_module_streaming(&message.module_name)
+            if let Err(e) = module_manager
+                .start_module_streaming(&*message.message_type, tx.clone())
                 .await
             {
-                Ok(s) => s,
-                Err(e) => {
-                    error!(
-                        "Failed to run and stream module {}: {}",
-                        message.module_name, e
-                    );
-                    return;
-                }
-            };
+                error!("Failed to start module streaming: {}", e.to_string());
+                let _ = tx.send(
+                    serde_json::json!({
+                        "message_type": "error",
+                        "module_name": message.module_name,
+                    })
+                    .to_string(),
+                );
+                return;
+            }
 
             let _ = tx.send(
                 serde_json::json!({
                     "message_type": "module_started",
                     "module_name": message.module_name
                 })
-                    .to_string(),
+                .to_string(),
             );
-
-            {
-                let tx_clone = tx.clone();
-                let module_name = message.module_name.clone();
-                let stdout = streams.stdout;
-
-                tokio::spawn(async move {
-                    let mut reader = BufReader::new(stdout).lines();
-                    while let Ok(Some(line)) = reader.next_line().await {
-                        let _ = tx_clone.send(
-                            serde_json::json!({
-                                "message_type": "module_output",
-                                "module_name": module_name,
-                                "stream": "stdout",
-                                "line": line
-                            })
-                                .to_string(),
-                        );
-                    }
-                });
+        }
+        "module_stdin" => {
+            debug!("Giving stdin to ModuleManager");
+            if message.payload.is_none() {
+                error!("No payload was provided in module_stdin message");
+                let _ = tx.send(
+                    serde_json::json!({
+                        "message_type": "error",
+                        "module_name": message.module_name,
+                    })
+                    .to_string(),
+                );
+                return;
             }
-
-            {
-                let tx_clone = tx.clone();
-                let module_name = message.module_name.clone();
-                let stderr = streams.stderr;
-
-                tokio::spawn(async move {
-                    let mut reader = BufReader::new(stderr).lines();
-                    while let Ok(Some(line)) = reader.next_line().await {
-                        let _ = tx_clone.send(
-                            serde_json::json!({
-                                "message_type": "module_output",
-                                "module_name": module_name,
-                                "stream": "stderr",
-                                "line": line
-                            })
-                                .to_string(),
-                        );
-                    }
-                });
+            let result = module_manager
+                .give_to_stdin(&*message.module_name, &message.payload.unwrap())
+                .await;
+            if result.is_err() {
+                error!(
+                    "Failed to send to stdin: {}",
+                    result.err().unwrap().to_string()
+                );
+                let _ = tx.send(
+                    serde_json::json!({
+                        "message_type": "error",
+                        "module_name": message.module_name,
+                    })
+                    .to_string(),
+                );
             }
         }
         "module_cancel" => {
@@ -187,7 +174,7 @@ async fn handle_websocket_message(
                         "message_type": "module_canceled",
                         "module_name": message.module_name
                     })
-                        .to_string(),
+                    .to_string(),
                 );
             }
         }

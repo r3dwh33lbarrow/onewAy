@@ -44,7 +44,12 @@ async fn test_enroll_login_and_me() {
     let logged_in = login(api.clone(), &username, password).await;
     assert!(logged_in, "expected login to succeed");
 
-    let me: ClientMeResponse = api.lock().await.get("/client/me").await.expect("/client/me");
+    let me: ClientMeResponse = api
+        .lock()
+        .await
+        .get("/client/me")
+        .await
+        .expect("/client/me");
     assert_eq!(me.username, username);
 }
 
@@ -80,7 +85,8 @@ async fn test_client_get_unknown_404() {
     assert!(enroll(api.clone(), &username, password, "0.1.0").await);
     assert!(login(api.clone(), &username, password).await);
 
-    let res: anyhow::Result<serde_json::Value> = api.lock().await.get("/client/get/no_such_user").await;
+    let res: anyhow::Result<serde_json::Value> =
+        api.lock().await.get("/client/get/no_such_user").await;
     assert!(res.is_err(), "expected 404 error");
 
     let err = res.err().unwrap();
@@ -126,7 +132,12 @@ async fn test_ws_client_token_and_ping_pong() {
     assert!(enroll(api.clone(), &username, password, "0.1.0").await);
     assert!(login(api.clone(), &username, password).await);
 
-    let token_val: serde_json::Value = api.lock().await.post("/ws-client-token", &()).await.expect("ws token");
+    let token_val: serde_json::Value = api
+        .lock()
+        .await
+        .post("/ws-client-token", &())
+        .await
+        .expect("ws token");
     let access = token_val
         .get("access_token")
         .and_then(|v| v.as_str())

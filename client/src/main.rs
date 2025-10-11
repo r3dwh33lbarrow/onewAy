@@ -1,12 +1,16 @@
-use client::{ApiClient, CONFIG, ModuleManager, ModuleStart, debug, enroll, error, login, set_enrolled, start_websocket_client, warn, info};
+use client::{
+    ApiClient, CONFIG, ModuleManager, ModuleStart, debug, enroll, error, info, login, set_enrolled,
+    start_websocket_client, warn,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() {
     let config = CONFIG.clone();
-    let api_client =
-        Arc::new(Mutex::new(ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient")));
+    let api_client = Arc::new(Mutex::new(
+        ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient"),
+    ));
 
     if !config.auth.enrolled {
         let result = enroll(
@@ -42,23 +46,31 @@ async fn main() {
         error!("Failed to load modules: {}", e);
     }
 
-    let installed_discrepancies = module_manager.check_installed_discrepancies(Arc::clone(&api_client)).await;
+    let installed_discrepancies = module_manager
+        .check_installed_discrepancies(Arc::clone(&api_client))
+        .await;
     match installed_discrepancies {
         Ok(installed) => {
             if !installed.is_empty() {
-                warn!("Installed module discrepancies with server: {:?}", installed);
+                warn!(
+                    "Installed module discrepancies with server: {:?}",
+                    installed
+                );
                 for discrepancy in installed {
-                    let result = module_manager.set_installed(&*discrepancy, Arc::clone(&api_client)).await;
+                    let result = module_manager
+                        .set_installed(&*discrepancy, Arc::clone(&api_client))
+                        .await;
                     match result {
                         Ok(..) => info!("Resolved discrepancy: {}", discrepancy),
                         Err(e) => error!("Failed to resolve discrepancy ({}): {}", discrepancy, e),
                     }
                 }
             }
-        },
-        Err(e) => {error!("Failed to get module discrepancies: {}", e)},
+        }
+        Err(e) => {
+            error!("Failed to get module discrepancies: {}", e)
+        }
     }
-
 
     if let Err(e) = module_manager
         .start_all_modules_by_start(ModuleStart::OnStart)
