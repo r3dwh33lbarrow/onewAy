@@ -112,16 +112,12 @@ export default function ClientPage() {
   );
 
   useEffect(() => {
-    if (!socketRef.current) {
-      apiClient.startWebSocket(socketRef, onMessage);
-    }
+    apiClient.startWebSocket(socketRef, onMessage);
 
     const currentSocket = socketRef.current;
 
     return () => {
-      if (currentSocket) {
-        currentSocket?.close();
-      }
+      currentSocket?.removeEventListener("message", onMessage);
     };
   }, [onMessage]);
 

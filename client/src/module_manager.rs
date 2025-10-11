@@ -4,7 +4,7 @@ use crate::schemas::modules::AllInstalledResponse;
 use crate::utils::{str_to_snake_case, title_case_to_camel_case};
 use crate::{ApiClient, debug, error};
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::Path;
 use std::sync::Arc;
@@ -305,7 +305,7 @@ impl ModuleManager {
     pub async fn give_to_stdin(
         &self,
         module_name: &str,
-        bytes: &Vec<u8>,
+        bytes: &[u8],
     ) -> Result<(), ModuleManagerError> {
         let module = self.get_module(module_name).await;
         if module.is_none() {
@@ -396,26 +396,19 @@ impl ModuleManager {
         let remote_modules = api_client
             .get::<AllInstalledResponse>(&format!("/module/installed/{}", CONFIG.auth.username))
             .await?;
-        let remote_module_names: Vec<String> = remote_modules
+        let remote_module_names: HashSet<String> = remote_modules
             .all_installed
-            .unwrap_or(vec![])
+            .unwrap_or_default()
             .iter()
             .map(|x| x.name.to_string())
             .collect();
 
-        let mut local_and_remote: Vec<String> = local_module_names.clone();
-        let mut counter = 0;
-        for local_mod_name in local_module_names {
-            for remote_mod_name in &remote_module_names {
-                if *remote_mod_name == local_mod_name {
-                    local_and_remote.remove(counter);
-                }
-            }
+        let discrepancies: Vec<String> = local_module_names
+            .into_iter()
+            .filter(|name| !remote_module_names.contains(name))
+            .collect();
 
-            counter += 1;
-        }
-
-        Ok(local_and_remote)
+        Ok(discrepancies)
     }
 
     pub async fn set_installed(
@@ -425,12 +418,6 @@ impl ModuleManager {
     ) -> anyhow::Result<BasicTaskResponse> {
         let api_client = api_client.lock().await;
         let camel_case_name = title_case_to_camel_case(module_name);
-        let encoded_name = urlencoding::encode(&camel_case_name);
-        let url = format!(
-            "/module/set-installed/{}?module_name={}",
-            CONFIG.auth.username,
-            encoded_name
-        );
         api_client
             .post_with_query::<(), BasicTaskResponse>(
                 &format!("/module/set-installed/{}", CONFIG.auth.username),

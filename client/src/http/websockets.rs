@@ -127,14 +127,6 @@ async fn handle_websocket_message(
                 );
                 return;
             }
-
-            let _ = tx.send(
-                serde_json::json!({
-                    "message_type": "module_started",
-                    "module_name": message.module_name
-                })
-                .to_string(),
-            );
         }
         "module_stdin" => {
             debug!("Giving stdin to ModuleManager");
@@ -149,8 +141,9 @@ async fn handle_websocket_message(
                 );
                 return;
             }
+            let payload = message.payload.unwrap();
             let result = module_manager
-                .give_to_stdin(&*message.module_name, &message.payload.unwrap())
+                .give_to_stdin(&*message.module_name, payload.as_slice())
                 .await;
             if result.is_err() {
                 error!(

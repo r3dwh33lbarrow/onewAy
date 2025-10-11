@@ -64,6 +64,11 @@ export default function ConsolePage() {
           else if (event === "module_canceled") text = `Canceled ${moduleName}`;
           if (text) {
             setLines((prev) => {
+              // Deduplicate consecutive identical event lines (e.g., duplicate module_started)
+              const last = prev[prev.length - 1];
+              if (last && last.stream === "event" && last.text === text) {
+                return prev;
+              }
               const next: typeof prev = [...prev, { stream: "event", text }];
               if (next.length > 2000) next.shift();
               return next;
@@ -122,18 +127,14 @@ export default function ConsolePage() {
   }, [username]);
 
   useEffect(() => {
-    if (!socketRef.current) {
-      apiClient.startWebSocket(socketRef, onMessage, (error) =>
-        setError(apiErrorToString(error)),
-      );
-    }
+    apiClient.startWebSocket(socketRef, onMessage, (error) =>
+      setError(apiErrorToString(error)),
+    );
 
     const currentSocket = socketRef.current;
 
     return () => {
-      if (currentSocket) {
-        currentSocket.close();
-      }
+      currentSocket?.removeEventListener("message", onMessage);
     };
   }, [onMessage]);
 

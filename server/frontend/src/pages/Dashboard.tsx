@@ -63,18 +63,14 @@ export default function Dashboard() {
   }, [navigate]);
 
   useEffect(() => {
-    if (!socketRef.current) {
-      apiClient.startWebSocket(socketRef, onMessage, (error) =>
-        setError(apiErrorToString(error)),
-      );
-    }
+    apiClient.startWebSocket(socketRef, onMessage, (error) =>
+      setError(apiErrorToString(error)),
+    );
 
     const currentSocket = socketRef.current;
 
     return () => {
-      if (currentSocket) {
-        currentSocket.close();
-      }
+      currentSocket?.removeEventListener("message", onMessage);
     };
   }, [onMessage]);
 

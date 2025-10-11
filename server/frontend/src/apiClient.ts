@@ -19,6 +19,8 @@ export function isApiError(obj: unknown): obj is ApiError {
 
 class ApiClient {
   private apiUrl: string | undefined;
+  private userSocket: WebSocket | null = null;
+  private userSocketConnecting = false;
 
   public constructor() {
     const apiUrl = localStorage.getItem("apiUrl");
@@ -238,8 +240,15 @@ class ApiClient {
     onMessage: (event: MessageEvent) => void,
     onError?: (error: ApiError) => void,
   ): Promise<void> {
-    if (sockRef.current) {
-      sockRef.current.close();
+    // If a shared socket exists and is open/connecting, reuse it and attach listener
+    if (
+      this.userSocket &&
+      (this.userSocket.readyState === WebSocket.OPEN ||
+        this.userSocket.readyState === WebSocket.CONNECTING)
+    ) {
+      sockRef.current = this.userSocket;
+      this.userSocket.addEventListener("message", onMessage);
+      return;
     }
 
     if (!this.apiUrl) {
@@ -250,12 +259,29 @@ class ApiClient {
       return;
     }
 
+    if (this.userSocketConnecting) {
+      // Poll-wait until the socket is created, then attach
+      const waitForSocket = async (): Promise<void> => {
+        if (this.userSocket) {
+          sockRef.current = this.userSocket;
+          this.userSocket.addEventListener("message", onMessage);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 50));
+        return waitForSocket();
+      };
+      await waitForSocket();
+      return;
+    }
+
     try {
+      this.userSocketConnecting = true;
       const tokenResponse = await this.post<object, TokenResponse>(
         "/ws-user-token",
         {},
       );
       if (isApiError(tokenResponse)) {
+        this.userSocketConnecting = false;
         onError?.(tokenResponse);
         return;
       }
@@ -267,12 +293,19 @@ class ApiClient {
       url.pathname = "/ws-user";
       url.search = `token=${encodeURIComponent(wsToken)}`;
       const socket = new WebSocket(url.toString());
+      this.userSocket = socket;
       sockRef.current = socket;
 
-      socket.onmessage = (event) => {
-        onMessage(event);
-      };
+      // Attach the provided listener and keep shared socket reference
+      socket.addEventListener("message", onMessage);
+      socket.addEventListener("open", () => {
+        this.userSocketConnecting = false;
+      });
+      socket.addEventListener("error", () => {
+        this.userSocketConnecting = false;
+      });
     } catch (error) {
+      this.userSocketConnecting = false;
       onError?.({
         statusCode: -1,
         message:
