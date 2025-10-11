@@ -77,9 +77,9 @@ export default function ClientPage() {
     if (!username) return;
     const fetchInstalledModules = async () => {
       setError(null);
-      const response = await apiClient.get<InstalledModuleInfo[]>(
-        "/module/installed/" + username,
-      );
+      const response = await apiClient.get<{
+        all_installed: InstalledModuleInfo[];
+      }>("/module/installed/" + username);
       if (isApiError(response)) {
         if (response.statusCode === 401) {
           navigate("/login");
@@ -91,7 +91,7 @@ export default function ClientPage() {
         return;
       }
 
-      setInstalledModules(response || []);
+      setInstalledModules(response.all_installed || []);
     };
 
     fetchInstalledModules();
@@ -128,7 +128,7 @@ export default function ClientPage() {
   const handleInstallModule = async (moduleName: string) => {
     if (!username) return;
     const response = await apiClient.post<object, { message: string }>(
-      "/user/modules/set-installed/" + username + "?module_name=" + moduleName,
+      "/module/set-installed/" + username + "?module_name=" + moduleName,
       {},
     );
     if (isApiError(response)) {
@@ -136,18 +136,18 @@ export default function ClientPage() {
       return;
     }
 
-    const refresh = await apiClient.get<InstalledModuleInfo[]>(
-      "/module/installed/" + username,
-    );
+    const refresh = await apiClient.get<{
+      all_installed: InstalledModuleInfo[];
+    }>("/module/installed/" + username);
     if (!isApiError(refresh)) {
-      setInstalledModules(refresh || []);
+      setInstalledModules(refresh.all_installed || []);
     }
   };
 
   const handleRunModule = async (moduleName: string) => {
     if (!username) return;
     const response = await apiClient.get<BasicTaskResponse>(
-      "/user/modules/run/" + moduleName + "?client_username=" + username,
+      "/module/run/" + moduleName + "?client_username=" + username,
     );
     if (isApiError(response)) {
       setError(`Failed to run module: ${response.detail}`);

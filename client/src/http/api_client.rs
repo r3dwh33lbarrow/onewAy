@@ -147,6 +147,24 @@ impl ApiClient {
         }
     }
 
+    pub async fn post_with_query<Request, Response>(
+        &self,
+        endpoint: &str,
+        query: &[(&str, &str)],
+        body: &Request,
+    ) -> anyhow::Result<Response>
+    where
+        Request: Serialize + ?Sized,
+        Response: DeserializeOwned,
+    {
+        let mut url = self.parse_endpoint(endpoint)?;
+        url.query_pairs_mut().extend_pairs(query);
+        let mut request = self.client.request(reqwest::Method::POST, url);
+        request = request.headers(self.build_headers()).json(body);
+        let response = request.send().await?;
+        self.handle_response(response).await
+    }
+
     async fn parse_error<T>(&self, response: reqwest::Response) -> anyhow::Result<T> {
         let status_code = response.status().as_u16();
         let error_text = response

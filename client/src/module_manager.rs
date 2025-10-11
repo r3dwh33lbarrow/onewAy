@@ -424,12 +424,17 @@ impl ModuleManager {
         api_client: Arc<Mutex<ApiClient>>,
     ) -> anyhow::Result<BasicTaskResponse> {
         let api_client = api_client.lock().await;
+        let camel_case_name = title_case_to_camel_case(module_name);
+        let encoded_name = urlencoding::encode(&camel_case_name);
+        let url = format!(
+            "/module/set-installed/{}?module_name={}",
+            CONFIG.auth.username,
+            encoded_name
+        );
         api_client
-            .post::<(), BasicTaskResponse>(
-                &*format!(
-                    "/module/set-installed/{}?module_name={}",
-                    CONFIG.auth.username, module_name
-                ),
+            .post_with_query::<(), BasicTaskResponse>(
+                &format!("/module/set-installed/{}", CONFIG.auth.username),
+                &[("module_name", &camel_case_name)],
                 &(),
             )
             .await

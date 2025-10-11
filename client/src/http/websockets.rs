@@ -114,7 +114,7 @@ async fn handle_websocket_message(
             }
 
             if let Err(e) = module_manager
-                .start_module_streaming(&*message.message_type, tx.clone())
+                .start_module_streaming(&*message.module_name, tx.clone())
                 .await
             {
                 error!("Failed to start module streaming: {}", e.to_string());

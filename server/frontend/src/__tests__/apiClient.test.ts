@@ -147,14 +147,14 @@ describe("Live API Tests (localhost:8000)", () => {
       const moduleName = modules.modules[0].name;
 
       const run = await apiClient.get<BasicTaskResponse>(
-        `/user/modules/run/${encodeURIComponent(moduleName)}?client_username=${encodeURIComponent(
+        `/module/run/${encodeURIComponent(moduleName)}?client_username=${encodeURIComponent(
           client.username,
         )}`,
       );
       expect(isApiError(run)).toBe(false);
 
       const cancel = await apiClient.get<BasicTaskResponse>(
-        `/user/modules/cancel/${encodeURIComponent(moduleName)}?client_username=${encodeURIComponent(
+        `/module/cancel/${encodeURIComponent(moduleName)}?client_username=${encodeURIComponent(
           client.username,
         )}`,
       );

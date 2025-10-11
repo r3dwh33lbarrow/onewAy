@@ -111,11 +111,11 @@ export default function ConsolePage() {
       if ("modules" in allResult) {
         setModules(allResult.modules);
       }
-      const instResult = await apiClient.get<InstalledModuleInfo[]>(
-        `/module/installed/${encodeURIComponent(username)}`,
-      );
-      if (Array.isArray(instResult)) {
-        setInstalled(instResult);
+      const instResult = await apiClient.get<{
+        all_installed: InstalledModuleInfo[];
+      }>(`/module/installed/${encodeURIComponent(username)}`);
+      if ("all_installed" in instResult) {
+        setInstalled(instResult.all_installed);
       }
     };
     fetchModules();
@@ -149,7 +149,7 @@ export default function ConsolePage() {
   const onRun = async (name: string) => {
     if (!username) return;
     const res = await apiClient.get<BasicTaskResponse>(
-      `/user/modules/run/${encodeURIComponent(name)}?client_username=${encodeURIComponent(
+      `/module/run/${encodeURIComponent(name)}?client_username=${encodeURIComponent(
         username,
       )}`,
     );
@@ -161,7 +161,7 @@ export default function ConsolePage() {
   const onCancel = async (name: string) => {
     if (!username) return;
     const res = await apiClient.get<BasicTaskResponse>(
-      `/user/modules/cancel/${encodeURIComponent(name)}?client_username=${encodeURIComponent(
+      `/module/cancel/${encodeURIComponent(name)}?client_username=${encodeURIComponent(
         username,
       )}`,
     );
