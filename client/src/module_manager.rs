@@ -11,6 +11,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
+use tokio::time::{sleep, Duration};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -61,7 +62,7 @@ pub(crate) struct ModuleConfig {
 
 #[derive(Debug)]
 pub(crate) struct RunningChild {
-    child: Child,
+    child: Option<Child>,
     child_stdin: Option<ChildStdin>,
 }
 
@@ -173,7 +174,7 @@ impl ModuleManager {
             running.insert(
                 module.name.clone(),
                 Arc::new(Mutex::new(RunningChild {
-                    child,
+                    child: Some(child),
                     child_stdin: None,
                 })),
             );
@@ -221,7 +222,7 @@ impl ModuleManager {
         })?;
 
         let child_arc = Arc::new(Mutex::new(RunningChild {
-            child,
+            child: Some(child),
             child_stdin: Some(stdin),
         }));
         {
@@ -239,6 +240,7 @@ impl ModuleManager {
             })
             .to_string(),
         );
+        
 
         if let Some(stdout) = stdout {
             let sender_clone = sender.clone();
@@ -287,10 +289,24 @@ impl ModuleManager {
         let module_name = name.to_string();
         let child_for_wait = Arc::clone(&child_arc);
         tokio::spawn(async move {
-            let code = {
-                let mut child = child_for_wait.lock().await;
-                let status = child.child.wait().await.ok();
-                status.and_then(|s| s.code()).unwrap_or_default()
+            // Poll the child exit without holding the lock to allow stdin writes and cancel.
+            let code = loop {
+                let done = {
+                    let mut guard = child_for_wait.lock().await;
+                    if let Some(ch) = guard.child.as_mut() {
+                        match ch.try_wait() {
+                            Ok(Some(status)) => break status.code().unwrap_or_default(),
+                            Ok(None) => false,
+                            Err(_) => break 0,
+                        }
+                    } else {
+                        // No child present -> treat as exited
+                        break 0;
+                    }
+                };
+                if !done {
+                    sleep(Duration::from_millis(100)).await;
+                }
             };
             let mut map = running_map.lock().await;
             map.remove(&module_name);
@@ -315,6 +331,7 @@ impl ModuleManager {
         module_name: &str,
         bytes: &[u8],
     ) -> Result<(), ModuleManagerError> {
+        
         let module = self.get_module(module_name).await;
         if module.is_none() {
             return Err(ModuleManagerError::ModuleNotFound(module_name.to_string()));
@@ -385,7 +402,9 @@ impl ModuleManager {
         let map = self.running.lock().await;
         if let Some(child_arc) = map.get(name) {
             let mut child = child_arc.lock().await;
-            let _ = child.child.kill().await;
+            if let Some(ch) = &mut child.child {
+                let _ = ch.kill().await;
+            }
             return true;
         }
 

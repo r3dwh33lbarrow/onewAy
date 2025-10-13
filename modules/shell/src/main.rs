@@ -29,10 +29,12 @@ fn main() {
         match output {
             Ok(output) => {
                 if output.status.success() {
-                    print!("{}", String::from_utf8_lossy(&output.stdout));
+                    let s = String::from_utf8_lossy(&output.stdout);
+                    print!("{}", s);
                     io::stdout().flush().ok();
                 } else {
-                    eprint!("{}", String::from_utf8_lossy(&output.stderr));
+                    let s = String::from_utf8_lossy(&output.stderr);
+                    eprint!("{}", s);
                     io::stderr().flush().ok();
                 }
             }

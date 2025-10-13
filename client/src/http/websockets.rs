@@ -138,7 +138,6 @@ async fn handle_websocket_message(
             }
         }
         websockets::Message::ModuleStdin { from: _, stdin } => {
-            debug!("Giving stdin to ModuleManager");
             let result = module_manager
                 .give_to_stdin(&stdin.module_name, stdin.data.as_slice())
                 .await;

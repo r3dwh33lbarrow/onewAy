@@ -89,6 +89,7 @@ class UserWebSocketManager:
         Args:
             message: The message dictionary to broadcast
         """
+        # Intentionally quiet by default; enable if needed for debugging.
         for user_uuid in list(self.active_connections.keys()):
             await self.send_to_user(user_uuid, message)
 
