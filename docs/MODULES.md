@@ -1,8 +1,33 @@
 ## Modules Directory Structure
-The modules directory holds all module configurations and optionally all module data. A 'module' in the modules directory can simply be a YAML configuration that points to another directory in the backend machine or it can be a folder with a YAML configuration inside. The default is for each module to have its own complete folder and all uploads through `/user/module/upload` expect a folder.
+The `modules/` directory holds all module configurations and their binaries. Each module should live in its own folder and include a `config.yaml` at the root of that folder.
+
+Example:
+
+```
+modules/
+  test_module/
+    config.yaml
+    test_module (or test_module.exe)
+```
+
+Uploads via `/module/upload` expect a folder containing at least `config.yaml`.
+
+See also: `docs/MODULE_CONFIG.md` for the full `config.yaml` schema and examples.
 
 ## Internal Module Naming Conventions
-Due to the different naming conventions of the different languages used, each part of the system uses different formats. For example, the front facing name of a module can be `Test Module`. This would make the server/backend (Python) name `test_module`, any URL endpoints `test-module`, and any server/frontend (TypeScript) name `testModule`.
+Different parts of the system use different naming conventions for the same module name:
 
-## Adding Addition Modules
-Modules can be added through the backend endpoint `/user/modules/add`
+- Backend (Python, DB): `snake_case` (e.g., `test_module`)
+- HTTP routes: `kebab-case` (e.g., `/module/run/test-module`)
+- Frontend (TypeScript): `camelCase` (e.g., `testModule`)
+- Display name: free-form (e.g., `Test Module`), converted to `snake_case` internally
+
+The backend will normalize names from `config.yaml` to `snake_case` automatically.
+
+## Adding Modules
+Modules can be added via:
+
+- Upload: `PUT /module/upload` (multipart of your module folder)
+- Local path add: `PUT /module/add` with `{ "module_path": "<relative-or-absolute-path>" }`
+
+Refer to `docs/BACKEND_SETTINGS.md` for where the backend expects the modules directory to live and how to configure it.

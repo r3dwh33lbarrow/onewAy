@@ -246,8 +246,8 @@ async def websocket_client(
                     await websocket.send_text(json.dumps({"type": "pong"}))
                     continue
 
-                # Support both new (type) and legacy (message_type) client messages
-                msg_type = message.get("type") or message.get("message_type")
+                # Expect new message schema from clients
+                msg_type = message.get("type")
                 if msg_type == "console_output":
                     logger.debug(
                         "Module output from client '%s' for module '%s'",
@@ -256,7 +256,7 @@ async def websocket_client(
                     )
                     output = message.get("output")
                     if not output:
-                        error_text = "output json not specified for module_output"
+                        error_text = "output json not specified for console_output"
                         logger.error(error_text)
                         await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
                         continue
@@ -266,19 +266,19 @@ async def websocket_client(
                     line = output.get("line")
 
                     if not module_name:
-                        error_text = "module_name not specified for module_output"
+                        error_text = "module_name not specified for console_output"
                         logger.error(error_text)
                         await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
                         continue
 
                     if not stream:
-                        error_text = "stream not specified for module_output"
+                        error_text = "stream not specified for console_output"
                         logger.error(error_text)
                         await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
                         continue
 
                     if not line:
-                        error_text = "line not specified for module_output"
+                        error_text = "line not specified for console_output"
                         logger.error(error_text)
                         await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
                         continue
@@ -295,15 +295,14 @@ async def websocket_client(
                     await user_websocket_manager.broadcast_to_all(payload)
                 elif msg_type in {"module_started", "module_exit", "module_canceled"}:
                     event = message.get("event")
-                    # Legacy client events may be flat (no event object)
                     if event is None:
-                        module_name = message.get("module_name")
-                        code_val = message.get("code")
-                        code = code_val if code_val is not None else ""
-                    else:
-                        module_name = event.get("module_name")
-                        code_val = event.get("code")
-                        code = code_val if code_val is not None else ""
+                        error_text = f"event not specified for {msg_type}"
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+                    module_name = event.get("module_name")
+                    code_val = event.get("code")
+                    code = code_val if code_val is not None else ""
 
                     if not module_name:
                         error_text = "module_name not specified for " + msg_type
@@ -325,30 +324,6 @@ async def websocket_client(
                             "module_name": module_name,
                             "code": code
                         }
-                    }
-                    await user_websocket_manager.broadcast_to_all(payload)
-                elif msg_type == "module_output":
-                    # Legacy client output format: top-level fields
-                    module_name = message.get("module_name")
-                    stream = message.get("stream")
-                    line = message.get("line")
-
-                    if not module_name or not stream or line is None:
-                        error_text = "Invalid module_output payload from client"
-                        logger.error(error_text)
-                        await websocket.send_text(
-                            json.dumps({"type": "error", "message": error_text})
-                        )
-                        continue
-
-                    payload = {
-                        "type": "console_output",
-                        "from": client.username,
-                        "output": {
-                            "module_name": module_name,
-                            "stream": stream,
-                            "line": line,
-                        },
                     }
                     await user_websocket_manager.broadcast_to_all(payload)
                 else:

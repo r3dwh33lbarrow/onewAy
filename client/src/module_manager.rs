@@ -232,8 +232,10 @@ impl ModuleManager {
         let module_name = name.to_string();
         let _ = sender.send(
             serde_json::json!({
-                "message_type": "module_started",
-                "module_name": module_name
+                "type": "module_started",
+                "event": {
+                    "module_name": module_name
+                }
             })
             .to_string(),
         );
@@ -246,10 +248,12 @@ impl ModuleManager {
                 while let Ok(Some(line)) = reader.next_line().await {
                     let _ = sender_clone.send(
                         serde_json::json!({
-                            "message_type": "module_output",
-                            "module_name": module_name,
-                            "stream": "stdout",
-                            "line": line
+                            "type": "console_output",
+                            "output": {
+                                "module_name": module_name,
+                                "stream": "stdout",
+                                "line": line
+                            }
                         })
                         .to_string(),
                     );
@@ -265,10 +269,12 @@ impl ModuleManager {
                 while let Ok(Some(line)) = reader.next_line().await {
                     let _ = sender_clone.send(
                         serde_json::json!({
-                            "message_type": "module_output",
-                            "module_name": module_name,
-                            "stream": "stderr",
-                            "line": line
+                            "type": "console_output",
+                            "output": {
+                                "module_name": module_name,
+                                "stream": "stderr",
+                                "line": line
+                            }
                         })
                         .to_string(),
                     );
@@ -291,9 +297,11 @@ impl ModuleManager {
 
             let _ = sender_clone.send(
                 serde_json::json!({
-                    "message_type": "module_exit",
-                    "module_name": module_name,
-                    "code": code
+                    "type": "module_exit",
+                    "event": {
+                        "module_name": module_name,
+                        "code": code
+                    }
                 })
                 .to_string(),
             );
