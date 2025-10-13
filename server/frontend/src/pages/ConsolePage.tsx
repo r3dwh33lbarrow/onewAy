@@ -31,6 +31,7 @@ export default function ConsolePage() {
   const [lines, setLines] = useState<
     { stream: "stdout" | "stderr" | "event"; text: string }[]
   >([]);
+  const [inputValue, setInputValue] = useState("");
   const socketRef = useRef<WebSocket | null>(null);
   const consoleRef = useRef<HTMLDivElement | null>(null);
 
@@ -64,20 +65,15 @@ export default function ConsolePage() {
           else if (event === "module_canceled") text = `Canceled ${moduleName}`;
           if (text) {
             setLines((prev) => {
-              // Deduplicate consecutive identical event lines (e.g., duplicate module_started)
               const last = prev[prev.length - 1];
-              if (last && last.stream === "event" && last.text === text) {
-                return prev;
-              }
+              if (last && last.stream === "event" && last.text === text) return prev;
               const next: typeof prev = [...prev, { stream: "event", text }];
               if (next.length > 2000) next.shift();
               return next;
             });
           }
         }
-      } catch {
-        // ignore parse errors
-      }
+      } catch { /* empty */ }
     },
     [username],
   );
@@ -94,17 +90,14 @@ export default function ConsolePage() {
       const response = await apiClient.get<ClientAllInfo>(
         `/client/get/${username}`,
       );
-
       if (isApiError(response)) {
         setError(`Failed to fetch client information: ${response.detail}`);
         setLoading(false);
         return;
       }
-
       setClientInfo(response);
       setLoading(false);
     };
-
     fetchClientInformation();
   }, [username]);
 
@@ -113,15 +106,11 @@ export default function ConsolePage() {
       if (!username) return;
       const allResult =
         await apiClient.get<UserModuleAllResponse>("/module/all");
-      if ("modules" in allResult) {
-        setModules(allResult.modules);
-      }
+      if ("modules" in allResult) setModules(allResult.modules);
       const instResult = await apiClient.get<{
         all_installed: InstalledModuleInfo[];
       }>(`/module/installed/${encodeURIComponent(username)}`);
-      if ("all_installed" in instResult) {
-        setInstalled(instResult.all_installed);
-      }
+      if ("all_installed" in instResult) setInstalled(instResult.all_installed);
     };
     fetchModules();
   }, [username]);
@@ -130,15 +119,12 @@ export default function ConsolePage() {
     apiClient.startWebSocket(socketRef, onMessage, (error) =>
       setError(apiErrorToString(error)),
     );
-
     const currentSocket = socketRef.current;
-
     return () => {
       currentSocket?.removeEventListener("message", onMessage);
     };
   }, [onMessage]);
 
-  // Auto-scroll console
   useEffect(() => {
     if (consoleRef.current) {
       consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
@@ -154,9 +140,7 @@ export default function ConsolePage() {
         username,
       )}`,
     );
-    if ("statusCode" in res) {
-      alert(res.message || "Failed to run module");
-    }
+    if ("statusCode" in res) alert(res.message || "Failed to run module");
   };
 
   const onCancel = async (name: string) => {
@@ -166,10 +150,14 @@ export default function ConsolePage() {
         username,
       )}`,
     );
-    if ("statusCode" in res) {
-      alert(res.message || "Failed to cancel module");
-    }
+    if ("statusCode" in res) alert(res.message || "Failed to cancel module");
   };
+
+  const handleInputSubmit = useCallback(() => {
+    if (!inputValue.trim()) return;
+    console.log("stdin:", inputValue);
+    setInputValue("");
+  }, [inputValue]);
 
   return (
     <MainSkeleton baseName={`Console for ${username ?? ""}`}>
@@ -189,24 +177,40 @@ export default function ConsolePage() {
 
       {!loading && !error && clientInfo && clientInfo.alive && (
         <>
-          <div
-            ref={consoleRef}
-            className="w-full h-[62.5vh] bg-black rounded-lg p-3 overflow-auto font-mono text-sm"
-          >
-            {lines.map((l, idx) => (
-              <div
-                key={idx}
-                className={
-                  l.stream === "stderr"
-                    ? "text-red-400"
-                    : l.stream === "event"
-                      ? "text-yellow-300"
-                      : "text-gray-100"
-                }
-              >
-                {l.text}
-              </div>
-            ))}
+          <div className="flex flex-col h-[65vh] bg-black rounded-lg overflow-hidden">
+            <div
+              ref={consoleRef}
+              className="flex-1 overflow-auto p-3 font-mono text-sm"
+            >
+              {lines.map((l, idx) => (
+                <div
+                  key={idx}
+                  className={
+                    l.stream === "stderr"
+                      ? "text-red-400"
+                      : l.stream === "event"
+                        ? "text-yellow-300"
+                        : "text-gray-100"
+                  }
+                >
+                  {l.text}
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-gray-700 p-2">
+              <span className="text-green-400">$ </span>
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleInputSubmit();
+                }}
+                className="bg-transparent outline-none text-gray-100 w-[calc(100%-1rem)]"
+                spellCheck={false}
+                autoFocus
+              />
+            </div>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow mt-4">

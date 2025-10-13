@@ -32,7 +32,7 @@ logger = get_logger()
 
 @router.websocket("/ws-user")
 async def websocket_user_endpoint(
-    websocket: WebSocket, token: str = Query(..., description="Authentication token")
+    websocket: WebSocket, token: str = Query(..., description="Authentication token"), db: AsyncSession = Depends(get_db)
 ):
     """
     WebSocket endpoint for user connections.
@@ -43,6 +43,7 @@ async def websocket_user_endpoint(
     Args:
         websocket: WebSocket connection instance
         token: Authentication token for user verification
+        db: For checking if the client is running
 
     Raises:
         WebSocketException: 401 if token is invalid
@@ -50,6 +51,12 @@ async def websocket_user_endpoint(
     """
     try:
         user_uuid = verify_websocket_access_token(token)
+        user = await db.execute(select(User).where(User.uuid == user_uuid))
+        user = user.scalar_one_or_none()
+        if not user:
+            await websocket.close(401, "User does not exist")
+            return
+
         logger.info("User websocket connected: %s", user_uuid)
         await user_websocket_manager.connect(websocket, user_uuid)
 
@@ -57,8 +64,64 @@ async def websocket_user_endpoint(
             while True:
                 data = await websocket.receive_text()
                 message = json.loads(data)
-                if message.get("type") == "ping":
+                message_type = message.get("type")
+                if message_type == "ping":
                     await websocket.send_text(json.dumps({"type": "pong"}))
+                elif message_type == "module_input":
+                    module = message.get("module")
+                    if not module:
+                        error_text = "No module json data specified for module_input"
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
+                    module_name = module.get("name")
+                    module_payload = module.get("payload")
+                    if not module_name:
+                        error_text = "No module name specified for module_input"
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
+                    if not module_payload:
+                        error_text = "No module payload specified for module_input"
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
+                    client_username = message.get("client_username")
+                    if not client_username:
+                        error_text = "No client_username for module_input specified"
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
+                    client = await db.execute(select(Client).where(Client.username == client_username))
+                    client = client.scalar_one_or_none()
+                    if not client:
+                        error_text = "No client exists with specified username for module_input"
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
+                    if not client.alive:
+                        error_text = "Client is not running"
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
+                    payload = {
+                        "type": "module_input",
+                        "from": user.username,
+                        "to": client_username,
+                        "module": {
+                            "name": module_name,
+                            "payload": module_payload
+                        }
+                    }
+                    client_websocket_manager.send_to_client(client.uuid, payload)
+                    await websocket.send_text(json.dumps({"type": "ok"}))
+
                 else:
                     logger.debug(
                         "Unhandled user websocket message type: %s",
@@ -157,31 +220,76 @@ async def websocket_client(
                         client.username,
                         message.get("module_name"),
                     )
+                    output = message.get("output")
+                    if not output:
+                        error_text = "output json not specified for module_output"
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
+                    module_name = output.get("module_name")
+                    stream = output.get_stream("stream")
+                    line = output.get("line")
+
+                    if not module_name:
+                        error_text = "module_name not specified for module_output"
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
+                    if not stream:
+                        error_text = "stream not specified for module_output"
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
+                    if not line:
+                        error_text = "line not specified for module_output"
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
                     payload = {
                         "type": "console_output",
-                        "data": {
-                            "username": client.username,
-                            "module_name": message.get("module_name"),
-                            "stream": message.get("stream"),
-                            "line": message.get("line"),
-                        },
+                        "from": client.username,
+                        "output": {
+                            "module_name": module_name,
+                            "stream": stream,
+                            "line": line
+                        }
                     }
                     await user_websocket_manager.broadcast_to_all(payload)
                 elif msg_type in {"module_started", "module_exit", "module_canceled"}:
+                    event = message.get("event")
+                    if not event:
+                        error_text = "event not specified for " + msg_type
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
+                    module_name = event.get("module_name")
+                    code = event.get("code") | ""
+
+                    if not module_name:
+                        error_text = "module_name not specified for " + msg_type
+                        logger.error(error_text)
+                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        continue
+
                     logger.debug(
                         "Module event '%s' from client '%s' for module '%s'",
                         msg_type,
                         client.username,
                         message.get("module_name"),
                     )
+
                     payload = {
-                        "type": "console_event",
-                        "data": {
-                            "username": client.username,
-                            "module_name": message.get("module_name"),
-                            "event": msg_type,
-                            "code": message.get("code"),
-                        },
+                        "type": msg_type,
+                        "from": client.username,
+                        "event": {
+                            "module_name": module_name,
+                            "code": code
+                        }
                     }
                     await user_websocket_manager.broadcast_to_all(payload)
                 else:
@@ -193,7 +301,6 @@ async def websocket_client(
             logger.info("Client websocket disconnected: %s", client_uuid)
         finally:
             await client_websocket_manager.disconnect(websocket, client_uuid)
-            # Only broadcast alive status if client exists
             if client:
                 await client_websocket_manager.broadcast_client_alive_status(
                     client.username, alive=False
