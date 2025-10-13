@@ -1,13 +1,40 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WebsocketMessage {
-    pub(crate) message_type: String,
-    pub(crate) module_name: String,
-    pub(crate) payload: Option<Vec<u8>>,
+// Incoming WebSocket messages to the client (from server)
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Message {
+    ModuleRun {
+        from: String,
+        module: ModuleForRun,
+    },
+    ModuleStdin {
+        from: String,
+        stdin: ModuleStdinPayload,
+    },
+    ModuleCancel {
+        from: String,
+        event: ModuleCancelPayload,
+    },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ModuleForRun {
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ModuleStdinPayload {
+    pub module_name: String,
+    pub data: Vec<u8>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ModuleCancelPayload {
+    pub module_name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct AccessTokenResponse {
     pub(crate) access_token: String,
     token_type: String,

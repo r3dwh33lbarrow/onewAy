@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.dependencies import get_db
 from app.logger import get_logger
 from app.models.client_module import ClientModule
+from app.models.user import User
 from app.schemas.general import BasicTaskResponse
 from app.schemas.module import *
 from app.services.authentication import get_current_user, verify_access_token
@@ -524,7 +525,7 @@ async def module_run_module_name(
     module_name: str,
     client_username: str,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     """
     Send a command to run a module on a specific client.
@@ -536,7 +537,7 @@ async def module_run_module_name(
         module_name: Name of the module to run
         client_username: Username of the target client
         db: Database session dependency
-        _: Current user authentication dependency
+        user: Current user authentication dependency
 
     Returns:
         dict: Success result
@@ -580,7 +581,7 @@ async def module_run_module_name(
 
     await client_websocket_manager.send_to_client(
         client_uuid=str(client.uuid),
-        message={"message_type": "module_run", "module_name": module.name},
+        message={"type": "module_run", "from": user.username, "module": {"name": module_name}},
     )
 
     logger.info(
@@ -596,7 +597,7 @@ async def module_cancel_module_name(
     module_name: str,
     client_username: str,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     """
     Send a command to cancel a running module on a specific client.
@@ -620,7 +621,11 @@ async def module_cancel_module_name(
 
     await client_websocket_manager.send_to_client(
         client_uuid=str(client.uuid),
-        message={"message_type": "module_cancel", "module_name": module.name},
+        message={
+            "type": "module_cancel",
+            "from": user.username,
+            "event": {"module_name": module.name},
+        },
     )
 
     logger.info(

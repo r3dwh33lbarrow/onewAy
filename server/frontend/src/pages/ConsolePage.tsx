@@ -19,6 +19,7 @@ import type {
   InstalledModuleInfo,
   ModuleBasicInfo,
 } from "../schemas/module.ts";
+import type { Message } from "../schemas/websockets.ts";
 import { apiErrorToString, snakeCaseToTitle } from "../utils";
 
 export default function ConsolePage() {
@@ -26,54 +27,74 @@ export default function ConsolePage() {
   const [clientInfo, setClientInfo] = useState<ClientAllInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [websocketError, setWebsocketError] = useState<string | null>(null);
   const [modules, setModules] = useState<ModuleBasicInfo[]>([]);
   const [installed, setInstalled] = useState<InstalledModuleInfo[]>([]);
   const [lines, setLines] = useState<
     { stream: "stdout" | "stderr" | "event"; text: string }[]
   >([]);
   const [inputValue, setInputValue] = useState("");
+  const [activeModule, setActiveModule] = useState<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const consoleRef = useRef<HTMLDivElement | null>(null);
 
   const onMessage = useCallback(
     (event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data);
-        if (
-          data.type === "console_output" &&
-          data.data?.username === username
-        ) {
-          const line = data.data.line as string;
-          const stream: "stdout" | "stderr" =
-            data.data.stream === "stderr" ? "stderr" : "stdout";
-          setLines((prev) => {
-            const next: typeof prev = [...prev, { stream, text: line }];
-            if (next.length > 2000) next.shift();
-            return next;
-          });
-        } else if (
-          data.type === "console_event" &&
-          data.data?.username === username
-        ) {
-          const event = data.data.event as string;
-          const moduleName = data.data.module_name as string;
-          const code = data.data.code;
-          let text = "";
-          if (event === "module_started") text = `Started ${moduleName}`;
-          else if (event === "module_exit")
-            text = `Exited ${moduleName} with code ${code}`;
-          else if (event === "module_canceled") text = `Canceled ${moduleName}`;
-          if (text) {
+        const message = JSON.parse(event.data) as Message;
+        switch (message.type) {
+          case "console_output":
+            if (message.from !== username) return;
             setLines((prev) => {
-              const last = prev[prev.length - 1];
-              if (last && last.stream === "event" && last.text === text) return prev;
-              const next: typeof prev = [...prev, { stream: "event", text }];
+              const next: typeof prev = [
+                ...prev,
+                { stream: message.output.stream, text: message.output.line },
+              ];
               if (next.length > 2000) next.shift();
               return next;
             });
+            break;
+
+          case "module_started":
+          case "module_exit":
+          case "module_canceled": {
+            if (message.from !== username) return;
+            let text = "";
+            if (message.type === "module_started")
+              text = `Started ${message.event.module_name}`;
+            else if (message.type === "module_exit")
+              text = `Exited ${message.event.module_name} with code ${message.event.code}`;
+            else if (message.type === "module_canceled")
+              text = `Canceled ${message.event.module_name}`;
+            // Track active module for stdin routing (functional updates avoid stale deps)
+            if (message.type === "module_started") {
+              setActiveModule(message.event.module_name);
+            } else if (message.type === "module_exit" || message.type === "module_canceled") {
+              const mod = message.event.module_name;
+              setActiveModule((prev) => (prev === mod ? null : prev));
+            }
+            if (text) {
+              setLines((prev) => {
+                const last = prev[prev.length - 1];
+                if (last && last.stream === "event" && last.text === text)
+                  return prev;
+                const next: typeof prev = [...prev, { stream: "event", text }];
+                if (next.length > 2000) next.shift();
+                return next;
+              });
+            }
+
+            break;
           }
+
+          case "error":
+            setWebsocketError(message.message);
         }
-      } catch { /* empty */ }
+      } catch (error) {
+        setError(
+          "Failed to parse WebSocket message: " + (error as Error).message,
+        );
+      }
     },
     [username],
   );
@@ -119,9 +140,9 @@ export default function ConsolePage() {
     apiClient.startWebSocket(socketRef, onMessage, (error) =>
       setError(apiErrorToString(error)),
     );
-    const currentSocket = socketRef.current;
     return () => {
-      currentSocket?.removeEventListener("message", onMessage);
+      // Use the live ref to ensure we remove the listener added asynchronously
+      socketRef.current?.removeEventListener("message", onMessage);
     };
   }, [onMessage]);
 
@@ -135,6 +156,8 @@ export default function ConsolePage() {
 
   const onRun = async (name: string) => {
     if (!username) return;
+    // Optimistically set active module
+    setActiveModule(name);
     const res = await apiClient.get<BasicTaskResponse>(
       `/module/run/${encodeURIComponent(name)}?client_username=${encodeURIComponent(
         username,
@@ -151,13 +174,47 @@ export default function ConsolePage() {
       )}`,
     );
     if ("statusCode" in res) alert(res.message || "Failed to cancel module");
+    if (activeModule === name) setActiveModule(null);
   };
 
   const handleInputSubmit = useCallback(() => {
     if (!inputValue.trim()) return;
-    console.log("stdin:", inputValue);
+    if (!username) return;
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      setWebsocketError("WebSocket not connected");
+      return;
+    }
+    if (!activeModule) {
+      setLines((prev) => {
+        const next: typeof prev = [
+          ...prev,
+          { stream: "event", text: "No active module to receive input" },
+        ];
+        if (next.length > 2000) next.shift();
+        return next;
+      });
+      setInputValue("");
+      return;
+    }
+    const data = inputValue.endsWith("\n") ? inputValue : inputValue + "\n";
+    const payload = {
+      type: "module_stdin",
+      client_username: username,
+      stdin: {
+        module_name: activeModule,
+        data,
+      },
+    } as const;
+    try {
+      socket.send(JSON.stringify(payload));
+    } catch (e) {
+      setWebsocketError(
+        e instanceof Error ? e.message : "Failed to send stdin over WebSocket",
+      );
+    }
     setInputValue("");
-  }, [inputValue]);
+  }, [inputValue, username, activeModule]);
 
   return (
     <MainSkeleton baseName={`Console for ${username ?? ""}`}>
@@ -172,6 +229,12 @@ export default function ConsolePage() {
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
           <p className="text-red-800 dark:text-red-200">{error}</p>
+        </div>
+      )}
+
+      {websocketError && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+          <p className="text-red-800 dark:text-red-200">{websocketError}</p>
         </div>
       )}
 

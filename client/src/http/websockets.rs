@@ -3,6 +3,7 @@ use crate::module_manager::ModuleManager;
 use crate::schemas::websockets::*;
 use crate::warn;
 use crate::{debug, error, info};
+use crate::schemas::websockets;
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -58,7 +59,7 @@ pub async fn start_websocket_client(
 
     while let Some(message) = read.next().await {
         match message {
-            Ok(Message::Text(text)) => match serde_json::from_str::<WebsocketMessage>(&text) {
+            Ok(Message::Text(text)) => match serde_json::from_str::<websockets::Message>(&text) {
                 Ok(ws_msg) => {
                     debug!("Received message: {:?}", ws_msg);
                     handle_websocket_message(ws_msg, Arc::clone(&module_manager), text_tx.clone())
@@ -100,82 +101,73 @@ pub async fn start_websocket_client(
 }
 
 async fn handle_websocket_message(
-    message: WebsocketMessage,
+    message: websockets::Message,
     module_manager: Arc<ModuleManager>,
     tx: UnboundedSender<String>,
 ) {
-    match message.message_type.as_str() {
-        "module_run" => {
-            info!("Running module: {}", message.module_name);
-            let module = module_manager.get_module(&*message.module_name).await;
-            if module.is_none() {
-                error!("Module {} not found", message.module_name);
+    match message {
+        websockets::Message::ModuleRun { from: _, module } => {
+            let module_name = module.name.clone();
+            info!("Running module: {}", module_name);
+            let module_opt = module_manager.get_module(&module_name).await;
+            if module_opt.is_none() {
+                error!("Module {} not found", module_name);
+                let _ = tx.send(
+                    serde_json::json!({
+                        "type": "error",
+                        "message": format!("Module {} not found", module_name),
+                    })
+                    .to_string(),
+                );
                 return;
             }
 
             if let Err(e) = module_manager
-                .start_module_streaming(&*message.module_name, tx.clone())
+                .start_module_streaming(&module_name, tx.clone())
                 .await
             {
                 error!("Failed to start module streaming: {}", e.to_string());
                 let _ = tx.send(
                     serde_json::json!({
-                        "message_type": "error",
-                        "module_name": message.module_name,
+                        "type": "error",
+                        "message": format!("Failed to start module streaming for {}", module_name),
                     })
                     .to_string(),
                 );
                 return;
             }
         }
-        "module_stdin" => {
+        websockets::Message::ModuleStdin { from: _, stdin } => {
             debug!("Giving stdin to ModuleManager");
-            if message.payload.is_none() {
-                error!("No payload was provided in module_stdin message");
-                let _ = tx.send(
-                    serde_json::json!({
-                        "message_type": "error",
-                        "module_name": message.module_name,
-                    })
-                    .to_string(),
-                );
-                return;
-            }
-            let payload = message.payload.unwrap();
             let result = module_manager
-                .give_to_stdin(&*message.module_name, payload.as_slice())
+                .give_to_stdin(&stdin.module_name, stdin.data.as_slice())
                 .await;
-            if result.is_err() {
-                error!(
-                    "Failed to send to stdin: {}",
-                    result.err().unwrap().to_string()
-                );
+            if let Err(err) = result {
+                error!("Failed to send to stdin: {}", err.to_string());
                 let _ = tx.send(
                     serde_json::json!({
-                        "message_type": "error",
-                        "module_name": message.module_name,
+                        "type": "error",
+                        "message": format!("Failed to write to stdin for {}: {}", stdin.module_name, err.to_string()),
                     })
                     .to_string(),
                 );
             }
         }
-        "module_cancel" => {
-            info!("Cancel requested for module: {}", message.module_name);
-            if module_manager.cancel_module(&message.module_name).await {
+        websockets::Message::ModuleCancel { from: _, event } => {
+            info!("Cancel requested for module: {}", event.module_name);
+            if module_manager.cancel_module(&event.module_name).await {
                 let _ = tx.send(
                     serde_json::json!({
-                        "message_type": "module_canceled",
-                        "module_name": message.module_name
+                        "type": "module_canceled",
+                        "from": "client",
+                        "event": {
+                            "module_name": event.module_name,
+                            "code": "canceled"
+                        }
                     })
                     .to_string(),
                 );
             }
-        }
-        _ => {
-            warn!(
-                "Unknown message type: {} for module: {}",
-                message.message_type, message.module_name
-            );
         }
     }
 }
