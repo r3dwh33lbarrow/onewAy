@@ -32,7 +32,9 @@ logger = get_logger()
 
 @router.websocket("/ws-user")
 async def websocket_user_endpoint(
-    websocket: WebSocket, token: str = Query(..., description="Authentication token"), db: AsyncSession = Depends(get_db)
+    websocket: WebSocket,
+    token: str = Query(..., description="Authentication token"),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     WebSocket endpoint for user connections.
@@ -104,9 +106,7 @@ async def websocket_user_endpoint(
                     ):
                         data_bytes = data_value
                     else:
-                        error_text = (
-                            "Invalid data type for module_stdin; must be string or byte array"
-                        )
+                        error_text = "Invalid data type for module_stdin; must be string or byte array"
                         logger.error(error_text)
                         await websocket.send_text(
                             json.dumps({"type": "error", "message": error_text})
@@ -152,7 +152,9 @@ async def websocket_user_endpoint(
                             "data": data_bytes,
                         },
                     }
-                    await client_websocket_manager.send_to_client(str(client.uuid), payload)
+                    await client_websocket_manager.send_to_client(
+                        str(client.uuid), payload
+                    )
                     await websocket.send_text(json.dumps({"type": "ok"}))
 
                 else:
@@ -258,7 +260,9 @@ async def websocket_client(
                     if not output:
                         error_text = "output json not specified for console_output"
                         logger.error(error_text)
-                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        await websocket.send_text(
+                            json.dumps({"type": "error", "message": error_text})
+                        )
                         continue
 
                     module_name = output.get("module_name")
@@ -268,19 +272,25 @@ async def websocket_client(
                     if not module_name:
                         error_text = "module_name not specified for console_output"
                         logger.error(error_text)
-                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        await websocket.send_text(
+                            json.dumps({"type": "error", "message": error_text})
+                        )
                         continue
 
                     if not stream:
                         error_text = "stream not specified for console_output"
                         logger.error(error_text)
-                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        await websocket.send_text(
+                            json.dumps({"type": "error", "message": error_text})
+                        )
                         continue
 
                     if not line:
                         error_text = "line not specified for console_output"
                         logger.error(error_text)
-                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        await websocket.send_text(
+                            json.dumps({"type": "error", "message": error_text})
+                        )
                         continue
 
                     payload = {
@@ -289,8 +299,8 @@ async def websocket_client(
                         "output": {
                             "module_name": module_name,
                             "stream": stream,
-                            "line": line
-                        }
+                            "line": line,
+                        },
                     }
                     await user_websocket_manager.broadcast_to_all(payload)
                 elif msg_type in {"module_started", "module_exit", "module_canceled"}:
@@ -298,7 +308,9 @@ async def websocket_client(
                     if event is None:
                         error_text = f"event not specified for {msg_type}"
                         logger.error(error_text)
-                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        await websocket.send_text(
+                            json.dumps({"type": "error", "message": error_text})
+                        )
                         continue
                     module_name = event.get("module_name")
                     code_val = event.get("code")
@@ -307,7 +319,9 @@ async def websocket_client(
                     if not module_name:
                         error_text = "module_name not specified for " + msg_type
                         logger.error(error_text)
-                        await websocket.send_text(json.dumps({"type": "error", "message": error_text}))
+                        await websocket.send_text(
+                            json.dumps({"type": "error", "message": error_text})
+                        )
                         continue
 
                     logger.debug(
@@ -320,14 +334,13 @@ async def websocket_client(
                     payload = {
                         "type": msg_type,
                         "from": client.username,
-                        "event": {
-                            "module_name": module_name,
-                            "code": code
-                        }
+                        "event": {"module_name": module_name, "code": code},
                     }
                     await user_websocket_manager.broadcast_to_all(payload)
                 else:
-                    logger.debug("Unhandled client websocket message type: %s", msg_type)
+                    logger.debug(
+                        "Unhandled client websocket message type: %s", msg_type
+                    )
 
         except WebSocketDisconnect:
             logger.info("Client websocket disconnected: %s", client_uuid)

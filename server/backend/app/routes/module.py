@@ -581,7 +581,11 @@ async def module_run_module_name(
 
     await client_websocket_manager.send_to_client(
         client_uuid=str(client.uuid),
-        message={"type": "module_run", "from": user.username, "module": {"name": module_name}},
+        message={
+            "type": "module_run",
+            "from": user.username,
+            "module": {"name": module_name},
+        },
     )
 
     logger.info(

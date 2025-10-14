@@ -69,7 +69,10 @@ export default function ConsolePage() {
             // Track active module for stdin routing (functional updates avoid stale deps)
             if (message.type === "module_started") {
               setActiveModule(message.event.module_name);
-            } else if (message.type === "module_exit" || message.type === "module_canceled") {
+            } else if (
+              message.type === "module_exit" ||
+              message.type === "module_canceled"
+            ) {
               const mod = message.event.module_name;
               setActiveModule((prev) => (prev === mod ? null : prev));
             }

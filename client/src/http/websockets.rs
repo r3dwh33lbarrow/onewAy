@@ -1,9 +1,9 @@
 use crate::http::api_client::ApiClient;
 use crate::module_manager::ModuleManager;
+use crate::schemas::websockets;
 use crate::schemas::websockets::*;
 use crate::warn;
 use crate::{debug, error, info};
-use crate::schemas::websockets;
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tokio::sync::Mutex;

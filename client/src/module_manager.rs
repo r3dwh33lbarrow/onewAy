@@ -11,9 +11,9 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
-use tokio::time::{sleep, Duration};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::UnboundedSender;
+use tokio::time::{Duration, sleep};
 
 #[derive(Debug, Error)]
 pub enum ModuleManagerError {
@@ -240,7 +240,6 @@ impl ModuleManager {
             })
             .to_string(),
         );
-        
 
         if let Some(stdout) = stdout {
             let sender_clone = sender.clone();
@@ -331,7 +330,6 @@ impl ModuleManager {
         module_name: &str,
         bytes: &[u8],
     ) -> Result<(), ModuleManagerError> {
-        
         let module = self.get_module(module_name).await;
         if module.is_none() {
             return Err(ModuleManagerError::ModuleNotFound(module_name.to_string()));
@@ -416,23 +414,26 @@ impl ModuleManager {
         api_client: Arc<Mutex<ApiClient>>,
     ) -> anyhow::Result<Vec<String>> {
         let local_modules = self.module_configs.lock().await;
-        let local_module_names: Vec<String> =
-            local_modules.iter().map(|x| x.name.to_string()).collect();
 
         let api_client = api_client.lock().await;
         let remote_modules = api_client
             .get::<AllInstalledResponse>(&format!("/module/installed/{}", CONFIG.auth.username))
             .await?;
+
         let remote_module_names: HashSet<String> = remote_modules
             .all_installed
             .unwrap_or_default()
             .iter()
-            .map(|x| x.name.to_string())
+            .map(|x| title_case_to_camel_case(&x.name))
             .collect();
 
-        let discrepancies: Vec<String> = local_module_names
-            .into_iter()
-            .filter(|name| !remote_module_names.contains(name))
+        let discrepancies: Vec<String> = local_modules
+            .iter()
+            .filter(|module| {
+                let normalized = title_case_to_camel_case(&module.name);
+                !remote_module_names.contains(&normalized)
+            })
+            .map(|module| module.name.clone())
             .collect();
 
         Ok(discrepancies)
