@@ -30,6 +30,7 @@ from app.db.base import Base
 from app.models.client import Client  # noqa
 from app.models.client_module import ClientModule  # noqa
 from app.models.module import Module  # noqa
+from app.models.module_bucket import ModuleBucket  # noqa
 from app.models.refresh_token import RefreshToken  # noqa
 from app.models.user import User  # noqa
 

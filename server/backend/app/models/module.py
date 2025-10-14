@@ -26,3 +26,11 @@ class Module(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+
+    bucket = relationship(
+        "ModuleBucket",
+        back_populates="module",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
