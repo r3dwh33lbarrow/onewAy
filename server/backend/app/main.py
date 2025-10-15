@@ -7,7 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.dependencies import cleanup_db, get_db, init_db
 from app.logger import get_logger
 from app.models.client import Client
-from app.routes import client, client_auth, module, user, user_auth, websockets
+from app.routes import client, client_auth, module, user, user_auth, websockets, module_bucket
 from app.settings import settings
 
 
@@ -48,6 +48,7 @@ app.include_router(client.router)
 app.include_router(websockets.router)
 app.include_router(module.router)
 app.include_router(user.router)
+app.include_router(module_bucket.router)
 
 
 @app.get("/")
