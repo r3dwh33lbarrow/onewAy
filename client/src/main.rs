@@ -42,7 +42,7 @@ async fn main() {
     debug!("Client logged in");
     debug!("Loading modules from {}", config.module.modules_directory);
     let mut module_manager = ModuleManager::new(&config.module.modules_directory);
-    if let Err(e) = module_manager.load_all_modules().await {
+    if let Err(e) = module_manager.load_all_modules(api_client.clone()).await {
         error!("Failed to load modules: {}", e);
     }
 

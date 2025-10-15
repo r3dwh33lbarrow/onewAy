@@ -57,6 +57,7 @@ pub(crate) struct ModuleConfig {
     name: String,
     binaries: Binaries,
     start: ModuleStart,
+    dependencies: Option<String>,
     pub parent_directory: Option<String>,
 }
 
@@ -102,10 +103,24 @@ impl ModuleManager {
         &mut self,
         config_path: &str,
         parent_dir: Option<String>,
+        api_client: Arc<Mutex<ApiClient>>,
     ) -> Result<(), ModuleManagerError> {
         let config_content = tokio::fs::read_to_string(config_path).await?;
         let mut config: ModuleConfig = serde_yaml::from_str(&config_content)?;
         config.parent_directory = parent_dir;
+
+        if let Some(depends) = &config.dependencies {
+            let mapped_deps: Vec<String> = depends.split(",").map(|s| s.trim().to_string()).collect();
+            for deps in mapped_deps {
+                if deps == "bucket" {
+                    let api = api_client.lock().await;
+                    let result = api.post_with_query::<(), BasicTaskResponse>("/module/new-bucket", &[("module-name", &*title_case_to_camel_case(&*config.name))], &()).await;
+                    if result.unwrap().result == "success" {
+                        error!("Failed to add bucket to {}", &config.name);
+                    }
+                }
+            }
+        }
 
         let mut configs = self.module_configs.lock().await;
         let config_clone = config.clone();
@@ -114,7 +129,7 @@ impl ModuleManager {
         Ok(())
     }
 
-    pub async fn load_all_modules(&mut self) -> Result<(), ModuleManagerError> {
+    pub async fn load_all_modules(&mut self, api_client: Arc<Mutex<ApiClient>>) -> Result<(), ModuleManagerError> {
         let mut module_folders = Vec::new();
         let mut read_dir = tokio::fs::read_dir(&self.modules_directory).await?;
 
@@ -141,7 +156,7 @@ impl ModuleManager {
                 continue;
             }
 
-            self.load_module(config_path.to_str().unwrap(), Some(folder))
+            self.load_module(config_path.to_str().unwrap(), Some(folder), api_client.clone())
                 .await?
         }
 
