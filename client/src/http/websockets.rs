@@ -2,7 +2,6 @@ use crate::http::api_client::ApiClient;
 use crate::module_manager::ModuleManager;
 use crate::schemas::websockets;
 use crate::schemas::websockets::*;
-use crate::warn;
 use crate::{debug, error, info};
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
@@ -22,11 +21,13 @@ pub async fn start_websocket_client(
     api_client: Arc<Mutex<ApiClient>>,
     module_manager: Arc<ModuleManager>,
 ) -> anyhow::Result<()> {
-    let api_client = api_client.lock().await;
-    let access_token = api_client
-        .post::<(), AccessTokenResponse>("/ws-client-token", &())
-        .await?;
-    let access_token = access_token.access_token;
+    let access_token = {
+        let api_client = api_client.lock().await;
+        let access_token = api_client
+            .post::<(), AccessTokenResponse>("/ws-client-token", &())
+            .await?;
+        access_token.access_token
+    };
     let url = url.to_owned() + "?token=" + &access_token;
     let (ws_stream, _) = connect_async(url).await?;
     let (mut write, mut read) = ws_stream.split();
@@ -62,7 +63,7 @@ pub async fn start_websocket_client(
             Ok(Message::Text(text)) => match serde_json::from_str::<websockets::Message>(&text) {
                 Ok(ws_msg) => {
                     debug!("Received message: {:?}", ws_msg);
-                    handle_websocket_message(ws_msg, Arc::clone(&module_manager), text_tx.clone())
+                    handle_websocket_message(ws_msg, Arc::clone(&module_manager), text_tx.clone(), Arc::clone(&api_client))
                         .await;
                 }
 
@@ -104,6 +105,7 @@ async fn handle_websocket_message(
     message: websockets::Message,
     module_manager: Arc<ModuleManager>,
     tx: UnboundedSender<String>,
+    api_client: Arc<Mutex<ApiClient>>
 ) {
     match message {
         websockets::Message::ModuleRun { from: _, module } => {
@@ -123,7 +125,7 @@ async fn handle_websocket_message(
             }
 
             if let Err(e) = module_manager
-                .start_module_streaming(&module_name, tx.clone())
+                .start_module_streaming(&module_name, tx.clone(), api_client)
                 .await
             {
                 error!("Failed to start module streaming: {}", e.to_string());

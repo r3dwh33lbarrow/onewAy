@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod modules;
 pub mod websockets;
+pub(crate) mod module_bucket;
 
 use serde::{Deserialize, Serialize};
 
@@ -21,13 +22,13 @@ pub struct ApiErrorResponse {
 
 #[derive(Debug)]
 pub struct ApiError {
-    pub status_code: u16,
+    pub status_code: i32,
     pub detail: String,
 }
 
 impl std::fmt::Display for ApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "API Error {}: {}", self.status_code, self.detail)
+        write!(f, "API Error ({}): {}", self.status_code, self.detail)
     }
 }
 

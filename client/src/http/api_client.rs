@@ -1,9 +1,8 @@
 use crate::schemas::{ApiError, ApiErrorResponse};
-use anyhow::Context;
-use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::{Client, Method};
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
@@ -36,7 +35,7 @@ impl ApiClient {
         self.access_token = Some(token.to_string());
     }
 
-    pub async fn get<T>(&self, endpoint: &str) -> anyhow::Result<T>
+    pub async fn get<T>(&self, endpoint: &str) -> Result<T, ApiError>
     where
         T: DeserializeOwned,
     {
@@ -48,7 +47,7 @@ impl ApiClient {
         &self,
         endpoint: &str,
         body: &Request,
-    ) -> anyhow::Result<Response>
+    ) -> Result<Response, ApiError>
     where
         Request: Serialize + ?Sized,
         Response: DeserializeOwned,
@@ -60,7 +59,7 @@ impl ApiClient {
         &self,
         endpoint: &str,
         body: &Request,
-    ) -> anyhow::Result<Response>
+    ) -> Result<Response, ApiError>
     where
         Request: Serialize + ?Sized,
         Response: DeserializeOwned,
@@ -68,17 +67,17 @@ impl ApiClient {
         self.request(Method::PUT, endpoint, Some(body)).await
     }
 
-    pub async fn get_text(&self, endpoint: &str) -> anyhow::Result<String> {
+    pub async fn get_text(&self, endpoint: &str) -> Result<String, ApiError> {
         let url = self.parse_endpoint(endpoint)?;
         let request = self.client.get(url).headers(self.build_headers());
-        let response = request.send().await.context("request failed")?;
+        let response = request.send().await.map_err(|err| self.map_request_error(err))?;
         self.handle_text(response).await
     }
 
-    pub async fn get_file(&self, endpoint: &str, path: &PathBuf) -> anyhow::Result<()> {
+    pub async fn get_file(&self, endpoint: &str, path: &PathBuf) -> Result<(), ApiError> {
         let url = self.parse_endpoint(endpoint)?;
         let request = self.client.get(url).headers(self.build_headers());
-        let response = request.send().await.context("request failed")?;
+        let response = request.send().await.map_err(|err| self.map_request_error(err))?;
         self.handle_file(response, path).await
     }
 
@@ -87,12 +86,15 @@ impl ApiClient {
         method: Method,
         endpoint: &str,
         body: Option<&Request>,
-    ) -> anyhow::Result<Response>
+    ) -> Result<Response, ApiError>
     where
         Request: Serialize + ?Sized,
         Response: DeserializeOwned,
     {
-        let url = self.parse_endpoint(endpoint)?;
+        let url = self.parse_endpoint(endpoint).map_err(|_| ApiError {
+            status_code: -1,
+            detail: "Failed to parse URL".to_string(),
+        })?;
         let mut request = self.client.request(method, url);
         request = request.headers(self.build_headers());
 
@@ -100,50 +102,63 @@ impl ApiClient {
             request = request.json(b);
         }
 
-        let response = request.send().await.context("request failed")?;
+        let response = request.send().await.map_err(|err| self.map_request_error(err))?;
         self.handle_response(response).await
     }
 
     async fn handle_response<Response>(
         &self,
         response: reqwest::Response,
-    ) -> anyhow::Result<Response>
+    ) -> Result<Response, ApiError>
     where
         Response: DeserializeOwned,
     {
         if response.status().is_success() {
+            let status_code = response.status().as_u16() as i32;
             let data = response
                 .json::<Response>()
                 .await
-                .context("failed to parse JSON response")?;
+                .map_err(|_| ApiError {
+                    status_code,
+                    detail: "Could not parse JSON".to_string(),
+                })?;
             Ok(data)
         } else {
-            self.parse_error(response).await
+            Err(self.parse_error(response).await)
         }
     }
 
-    async fn handle_text(&self, response: reqwest::Response) -> anyhow::Result<String> {
+    async fn handle_text(&self, response: reqwest::Response) -> Result<String, ApiError> {
         if response.status().is_success() {
             let body = response
                 .text()
                 .await
-                .context("failed to read response text")?;
+                .map_err(|_| ApiError {
+                    status_code: -1,
+                    detail: "Failed to read response text".to_string(),
+                })?;
             Ok(body)
         } else {
-            self.parse_error(response).await
+            Err(self.parse_error(response).await)
         }
     }
 
-    async fn handle_file(&self, response: reqwest::Response, path: &PathBuf) -> anyhow::Result<()> {
+    async fn handle_file(&self, response: reqwest::Response, path: &PathBuf) -> Result<(), ApiError> {
         if response.status().is_success() {
             let bytes = response
                 .bytes()
                 .await
-                .context("failed to read response bytes")?;
-            std::fs::write(path, bytes).context("failed to write file")?;
+                .map_err(|_| ApiError {
+                    status_code: -1,
+                    detail: "Failed to read response bytes".to_string(),
+                })?;
+            std::fs::write(path, bytes).map_err(|_| ApiError {
+                status_code: -1,
+                detail: "Failed to write file".to_string(),
+            })?;
             Ok(())
         } else {
-            self.parse_error(response).await
+            Err(self.parse_error(response).await)
         }
     }
 
@@ -152,45 +167,74 @@ impl ApiClient {
         endpoint: &str,
         query: &[(&str, &str)],
         body: &Request,
-    ) -> anyhow::Result<Response>
+    ) -> Result<Response, ApiError>
     where
         Request: Serialize + ?Sized,
         Response: DeserializeOwned,
     {
         let mut url = self.parse_endpoint(endpoint)?;
         url.query_pairs_mut().extend_pairs(query);
-        let mut request = self.client.request(reqwest::Method::POST, url);
+        let mut request = self.client.request(Method::POST, url);
         request = request.headers(self.build_headers()).json(body);
-        let response = request.send().await?;
+        let response = request.send().await.map_err(|err| self.map_request_error(err))?;
+        self.handle_response(response).await
+    }
+    
+    pub async fn put_with_query<Request, Response>(
+        &self,
+        endpoint: &str,
+        query: &[(&str, &str)],
+        body: &Request,
+    ) -> Result<Response, ApiError>
+    where
+        Request: Serialize + ?Sized,
+        Response: DeserializeOwned,
+    {
+        let mut url = self.parse_endpoint(endpoint)?;
+        url.query_pairs_mut().extend_pairs(query);
+        let mut request = self.client.request(Method::PUT, url);
+        request = request.headers(self.build_headers()).json(body);
+        let response = request.send().await.map_err(|err| self.map_request_error(err))?;
         self.handle_response(response).await
     }
 
-    async fn parse_error<T>(&self, response: reqwest::Response) -> anyhow::Result<T> {
+    async fn parse_error(&self, response: reqwest::Response) -> ApiError {
         let status_code = response.status().as_u16();
         let error_text = response
             .text()
             .await
-            .context("failed to read error response")?;
+            .map_err(|_| ApiError {
+                status_code: -1,
+                detail: "Failed to parse error response".to_string(),
+            });
 
-        if let Ok(api_error) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
-            Err(anyhow::Error::new(ApiError {
-                status_code,
-                detail: api_error.detail,
-            }))
-        } else {
-            Err(anyhow::Error::new(ApiError {
-                status_code,
-                detail: error_text,
-            }))
+        match error_text {
+            Ok(text) => {
+                if let Ok(api_error) = serde_json::from_str::<ApiErrorResponse>(&text) {
+                    ApiError {
+                        status_code: status_code as i32,
+                        detail: api_error.detail,
+                    }
+                } else {
+                    ApiError {
+                        status_code: status_code as i32,
+                        detail: text,
+                    }
+                }
+            },
+            Err(e) => e,
         }
     }
 
-    fn parse_endpoint(&self, path: &str) -> anyhow::Result<Url> {
+    fn parse_endpoint(&self, path: &str) -> Result<Url, ApiError> {
         let mut base_clone = self.base_url.clone();
         let path = path.strip_prefix('/').unwrap_or(path);
         base_clone
             .path_segments_mut()
-            .map_err(|_| anyhow::anyhow!("base URL failed to map"))?
+            .map_err(|_| ApiError {
+                status_code: -1,
+                detail: "Base URL failed to map".to_string(),
+            })?
             .extend(path.split('/').filter(|s| !s.is_empty()));
         Ok(base_clone)
     }
@@ -203,6 +247,13 @@ impl ApiClient {
             }
         }
         headers
+    }
+
+    fn map_request_error(&self, err: reqwest::Error) -> ApiError {
+        ApiError {
+            status_code: err.status().map(|s| s.as_u16() as i32).unwrap_or(-1),
+            detail: err.to_string(),
+        }
     }
 }
 

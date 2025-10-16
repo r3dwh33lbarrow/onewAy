@@ -5,6 +5,7 @@ import LoginPanel from "./components/LoginPanel";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RegisterPanel from "./components/RegisterPanel";
 import NotFound from "./pages/404";
+import { BucketPage } from "./pages/BucketPage.tsx";
 import ClientPage from "./pages/ClientPage";
 import ConsolePage from "./pages/ConsolePage";
 import Dashboard from "./pages/Dashboard";
@@ -85,6 +86,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ConsolePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/bucket/:module"
+          element={
+            <ProtectedRoute>
+              <BucketPage />
             </ProtectedRoute>
           }
         />

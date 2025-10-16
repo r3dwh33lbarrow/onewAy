@@ -73,7 +73,7 @@ async fn main() {
     }
 
     if let Err(e) = module_manager
-        .start_all_modules_by_start(ModuleStart::OnStart)
+        .start_all_modules_by_start(ModuleStart::OnStart, api_client.clone())
         .await
     {
         error!("Failed to start modules: {}", e);

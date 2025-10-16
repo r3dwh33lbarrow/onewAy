@@ -3,9 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import { HiOutlineCog, HiOutlineBell } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 
-import { apiClient } from "../apiClient";
+import {apiClient, isApiError} from "../apiClient";
 import { useAuthStore } from "../stores/authStore";
 import { useAvatarStore } from "../stores/useAvatarStore";
+import type {AllBucketsResponse} from "../schemas/module_bucket.ts";
 
 const customDropdownTheme = {
   arrowIcon: "ml-2 h-4 w-4 dark:fill-gray-200",
@@ -47,14 +48,41 @@ export default function TopIcons() {
   const clearUser = useAuthStore((state) => state.clearUser);
   const clearAvatar = useAvatarStore((state) => state.clearAvatar);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Record<string, string[]>>(
+    {},
+  );
   const notifBtnRef = useRef<HTMLButtonElement | null>(null);
   const notifPanelRef = useRef<HTMLDivElement | null>(null);
+
+  // Check if there are any "not consumed" notifications
+  const hasUnread = Object.values(notifications).some((messages) =>
+    messages.some((msg) => msg === "not consumed")
+  );
 
   useEffect(() => {
     if (!avatarUrl) {
       fetchAvatar();
     }
   }, [avatarUrl, fetchAvatar]);
+
+  useEffect(() => {
+    const getAllBuckets = async () => {
+      const response = await apiClient.get<AllBucketsResponse>(
+        "/module/all-buckets",
+      );
+
+      if (!isApiError(response)) {
+        for (const [module, consumed] of Object.entries(response.buckets)) {
+          setNotifications((prev) => ({
+            ...prev,
+            [module]: [consumed],
+          }));
+        }
+      }
+    };
+
+    getAllBuckets();
+  }, []);
 
   const handleLogout = async () => {
     await apiClient.post<object, { result: string }>("/user/auth/logout", {});
@@ -103,22 +131,58 @@ export default function TopIcons() {
           className="relative"
         >
           <HiOutlineBell className="h-5 w-5" />
-          {/* <span className="absolute -top-0.5 -right-0.5 inline-flex h-2 w-2 rounded-full bg-red-500" /> */}
+          {hasUnread && (
+            <span className="absolute -top-0.5 -right-0.5 inline-flex h-3 w-3 rounded-full bg-red-500" />
+          )}
         </Button>
 
         {notifOpen && (
           <div
             ref={notifPanelRef}
             className="absolute right-0 mt-2 w-72 z-40"
-            style={{}}
           >
             {/* Arrow */}
             <div className="relative">
               <div className="absolute right-4 -top-0.5 h-3 w-3 rotate-45 bg-white border-l border-t border-gray-200 dark:bg-gray-700 dark:border-gray-600"></div>
               <div className="rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-600 dark:bg-gray-700 overflow-hidden">
-                <div className="p-3 text-sm text-gray-500 dark:text-gray-300">
-                  No notifications
-                </div>
+                {Object.keys(notifications).length === 0 ? (
+                  <div className="p-3 text-sm text-gray-500 dark:text-gray-300">
+                    No notifications
+                  </div>
+                ) : (
+                  <div className="max-h-96 overflow-y-auto">
+                    {Object.entries(notifications).map(([module, messages]) => {
+                      const isUnread = messages.some((msg) => msg === "not consumed");
+                      return (
+                        <div
+                          key={module}
+                          className="p-3 border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer"
+                          onClick={() => {
+                            navigate(`/bucket/${module}`);
+                            setNotifOpen(false);
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isUnread && (
+                              <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
+                            )}
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {module}
+                            </div>
+                          </div>
+                          {messages.map((msg, idx) => (
+                            <div
+                              key={idx}
+                              className="text-xs text-gray-600 dark:text-gray-300 mt-1"
+                            >
+                              {msg}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>

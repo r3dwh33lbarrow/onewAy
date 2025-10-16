@@ -131,10 +131,25 @@ export default function ConsolePage() {
       const allResult =
         await apiClient.get<UserModuleAllResponse>("/module/all");
       if ("modules" in allResult) setModules(allResult.modules);
-      const instResult = await apiClient.get<{
-        all_installed: InstalledModuleInfo[];
-      }>(`/module/installed/${encodeURIComponent(username)}`);
-      if ("all_installed" in instResult) setInstalled(instResult.all_installed);
+      const instResult = await apiClient.get<InstalledModuleInfo[]>(
+        `/module/installed/${encodeURIComponent(username)}`,
+      );
+      // Check if it's not an error response
+      if (!isApiError(instResult)) {
+        // The API returns an array directly, not an object with all_installed key
+        if (Array.isArray(instResult)) {
+          setInstalled(instResult);
+        } else if (
+          typeof instResult === "object" &&
+          instResult !== null &&
+          "all_installed" in instResult
+        ) {
+          setInstalled(
+            (instResult as { all_installed: InstalledModuleInfo[] })
+              .all_installed,
+          );
+        }
+      }
     };
     fetchModules();
   }, [username]);
@@ -144,8 +159,9 @@ export default function ConsolePage() {
       setError(apiErrorToString(error)),
     );
     return () => {
-      // Use the live ref to ensure we remove the listener added asynchronously
-      socketRef.current?.removeEventListener("message", onMessage);
+      // Capture the current socket value to avoid stale reference in cleanup
+      const socket = socketRef.current;
+      socket?.removeEventListener("message", onMessage);
     };
   }, [onMessage]);
 
