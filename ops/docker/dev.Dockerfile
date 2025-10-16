@@ -24,4 +24,6 @@ WORKDIR /workspace
 COPY ops/docker/start-services.sh /usr/local/bin/start-services.sh
 RUN chmod +x /usr/local/bin/start-services.sh
 
+EXPOSE 5173 8000
+
 ENTRYPOINT ["/usr/local/bin/start-services.sh"]

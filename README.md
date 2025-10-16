@@ -31,6 +31,8 @@ You can spin up a full development environment (PostgreSQL, backend, and Vite fr
 
 The script relies on Docker Compose v2. If the repository does not have a remote configured, export `REPO_URL` with the Git URL to clone before running it. Once the stack is running, you can visit the frontend at `http://127.0.0.1:5173` and the backend API at `http://127.0.0.1:8000`.
 
+The backend ships with a development `server/backend/config.toml` that points at the PostgreSQL service exposed by the Docker Compose stack. When you launch the Docker environment, the config is regenerated with the container values so PostgreSQL, JWT secrets, and the CORS origins always match the ports you expose. If you run the backend outside Docker, update the `database.url` (and other values as needed) to match your environment.
+
 Backend (FastAPI)
 -----------------
 - Configure `server/backend/config.toml` (database, security, paths). See docs/BACKEND_SETTINGS.md.

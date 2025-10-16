@@ -60,9 +60,8 @@ fi
 cd "${PROJECT_DIR}"
 
 CONFIG_FILE="server/backend/config.toml"
-if [[ ! -f "${CONFIG_FILE}" ]]; then
-    log "Generating backend config at ${CONFIG_FILE}"
-    cat > "${CONFIG_FILE}" <<CONFIG
+log "Writing backend config to ${CONFIG_FILE}"
+cat > "${CONFIG_FILE}" <<CONFIG
 [app]
 debug = true
 client_version = "${CLIENT_VERSION}"
@@ -112,9 +111,6 @@ client_dir = "[ROOT]/client"
 module_dir = "[ROOT]/server/backend/tests/modules"
 avatar_dir = "[ROOT]/server/backend/tests/resources/avatars"
 CONFIG
-else
-    log "Backend config already exists, skipping generation"
-fi
 
 log "Installing backend dependencies"
 python -m pip install --upgrade pip
@@ -144,7 +140,7 @@ start_backend() {
 start_frontend() {
     log "Starting frontend (Vite) on port ${FRONTEND_PORT}"
     cd "${PROJECT_DIR}/server/frontend"
-    npm run dev -- --host 0.0.0.0 --port "${FRONTEND_PORT}"
+    npm run dev -- --host 0.0.0.0 --port "${FRONTEND_PORT}" --strictPort
 }
 
 trap_handler() {
