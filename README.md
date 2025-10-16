@@ -1,19 +1,18 @@
 onewAy
 ========
 
-A multi-component system for running and streaming output from modules across clients.
++    onewAy is designed as a modern, red team module manager inspired by Armitage. In this context a module can be any executable that can be run on a target machine. Just by running the client on a target machine you can create an upload any of your own modules (executables). This project is heavily a **work in progress**! The end goal for this project is to have most of the same functionality of Armitage more specifically the integration with Metasploit. Currently this project only supports custom modules and does not integrate at all with Metasploit.
 
-- Python FastAPI backend (HTTP + WebSockets)
-- Rust client (executes modules, streams stdout/stderr, receives commands)
-- TypeScript React frontend (console view, module management)
-
-Useful docs:
+Other docs:
 - docs/BACKEND_SETTINGS.md — Backend config (config.toml)
 - docs/MODULES.md — Modules directory and workflows
 - docs/MODULE_CONFIG.md — Module config.yaml schema and examples
 
 Architecture
 ------------
+- Python FastAPI backend (HTTP + WebSockets)
+- Rust client (executes modules, streams stdout/stderr, receives commands)
+- TypeScript React frontend (console view, module management)
 - Backend exposes REST endpoints for auth, modules, and client/user WebSockets.
 - Client authenticates, receives run/cancel/stdin commands over WS, runs binaries, and streams output and events back.
 - Frontend connects as a user WebSocket client, renders console output and module events, and can send stdin.
@@ -77,14 +76,13 @@ WebSockets
   - Frontend types: `server/frontend/src/schemas/websockets.ts`
   - Rust client types: `client/src/schemas/websockets.rs`
 
-Development Tips
+Naming Conventions
 ----------------
 - Names are normalized across layers:
   - Backend/DB: `snake_case` (e.g., `test_module`)
   - Routes: `kebab-case` (e.g., `/test-module`)
   - Frontend TS: `camelCase` (e.g., `testModule`)
   - Display: free-form (e.g., `Test Module`)
-- Exit codes are forwarded on `module_exit` events and rendered by the console UI.
 
 Testing
 -------
@@ -93,5 +91,4 @@ Testing
 
 License
 -------
-- See project license (if applicable).
-
+ADD
