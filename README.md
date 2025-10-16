@@ -21,6 +21,16 @@ Quickstart
 ----------
 Prerequisites: Python 3.11+, Node 20+, Rust stable, PostgreSQL.
 
+### Docker one-step environment
+
+You can spin up a full development environment (PostgreSQL, backend, and Vite frontend on http://127.0.0.1:5173) with Docker:
+
+```
+./scripts/start_dev_container.sh
+```
+
+The script relies on Docker Compose v2. If the repository does not have a remote configured, export `REPO_URL` with the Git URL to clone before running it. Once the stack is running, you can visit the frontend at `http://127.0.0.1:5173` and the backend API at `http://127.0.0.1:8000`.
+
 Backend (FastAPI)
 -----------------
 - Configure `server/backend/config.toml` (database, security, paths). See docs/BACKEND_SETTINGS.md.

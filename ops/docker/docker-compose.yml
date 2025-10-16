@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: ops/docker/dev.Dockerfile
+    environment:
+      REPO_URL: ${REPO_URL}
+      REPO_REF: ${REPO_REF:-main}
+      PROJECT_DIR: /workspace/oneway
+      POSTGRES_HOST: db
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-oneway}
+      POSTGRES_USER: ${POSTGRES_USER:-oneway}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oneway}
+      BACKEND_PORT: ${BACKEND_PORT:-8000}
+      FRONTEND_PORT: ${FRONTEND_PORT:-5173}
+      CLIENT_VERSION: ${CLIENT_VERSION:-0.1.0}
+      SECURITY_SECRET_KEY: ${SECURITY_SECRET_KEY:-dev-secret}
+    ports:
+      - "${FRONTEND_PORT:-5173}:${FRONTEND_PORT:-5173}"
+      - "${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - app-data:/workspace
+    restart: unless-stopped
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-oneway}
+      POSTGRES_USER: ${POSTGRES_USER:-oneway}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oneway}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d ${POSTGRES_DB:-oneway} -U ${POSTGRES_USER:-oneway}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  app-data:
+  pg-data:
