@@ -47,15 +47,15 @@ export default function TopIcons() {
   const { avatarUrl, fetchAvatar } = useAvatarStore();
   const clearUser = useAuthStore((state) => state.clearUser);
   const clearAvatar = useAvatarStore((state) => state.clearAvatar);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Record<string, string[]>>(
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [bucketNotifications, setBucketNotifications] = useState<Record<string, string[]>>(
     {},
   );
-  const notifBtnRef = useRef<HTMLButtonElement | null>(null);
-  const notifPanelRef = useRef<HTMLDivElement | null>(null);
+  const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
+  const notificationPanelRef = useRef<HTMLDivElement | null>(null);
 
-  // Check if there are any "not consumed" notifications
-  const hasUnread = Object.values(notifications).some((messages) =>
+  // Check if there are any "not consumed" bucketNotifications
+  const hasUnread = Object.values(bucketNotifications).some((messages) =>
     messages.some((msg) => msg === "not consumed"),
   );
 
@@ -73,7 +73,7 @@ export default function TopIcons() {
 
       if (!isApiError(response)) {
         for (const [module, consumed] of Object.entries(response.buckets)) {
-          setNotifications((prev) => ({
+          setBucketNotifications((prev) => ({
             ...prev,
             [module]: [consumed],
           }));
@@ -92,22 +92,22 @@ export default function TopIcons() {
   };
 
   useEffect(() => {
-    if (!notifOpen) return;
+    if (!notificationsOpen) return;
 
     const onClick = (e: MouseEvent) => {
       const target = e.target as Node;
       if (
-        notifPanelRef.current &&
-        !notifPanelRef.current.contains(target) &&
-        notifBtnRef.current &&
-        !notifBtnRef.current.contains(target)
+        notificationPanelRef.current &&
+        !notificationPanelRef.current.contains(target) &&
+        notificationButtonRef.current &&
+        !notificationButtonRef.current.contains(target)
       ) {
-        setNotifOpen(false);
+        setNotificationsOpen(false);
       }
     };
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setNotifOpen(false);
+      if (e.key === "Escape") setNotificationsOpen(false);
     };
 
     document.addEventListener("mousedown", onClick);
@@ -116,18 +116,18 @@ export default function TopIcons() {
       document.removeEventListener("mousedown", onClick);
       document.removeEventListener("keydown", onKey);
     };
-  }, [notifOpen]);
+  }, [notificationsOpen]);
 
   return (
     <div className="flex items-center gap-3">
       <div className="relative">
         <Button
-          ref={notifBtnRef}
+          ref={notificationButtonRef}
           color="gray"
           pill
           size="sm"
           aria-label="Notifications"
-          onClick={() => setNotifOpen((v) => !v)}
+          onClick={() => setNotificationsOpen((v) => !v)}
           className="relative"
         >
           <HiOutlineBell className="h-5 w-5" />
@@ -136,19 +136,18 @@ export default function TopIcons() {
           )}
         </Button>
 
-        {notifOpen && (
-          <div ref={notifPanelRef} className="absolute right-0 mt-2 w-72 z-40">
-            {/* Arrow */}
+        {notificationsOpen && (
+          <div ref={notificationPanelRef} className="absolute right-0 mt-2 w-72 z-40">
             <div className="relative">
               <div className="absolute right-4 -top-0.5 h-3 w-3 rotate-45 bg-white border-l border-t border-gray-200 dark:bg-gray-700 dark:border-gray-600"></div>
               <div className="rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-600 dark:bg-gray-700 overflow-hidden">
-                {Object.keys(notifications).length === 0 ? (
+                {Object.keys(bucketNotifications).length === 0 ? (
                   <div className="p-3 text-sm text-gray-500 dark:text-gray-300">
                     No notifications
                   </div>
                 ) : (
                   <div className="max-h-96 overflow-y-auto">
-                    {Object.entries(notifications).map(([module, messages]) => {
+                    {Object.entries(bucketNotifications).map(([module, messages]) => {
                       const isUnread = messages.some(
                         (msg) => msg === "not consumed",
                       );
@@ -158,7 +157,7 @@ export default function TopIcons() {
                           className="p-3 border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer"
                           onClick={() => {
                             navigate(`/bucket/${module}`);
-                            setNotifOpen(false);
+                            setNotificationsOpen(false);
                           }}
                         >
                           <div className="flex items-center gap-2">
