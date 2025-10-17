@@ -48,9 +48,9 @@ export default function TopIcons() {
   const clearUser = useAuthStore((state) => state.clearUser);
   const clearAvatar = useAvatarStore((state) => state.clearAvatar);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [bucketNotifications, setBucketNotifications] = useState<Record<string, string[]>>(
-    {},
-  );
+  const [bucketNotifications, setBucketNotifications] = useState<
+    Record<string, string[]>
+  >({});
   const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
   const notificationPanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -137,7 +137,10 @@ export default function TopIcons() {
         </Button>
 
         {notificationsOpen && (
-          <div ref={notificationPanelRef} className="absolute right-0 mt-2 w-72 z-40">
+          <div
+            ref={notificationPanelRef}
+            className="absolute right-0 mt-2 w-72 z-40"
+          >
             <div className="relative">
               <div className="absolute right-4 -top-0.5 h-3 w-3 rotate-45 bg-white border-l border-t border-gray-200 dark:bg-gray-700 dark:border-gray-600"></div>
               <div className="rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-600 dark:bg-gray-700 overflow-hidden">
@@ -147,38 +150,40 @@ export default function TopIcons() {
                   </div>
                 ) : (
                   <div className="max-h-96 overflow-y-auto">
-                    {Object.entries(bucketNotifications).map(([module, messages]) => {
-                      const isUnread = messages.some(
-                        (msg) => msg === "not consumed",
-                      );
-                      return (
-                        <div
-                          key={module}
-                          className="p-3 border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer"
-                          onClick={() => {
-                            navigate(`/bucket/${module}`);
-                            setNotificationsOpen(false);
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            {isUnread && (
-                              <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
-                            )}
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">
-                              {module}
+                    {Object.entries(bucketNotifications).map(
+                      ([module, messages]) => {
+                        const isUnread = messages.some(
+                          (msg) => msg === "not consumed",
+                        );
+                        return (
+                          <div
+                            key={module}
+                            className="p-3 border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer"
+                            onClick={() => {
+                              navigate(`/bucket/${module}`);
+                              setNotificationsOpen(false);
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isUnread && (
+                                <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
+                              )}
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                {module}
+                              </div>
                             </div>
+                            {messages.map((msg, idx) => (
+                              <div
+                                key={idx}
+                                className="text-xs text-gray-600 dark:text-gray-300 mt-1"
+                              >
+                                {msg}
+                              </div>
+                            ))}
                           </div>
-                          {messages.map((msg, idx) => (
-                            <div
-                              key={idx}
-                              className="text-xs text-gray-600 dark:text-gray-300 mt-1"
-                            >
-                              {msg}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
+                        );
+                      },
+                    )}
                   </div>
                 )}
               </div>
