@@ -1,0 +1,7 @@
+name: Shell
+description: A basic shell
+version: 0.1.0
+start: manual
+
+binaries:
+  mac: target/debug/shell

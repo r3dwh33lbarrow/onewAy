@@ -1,0 +1,47 @@
+[app]
+debug = true
+client_version = "0.1.0"
+
+[cors]
+allow_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+[database]
+url = "postgresql+asyncpg://onewayuser:password@localhost:5432/oneway"
+pool_size = 10
+pool_timeout = 30
+echo = false
+
+[security]
+secret_key = "password"
+algorithm = "HS256"
+access_token_expires_minutes = 15
+refresh_token_expires_days = 7
+jwt_issuer = "https://api.oneway.local"
+jwt_audience = "onewAy-api"
+
+[testing]
+testing = false
+
+[testing.database]
+url = "postgresql+asyncpg://onewayuser:password@localhost:5432/onewaytesting"
+pool_size = 10
+pool_timeout = 30
+echo = false
+
+[testing.security]
+secret_key = "password"
+algorithm = "HS256"
+access_token_expires_minutes = 15
+refresh_token_expires_days = 7
+
+[testing.paths]
+client_dir = "[ROOT]/client"
+module_dir = "[ROOT]/server/backend/tests/modules"
+avatar_dir = "[ROOT]/server/backend/tests/resources/avatars"
+
+[paths]
+client_dir = "[ROOT]/client"
+module_dir = "[ROOT]/modules"
+
+[other]
+max_avatar_size_mb = 2
