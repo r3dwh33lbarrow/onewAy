@@ -4,6 +4,7 @@ import { HiOutlineDocument, HiOutlineFolder } from "react-icons/hi";
 
 import { apiClient, isApiError } from "../apiClient";
 import type { ModuleAddRequest } from "../schemas/module.ts";
+import { useErrorStore } from "../stores/errorStore.ts";
 
 interface ModuleDirectoryContents {
   contents: Array<Record<string, string>>;
@@ -20,12 +21,13 @@ export default function ModuleAddModal({
   onClose,
   onModuleAdded,
 }: ModuleAddModalProps) {
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [directoryContents, setDirectoryContents] = useState<Array<
     Record<string, string>
   > | null>(null);
   const [selectedContent, setSelectedContent] = useState<string | null>(null);
+
+  const { addError, anyErrors } = useErrorStore();
 
   function hasKeyFile<T extends Record<string, string>>(
     record: T,
@@ -45,26 +47,25 @@ export default function ModuleAddModal({
     const fetchModuleDir = async () => {
       try {
         setLoading(true);
-        setError(null);
         const result = await apiClient.get<ModuleDirectoryContents>(
           "/module/query-module-dir",
         );
 
         if (isApiError(result)) {
-          setError(result.message);
+          addError(result.message);
           return;
         }
 
         setDirectoryContents(result.contents || []);
       } catch {
-        setError("Failed to fetch module directory");
+        addError("Failed to fetch module directory");
       } finally {
         setLoading(false);
       }
     };
 
     fetchModuleDir();
-  }, [show]);
+  }, [show, addError]);
 
   const handleAdd = async () => {
     if (!selectedContent) {
@@ -86,12 +87,6 @@ export default function ModuleAddModal({
     <Modal show={show} onClose={onClose} size="2xl">
       <ModalHeader>Select Module from Directory</ModalHeader>
       <ModalBody className="space-y-6">
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
-        )}
-
         {loading && (
           <div className="animate-pulse space-y-2">
             <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
@@ -100,7 +95,7 @@ export default function ModuleAddModal({
           </div>
         )}
 
-        {!loading && !error && directoryContents && (
+        {!loading && !anyErrors() && directoryContents && (
           <>
             {directoryContents.length > 0 ? (
               <div className="space-y-2">
