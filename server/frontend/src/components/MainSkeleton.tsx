@@ -1,5 +1,6 @@
 import React from "react";
 
+import { ErrorOverlay } from "../layout/ErrorOverlay.tsx";
 import MainSidebar from "../layout/MainSidebar";
 import TopIcons from "../layout/TopIcons";
 
@@ -28,7 +29,10 @@ export default function MainSkeleton({
           <TopIcons />
         </header>
 
-        <main className="p-6 text-gray-600 dark:text-gray-200">{children}</main>
+        <main className="p-6 text-gray-600 dark:text-gray-200">
+          <ErrorOverlay />
+          {children}
+        </main>
       </div>
     </div>
   );
