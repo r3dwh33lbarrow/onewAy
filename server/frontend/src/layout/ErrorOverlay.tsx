@@ -25,7 +25,7 @@ export function ErrorOverlay() {
   if (visibleErrors.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-50 pointer-events-none">
+    <div className="pointer-events-none mb-4">
       {visibleErrors.map((error) => (
         <div
           key={error.id}
@@ -34,6 +34,7 @@ export function ErrorOverlay() {
             border border-red-200 dark:border-red-800 
             rounded-lg p-4 pointer-events-auto
             transition-all duration-300 ease-out
+            mb-4
             ${
               removingIds.has(error.id)
                 ? "opacity-0 translate-x-full scale-95"

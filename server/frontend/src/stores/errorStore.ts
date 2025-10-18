@@ -10,9 +10,10 @@ interface ErrorStore {
   addError: (message: string) => void;
   removeError: (id: number) => void;
   clearErrors: () => void;
+  anyErrors: () => boolean;
 }
 
-export const useErrorStore = create<ErrorStore>((set) => ({
+export const useErrorStore = create<ErrorStore>((set, get) => ({
   errors: [],
   addError: (message) => {
     const id = Date.now();
@@ -31,4 +32,5 @@ export const useErrorStore = create<ErrorStore>((set) => ({
       errors: state.errors.filter((e) => e.id !== id),
     })),
   clearErrors: () => set({ errors: [] }),
+  anyErrors: () => get().errors.length > 0,
 }));

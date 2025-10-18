@@ -5,12 +5,13 @@ import { apiClient, isApiError } from "../apiClient";
 import ClientCard from "../components/ClientCard";
 import MainSkeleton from "../components/MainSkeleton";
 import type { ClientAllResponse, BasicClientInfo } from "../schemas/client";
+import { useErrorStore } from "../stores/errorStore.ts";
 import { apiErrorToString } from "../utils.ts";
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<BasicClientInfo[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const { addError, anyErrors } = useErrorStore();
   const navigate = useNavigate();
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -24,16 +25,19 @@ export default function Dashboard() {
     );
   };
 
-  const onMessage = useCallback((event: MessageEvent) => {
-    try {
-      const data = JSON.parse(event.data);
-      if (data.type === "alive_update") {
-        updateClientAliveStatus(data.data.username, data.data.alive);
+  const onMessage = useCallback(
+    (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "alive_update") {
+          updateClientAliveStatus(data.data.username, data.data.alive);
+        }
+      } catch (error) {
+        addError("Error parsing WebSocket message: " + error);
       }
-    } catch (error) {
-      setError("Error parsing WebSocket message: " + error);
-    }
-  }, []);
+    },
+    [addError],
+  );
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -45,7 +49,7 @@ export default function Dashboard() {
             return;
           }
 
-          setError(
+          addError(
             `Failed to fetch clients (${response.statusCode}): ${response.detail || response.message}`,
           );
         } else {
@@ -54,17 +58,17 @@ export default function Dashboard() {
 
         setLoading(false);
       } catch (error) {
-        setError(`Failed to fetch clients: ${error}`);
+        addError(`Failed to fetch clients: ${error}`);
         setLoading(false);
       }
     };
 
     fetchClients();
-  }, [navigate]);
+  }, [navigate, addError]);
 
   useEffect(() => {
     apiClient.startWebSocket(socketRef, onMessage, (error) =>
-      setError(apiErrorToString(error)),
+      addError(apiErrorToString(error)),
     );
 
     const currentSocket = socketRef.current;
@@ -72,17 +76,11 @@ export default function Dashboard() {
     return () => {
       currentSocket?.removeEventListener("message", onMessage);
     };
-  }, [onMessage]);
+  }, [onMessage, addError]);
 
   return (
     <MainSkeleton baseName="Dashboard">
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-          <p className="text-red-800 dark:text-red-200">{error}</p>
-        </div>
-      )}
-
-      {!error &&
+      {!anyErrors() &&
         (loading ? (
           <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 p-10 text-center text-sm text-gray-600 dark:text-gray-400">
             Loading...
