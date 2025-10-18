@@ -11,6 +11,7 @@ interface NotificationStore {
   last_updated: Date;
   error: ApiError | null;
   query: () => Promise<void>;
+  hasUnread: () => boolean;
 }
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
@@ -42,5 +43,9 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       notifications: response.buckets,
       last_updated: now,
     });
+  },
+
+  hasUnread: () => {
+    return get().notifications.some((bucket) => !bucket.consumed);
   },
 }));

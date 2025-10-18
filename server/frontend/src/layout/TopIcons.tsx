@@ -3,11 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { HiOutlineCog, HiOutlineBell } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 
-import { apiClient, isApiError } from "../apiClient";
-import type {
-  AllBucketsResponse,
-  BucketInfo,
-} from "../schemas/module_bucket.ts";
+import { apiClient } from "../apiClient";
 import { useAuthStore } from "../stores/authStore";
 import { useNotificationStore } from "../stores/notificationStore.ts";
 import { useAvatarStore } from "../stores/useAvatarStore";
@@ -49,13 +45,10 @@ const customDropdownTheme = {
 export default function TopIcons() {
   const navigate = useNavigate();
   const { avatarUrl, fetchAvatar } = useAvatarStore();
-  const { query } = useNotificationStore();
+  const { notifications, query, hasUnread } = useNotificationStore();
   const clearUser = useAuthStore((state) => state.clearUser);
   const clearAvatar = useAvatarStore((state) => state.clearAvatar);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [bucketNotifications, setBucketNotifications] = useState<BucketInfo[]>(
-    [],
-  );
   const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
   const notificationPanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -66,23 +59,8 @@ export default function TopIcons() {
   }, [avatarUrl, fetchAvatar]);
 
   useEffect(() => {
-    const getAllBuckets = async () => {
-      const response = await apiClient.get<AllBucketsResponse>(
-        "/module/all-buckets",
-      );
-
-      if (!isApiError(response)) {
-        for (const bucket_info of response.buckets) {
-          setBucketNotifications((prev) => ({
-            ...prev,
-            bucket_info,
-          }));
-        }
-      }
-    };
-
-    getAllBuckets();
-  }, []);
+    query();
+  }, [query]);
 
   const handleLogout = async () => {
     await apiClient.post<object, { result: string }>("/user/auth/logout", {});
@@ -131,7 +109,7 @@ export default function TopIcons() {
           className="relative"
         >
           <HiOutlineBell className="h-5 w-5" />
-          {hasUnread && (
+          {hasUnread() && (
             <span className="absolute -top-0.5 -right-0.5 inline-flex h-3 w-3 rounded-full bg-red-500" />
           )}
         </Button>
@@ -144,46 +122,37 @@ export default function TopIcons() {
             <div className="relative">
               <div className="absolute right-4 -top-0.5 h-3 w-3 rotate-45 bg-white border-l border-t border-gray-200 dark:bg-gray-700 dark:border-gray-600"></div>
               <div className="rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-600 dark:bg-gray-700 overflow-hidden">
-                {Object.keys(bucketNotifications).length === 0 ? (
+                {notifications.length === 0 ? (
                   <div className="p-3 text-sm text-gray-500 dark:text-gray-300">
                     No notifications
                   </div>
                 ) : (
                   <div className="max-h-96 overflow-y-auto">
-                    {Object.entries(bucketNotifications).map(
-                      ([module, messages]) => {
-                        const isUnread = messages.some(
-                          (msg) => msg === "not consumed",
-                        );
-                        return (
-                          <div
-                            key={module}
-                            className="p-3 border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer"
-                            onClick={() => {
-                              navigate(`/bucket/${module}`);
-                              setNotificationsOpen(false);
-                            }}
-                          >
-                            <div className="flex items-center gap-2">
-                              {isUnread && (
-                                <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
-                              )}
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                {module}
-                              </div>
+                    {notifications.map((bucket_info) => {
+                      const isUnread = !bucket_info.consumed;
+                      return (
+                        <div
+                          key={bucket_info.name}
+                          className="p-3 border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer"
+                          onClick={() => {
+                            navigate(`/bucket/${bucket_info.name}`);
+                            setNotificationsOpen(false);
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isUnread && (
+                              <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
+                            )}
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {bucket_info.name}
                             </div>
-                            {messages.map((msg, idx) => (
-                              <div
-                                key={idx}
-                                className="text-xs text-gray-600 dark:text-gray-300 mt-1"
-                              >
-                                {msg}
-                              </div>
-                            ))}
                           </div>
-                        );
-                      },
-                    )}
+                          <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                            {new Date(bucket_info.created_at).toLocaleString()}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
