@@ -10,13 +10,14 @@ import type {
   AllBucketsResponse,
   BucketData,
 } from "../schemas/module_bucket.ts";
+import { useErrorStore } from "../stores/errorStore.ts";
 import { snakeCaseToTitle } from "../utils.ts";
 
 export function BucketPage() {
   const navigate = useNavigate();
   const module = useParams<{ module: string }>();
+  const { addError } = useErrorStore();
 
-  const [error, setError] = useState<string | null>(null);
   const [bucketData, setBucketData] = useState<string | null>(null);
 
   const deleteBucket = async () => {
@@ -25,7 +26,7 @@ export function BucketPage() {
       `/module/bucket?module_name=${module.module}`,
     );
     if (isApiError(response)) {
-      setError(
+      addError(
         `Failed to delete bucket (${response.statusCode}): ${response.detail || response.message}`,
       );
       return;
@@ -41,7 +42,7 @@ export function BucketPage() {
         `/module/bucket?module_name=${module.module}`,
       );
       if (isApiError(response)) {
-        setError(
+        addError(
           `Failed to fetch bucket (${response.statusCode}): ${response.detail || response.message}`,
         );
         return;
@@ -51,7 +52,7 @@ export function BucketPage() {
     };
 
     getBucket();
-  }, [module]);
+  }, [module, addError]);
 
   return (
     <MainSkeleton
@@ -59,12 +60,6 @@ export function BucketPage() {
         module?.module ? "Bucket for " + snakeCaseToTitle(module.module) : "N/A"
       }
     >
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-2">
-          <p className="text-red-800 dark:text-red-200">{error}</p>
-        </div>
-      )}
-
       <div className="flex flex-col h-[65vh] bg-black rounded-lg overflow-hidden">
         <div className="flex-1 overflow-auto p-3 font-mono text-sm text-white">
           {bucketData}
