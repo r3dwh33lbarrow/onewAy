@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { apiClient, isApiError } from "../apiClient";
 import type { UserModuleAllResponse } from "../schemas/module.ts";
+import { useErrorStore } from "../stores/errorStore.ts";
 
 interface InstallModuleModalProps {
   show: boolean;
@@ -15,19 +16,19 @@ export default function InstallModuleModal({
   onClose,
   onInstall,
 }: InstallModuleModalProps) {
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [modules, setModules] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
 
+  const { addError, anyErrors } = useErrorStore();
+
   useEffect(() => {
     const fetchModules = async () => {
       setLoading(true);
-      setError(null);
       const response =
         await apiClient.get<UserModuleAllResponse>("/module/all");
       if (isApiError(response)) {
-        setError(
+        addError(
           `Failed to fetch modules (${response.statusCode}): ${response.detail}`,
         );
         return;
@@ -38,17 +39,12 @@ export default function InstallModuleModal({
     };
 
     fetchModules();
-  }, []);
+  }, [addError]);
 
   return (
     <Modal show={show} onClose={onClose} size="2xl">
       <ModalHeader>Select Module to Install</ModalHeader>
       <ModalBody className="space-y-6">
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
-        )}
 
         {loading && (
           <div className="animate-pulse space-y-2">
@@ -58,7 +54,7 @@ export default function InstallModuleModal({
           </div>
         )}
 
-        {!loading && !error && modules.length > 0 && (
+        {!loading && !anyErrors() && modules.length > 0 && (
           <>
             <div className="space-y-3">
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -103,7 +99,7 @@ export default function InstallModuleModal({
           </>
         )}
 
-        {!loading && !error && modules.length === 0 && (
+        {!loading && !anyErrors() && modules.length === 0 && (
           <div className="text-center py-8">
             <p className="text-gray-500 dark:text-gray-400">
               No modules available for installation.

@@ -20,14 +20,15 @@ import type {
   ModuleBasicInfo,
 } from "../schemas/module.ts";
 import type { Message } from "../schemas/websockets.ts";
+import { useErrorStore } from "../stores/errorStore.ts";
 import { apiErrorToString, snakeCaseToTitle } from "../utils";
 
 export default function ConsolePage() {
   const { username } = useParams<{ username: string }>();
+  const { addError, anyErrors } = useErrorStore();
+
   const [clientInfo, setClientInfo] = useState<ClientAllInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [websocketError, setWebsocketError] = useState<string | null>(null);
   const [modules, setModules] = useState<ModuleBasicInfo[]>([]);
   const [installed, setInstalled] = useState<InstalledModuleInfo[]>([]);
   const [lines, setLines] = useState<
@@ -91,23 +92,22 @@ export default function ConsolePage() {
           }
 
           case "error":
-            setWebsocketError(message.message);
+            addError(message.message);
         }
       } catch (error) {
-        setError(
+        addError(
           "Failed to parse WebSocket message: " + (error as Error).message,
         );
       }
     },
-    [username],
+    [username, addError],
   );
 
   useEffect(() => {
     const fetchClientInformation = async () => {
       setLoading(true);
-      setError(null);
       if (!username) {
-        setError("No username provided");
+        addError("No username provided");
         setLoading(false);
         return;
       }
@@ -115,7 +115,7 @@ export default function ConsolePage() {
         `/client/get/${username}`,
       );
       if (isApiError(response)) {
-        setError(`Failed to fetch client information: ${response.detail}`);
+        addError(`Failed to fetch client information: ${response.detail}`);
         setLoading(false);
         return;
       }
@@ -123,7 +123,7 @@ export default function ConsolePage() {
       setLoading(false);
     };
     fetchClientInformation();
-  }, [username]);
+  }, [username, addError]);
 
   useEffect(() => {
     const fetchModules = async () => {
@@ -156,14 +156,14 @@ export default function ConsolePage() {
 
   useEffect(() => {
     apiClient.startWebSocket(socketRef, onMessage, (error) =>
-      setError(apiErrorToString(error)),
+      addError(apiErrorToString(error)),
     );
     return () => {
       // Capture the current socket value to avoid stale reference in cleanup
       const socket = socketRef.current;
       socket?.removeEventListener("message", onMessage);
     };
-  }, [onMessage]);
+  }, [onMessage, addError]);
 
   useEffect(() => {
     if (consoleRef.current) {
@@ -201,7 +201,7 @@ export default function ConsolePage() {
     if (!username) return;
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-      setWebsocketError("WebSocket not connected");
+      addError("WebSocket not connected");
       return;
     }
     if (!activeModule) {
@@ -228,12 +228,12 @@ export default function ConsolePage() {
     try {
       socket.send(JSON.stringify(payload));
     } catch (e) {
-      setWebsocketError(
+      addError(
         e instanceof Error ? e.message : "Failed to send stdin over WebSocket",
       );
     }
     setInputValue("");
-  }, [inputValue, username, activeModule]);
+  }, [inputValue, username, activeModule, addError]);
 
   return (
     <MainSkeleton baseName={`Console for ${username ?? ""}`}>
@@ -245,19 +245,7 @@ export default function ConsolePage() {
         </div>
       )}
 
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-          <p className="text-red-800 dark:text-red-200">{error}</p>
-        </div>
-      )}
-
-      {websocketError && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-          <p className="text-red-800 dark:text-red-200">{websocketError}</p>
-        </div>
-      )}
-
-      {!loading && !error && clientInfo && clientInfo.alive && (
+      {!loading && !anyErrors() && clientInfo && clientInfo.alive && (
         <>
           <div className="flex flex-col h-[65vh] bg-black rounded-lg overflow-hidden">
             <div
@@ -352,7 +340,7 @@ export default function ConsolePage() {
         </>
       )}
 
-      {!loading && !error && clientInfo && !clientInfo.alive && (
+      {!loading && !anyErrors() && clientInfo && !clientInfo.alive && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
           <p className="text-red-800 dark:text-red-200">
             Client is offline. Console is unavailable.

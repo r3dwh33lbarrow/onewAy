@@ -17,17 +17,18 @@ import MainSkeleton from "../components/MainSkeleton";
 import type { ClientInfo } from "../schemas/client";
 import type { BasicTaskResponse } from "../schemas/general";
 import type { InstalledModuleInfo } from "../schemas/module.ts";
+import { useErrorStore } from "../stores/errorStore.ts";
 
 export default function ClientPage() {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
   const socketRef = useRef<WebSocket | null>(null);
+  const { addError, anyErrors } = useErrorStore();
 
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [installedModules, setInstalledModules] = useState<
     InstalledModuleInfo[]
   >([]);
-  const [error, setError] = useState<string | null>(null);
   const [showInstallModal, setShowInstallModal] = useState(false);
 
   const updateClientAliveStatus = useCallback(
@@ -50,7 +51,6 @@ export default function ClientPage() {
   useEffect(() => {
     if (!username) return;
     const fetchClientInfo = async () => {
-      setError(null);
       const response = await apiClient.get<ClientInfo>(
         "/client/get/" + username,
       );
@@ -62,7 +62,7 @@ export default function ClientPage() {
           navigate("/login");
         }
 
-        setError(
+        addError(
           `Failed to fetch client info (${response.statusCode}): ${response.detail}`,
         );
         return;
@@ -71,12 +71,11 @@ export default function ClientPage() {
     };
 
     fetchClientInfo();
-  }, [username, navigate]);
+  }, [username, navigate, addError]);
 
   useEffect(() => {
     if (!username) return;
     const fetchInstalledModules = async () => {
-      setError(null);
       const response = await apiClient.get<{
         all_installed: InstalledModuleInfo[];
       }>("/module/installed/" + username);
@@ -85,7 +84,7 @@ export default function ClientPage() {
           navigate("/login");
         }
 
-        setError(
+        addError(
           `Failed to fetch installed modules (${response.statusCode}): ${response.detail}`,
         );
         return;
@@ -95,7 +94,7 @@ export default function ClientPage() {
     };
 
     fetchInstalledModules();
-  }, [navigate, username]);
+  }, [navigate, username, addError]);
 
   const onMessage = useCallback(
     (event: MessageEvent) => {
@@ -105,10 +104,10 @@ export default function ClientPage() {
           updateClientAliveStatus(data.data.username, data.data.alive);
         }
       } catch (error) {
-        setError("Error parsing WebSocket message: " + error);
+        addError("Error parsing WebSocket message: " + error);
       }
     },
-    [updateClientAliveStatus],
+    [updateClientAliveStatus, addError],
   );
 
   useEffect(() => {
@@ -128,7 +127,7 @@ export default function ClientPage() {
       {},
     );
     if (isApiError(response)) {
-      setError(`Failed to install module: ${response.detail}`);
+      addError(`Failed to install module: ${response.detail}`);
       return;
     }
 
@@ -146,7 +145,7 @@ export default function ClientPage() {
       "/module/run/" + moduleName + "?client_username=" + username,
     );
     if (isApiError(response)) {
-      setError(`Failed to run module: ${response.detail}`);
+      addError(`Failed to run module: ${response.detail}`);
     }
   };
 
@@ -158,12 +157,7 @@ export default function ClientPage() {
             No username provided
           </div>
         )}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            {error}
-          </div>
-        )}
-        {username && clientInfo && !error ? (
+        {username && clientInfo && !anyErrors() ? (
           <>
             <div className="flex gap-6 p-6 items-start">
               {/* First column - Windows logo with overlay button */}
@@ -333,7 +327,7 @@ export default function ClientPage() {
               </div>
             </div>
           </>
-        ) : !error ? (
+        ) : !anyErrors() ? (
           <p>Loading...</p>
         ) : null}
 

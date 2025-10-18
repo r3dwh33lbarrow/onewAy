@@ -34,6 +34,7 @@ export default function AuthForm({
   const [apiUrl, setApiUrl] = useState(
     apiClient.getApiUrl() ?? "http://localhost:8000/",
   );
+  // Still use legacy error handling for auth pages
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: "",

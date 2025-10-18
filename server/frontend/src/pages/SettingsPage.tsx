@@ -6,10 +6,10 @@ import { apiClient, isApiError } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
 import type { BasicTaskResponse } from "../schemas/general";
 import type { UserInfoResponse, UserUpdateRequest } from "../schemas/user";
+import { useErrorStore } from "../stores/errorStore.ts";
 import { useAvatarStore } from "../stores/useAvatarStore.ts";
 
 export default function SettingsPage() {
-  const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -18,6 +18,8 @@ export default function SettingsPage() {
   const [createdAt, setCreatedAt] = useState<string>("");
   const [lastLogin, setLastLogin] = useState<string>("");
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
+
+  const { addError, anyErrors } = useErrorStore();
   const { fetchAvatar } = useAvatarStore();
 
   const dirty = useMemo(
@@ -29,11 +31,10 @@ export default function SettingsPage() {
     let avatarUrl: string | null = null;
 
     const fetchUserData = async () => {
-      setError(null);
       setStatus(null);
       const userResp = await apiClient.get<UserInfoResponse>("/user/me");
       if (isApiError(userResp)) {
-        setError(userResp.detail || userResp.message);
+        addError(userResp.detail || userResp.message);
         return;
       }
       setUsername(userResp.username);
@@ -52,16 +53,16 @@ export default function SettingsPage() {
     };
 
     fetchUserData().catch((e) => {
-      setError(e instanceof Error ? e.message : "Failed to fetch user data");
+      addError(e instanceof Error ? e.message : "Failed to fetch user data");
     });
 
     return () => {
       if (avatarUrl) URL.revokeObjectURL(avatarUrl);
     };
-  }, []);
+  }, [addError]);
 
   const changeAvatar = () => {
-    setError(null);
+    // TODO: Integrate with apiClient
     setStatus(null);
     const fileInput = document.createElement("input");
     fileInput.type = "file";
@@ -69,14 +70,14 @@ export default function SettingsPage() {
     fileInput.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) {
-        setError("No file selected");
+        addError("No file selected");
         return;
       }
 
       try {
         const baseUrl = apiClient.getApiUrl();
         if (!baseUrl) {
-          setError("API URL not configured");
+          addError("API URL not configured");
           return;
         }
         const formData = new FormData();
@@ -88,6 +89,7 @@ export default function SettingsPage() {
         });
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
+          // noinspection ExceptionCaughtLocallyJS
           throw new Error(err.detail || response.statusText);
         }
         const avatarData = await apiClient.requestBytes("/user/avatar", {
@@ -104,7 +106,7 @@ export default function SettingsPage() {
         await fetchAvatar();
         setStatus("Avatar updated successfully.");
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to update avatar");
+        addError(e instanceof Error ? e.message : "Failed to update avatar");
       }
     };
 
@@ -113,7 +115,6 @@ export default function SettingsPage() {
 
   const saveSettings = async () => {
     setLoading(true);
-    setError(null);
     setStatus(null);
     const payload: UserUpdateRequest = { username: username.trim() };
     const resp = await apiClient.put<UserUpdateRequest, BasicTaskResponse>(
@@ -122,7 +123,7 @@ export default function SettingsPage() {
     );
     setLoading(false);
     if (isApiError(resp)) {
-      setError(resp.detail || resp.message);
+      addError(resp.detail || resp.message);
       return;
     }
     setInitialUsername(username.trim());
@@ -131,7 +132,7 @@ export default function SettingsPage() {
 
   return (
     <MainSkeleton baseName="Settings">
-      {!error ? (
+      {!anyErrors() && (
         <div className="flex min-h-[60vh] w-full">
           <div className="flex flex-col gap-4 w-full">
             {status && (
@@ -225,10 +226,6 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-          <div className="text-red-800 dark:text-red-200">{error}</div>
         </div>
       )}
     </MainSkeleton>

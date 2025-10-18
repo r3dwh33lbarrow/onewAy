@@ -6,22 +6,22 @@ import { useParams } from "react-router-dom";
 import { apiClient, isApiError } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
 import type { ModuleInfo } from "../schemas/module.ts";
+import { useErrorStore } from "../stores/errorStore.ts";
 import { snakeCaseToDashCase, snakeCaseToTitle } from "../utils";
 
 export default function ModulePage() {
   const { name } = useParams<{ name: string }>();
+  const { addError } = useErrorStore();
   const [moduleInfo, setModuleInfo] = useState<ModuleInfo | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchModuleInfo = async () => {
-      setError(null);
       if (!name) return;
       const response = await apiClient.get<ModuleInfo>(
         "/module/get/" + snakeCaseToDashCase(name),
       );
       if (isApiError(response)) {
-        setError(
+        addError(
           `Failed to fetch module info (${response.statusCode}): ${response.detail}`,
         );
         return;
@@ -31,12 +31,11 @@ export default function ModulePage() {
     };
 
     fetchModuleInfo();
-  }, [name]);
+  }, [name, addError]);
 
   const handleUpdate = async () => {
-    setError(null);
     if (!name) {
-      setError("No module name provided");
+      addError("No module name provided");
       return;
     }
 
@@ -62,7 +61,7 @@ export default function ModulePage() {
         );
 
         if (isApiError(response)) {
-          setError(
+          addError(
             `Failed to update module (${response.statusCode}): ${
               response.detail || response.message
             }`,
@@ -71,14 +70,13 @@ export default function ModulePage() {
         }
         window.location.reload();
       } catch (err) {
-        setError(`Error during update: ${(err as Error).message}`);
+        addError(`Error during update: ${(err as Error).message}`);
       }
     };
     fileInput.click();
   };
 
   const handleDelete = async () => {
-    setError(null);
     try {
       const moduleName = name;
       if (!moduleName) return;
@@ -87,7 +85,7 @@ export default function ModulePage() {
       );
 
       if (isApiError(response)) {
-        setError(
+        addError(
           `Failed to delete module (${response.statusCode}): ${
             response.detail || response.message
           }`,
@@ -97,14 +95,13 @@ export default function ModulePage() {
 
       setModuleInfo(null);
     } catch (err) {
-      setError(`Error during delete: ${(err as Error).message}`);
+      addError(`Error during delete: ${(err as Error).message}`);
     }
   };
 
   return (
     <MainSkeleton baseName="Module View">
       {!name && <p>No module name provided</p>}
-      {error && <p>{error}</p>}
       {moduleInfo && (
         <div className="flex flex-col items-center justify-center">
           <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-gray-200">
