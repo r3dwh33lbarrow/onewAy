@@ -385,7 +385,7 @@ async def module_query_module_dir(_=Depends(get_current_user)):
     return {"contents": contents_list}
 
 
-@router.get("/installed/{client_username}", response_model=list[InstalledModuleInfo])
+@router.get("/installed/{client_username}", response_model=AllInstalledResponse)
 async def module_installed_client_username(
     client_username: str,
     db: AsyncSession = Depends(get_db),
@@ -435,10 +435,10 @@ async def module_installed_client_username(
     logger.debug(
         "Client '%s' has %d installed modules", client_username, len(mod_names)
     )
-    return mod_names
+    return {"all_installed": mod_names}
 
 
-@router.post("/set-installed/{client_username}")
+@router.post("/set-installed/{client_username}", response_model=BasicTaskResponse)
 async def module_set_installed_client_username(
     client_username: str,
     module_name: str,
@@ -465,6 +465,7 @@ async def module_set_installed_client_username(
         HTTPException: 409 if module already installed on client
         HTTPException: 500 if database operation fails
     """
+    # TODO: Fix legacy auth function
     client = await get_client_by_username(db, client_username)
     if not client:
         logger.warning("Set installed failed: client '%s' not found", client_username)

@@ -1,6 +1,6 @@
 use crate::config::CONFIG;
 use crate::schemas::{ApiError, BasicTaskResponse};
-use crate::schemas::modules::AllInstalledResponse;
+use crate::schemas::modules::{AllInstalledResponse, ModuleAllResponse};
 use crate::utils::{str_to_snake_case, title_case_to_camel_case};
 use crate::{ApiClient, debug, error, info};
 use crate::schemas::module_bucket::BucketData;
@@ -506,24 +506,32 @@ impl ModuleManager {
         api_client: Arc<Mutex<ApiClient>>,
     ) -> anyhow::Result<Vec<String>> {
         let local_modules = self.module_configs.lock().await;
-
         let api_client = api_client.lock().await;
-        let remote_modules = api_client
+
+        let remote_installed = api_client
             .get::<AllInstalledResponse>(&format!("/module/installed/{}", CONFIG.auth.username))
             .await?;
 
-        let remote_module_names: HashSet<String> = remote_modules
+        let remote_installed_names: HashSet<String> = remote_installed
             .all_installed
             .unwrap_or_default()
             .iter()
             .map(|x| title_case_to_camel_case(&x.name))
             .collect();
 
+        let server_modules = api_client.get::<ModuleAllResponse>("/module/all").await?;
+        let server_known_names: HashSet<String> = server_modules
+            .modules
+            .iter()
+            .map(|m| title_case_to_camel_case(&m.name))
+            .collect();
+        
         let discrepancies: Vec<String> = local_modules
             .iter()
             .filter(|module| {
                 let normalized = title_case_to_camel_case(&module.name);
-                !remote_module_names.contains(&normalized)
+                server_known_names.contains(&normalized)
+                    && !remote_installed_names.contains(&normalized)
             })
             .map(|module| module.name.clone())
             .collect();

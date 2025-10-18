@@ -1,15 +1,16 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
-struct ModuleBasicInfo {
-    name: String,
-    version: String,
-    binaries_platform: Vec<String>,
+// Public so other modules can deserialize and read fields from /module/all
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ModuleBasicInfo {
+    pub name: String,
+    pub version: String,
+    pub binaries_platform: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ModuleAllResponse {
-    modules: Vec<ModuleBasicInfo>,
+    pub modules: Vec<ModuleBasicInfo>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
