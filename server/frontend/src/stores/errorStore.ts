@@ -14,10 +14,18 @@ interface ErrorStore {
 
 export const useErrorStore = create<ErrorStore>((set) => ({
   errors: [],
-  addError: (message) =>
+  addError: (message) => {
+    const id = Date.now();
     set((state) => ({
-      errors: [...state.errors, { id: Date.now(), message }],
-    })),
+      errors: [...state.errors, { id: id, message }],
+    }));
+
+    setTimeout(() => {
+      set((state) => ({
+        errors: state.errors.filter((e) => e.id !== id),
+      }));
+    }, 5000);
+  },
   removeError: (id) =>
     set((state) => ({
       errors: state.errors.filter((e) => e.id !== id),
