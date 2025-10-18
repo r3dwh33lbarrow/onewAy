@@ -20,12 +20,14 @@ import type {
   UserModuleAllResponse,
   UploadModuleResponse,
 } from "../schemas/module.ts";
+import { useErrorStore } from "../stores/errorStore.ts";
 import { snakeCaseToTitle } from "../utils";
 
 export default function ModulesPage() {
+  const { addError, anyErrors } = useErrorStore();
+
   const [modules, setModules] = useState<UserModuleAllResponse["modules"]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const navigate = useNavigate();
@@ -33,16 +35,15 @@ export default function ModulesPage() {
   const fetchModules = async () => {
     try {
       setLoading(true);
-      setError(null);
       const result = await apiClient.get<UserModuleAllResponse>("/module/all");
 
       if ("modules" in result) {
         setModules(result.modules);
       } else {
-        setError(result.message || "Failed to fetch modules: Unknown error");
+        addError(result.message || "Failed to fetch modules: Unknown error");
       }
     } catch (err) {
-      setError("Failed to fetch modules: " + err);
+      addError("Failed to fetch modules: " + err);
     } finally {
       setLoading(false);
     }
@@ -50,7 +51,7 @@ export default function ModulesPage() {
 
   useEffect(() => {
     fetchModules();
-  }, []);
+  }, [addError]);
 
   const uploadAndAdd = () => {
     const fileInput = document.createElement("input");
@@ -69,7 +70,6 @@ export default function ModulesPage() {
 
       try {
         setLoading(true);
-        setError(null);
         setAlertMsg(null);
 
         const filesArray = Array.from(files);
@@ -87,10 +87,10 @@ export default function ModulesPage() {
             setModules(modulesResult.modules);
           }
         } else {
-          setError(`Upload failed: ${result.message || "Unknown error"}`);
+          addError(`Upload failed: ${result.message || "Unknown error"}`);
         }
       } catch (error) {
-        setError(`Upload failed: ${error}`);
+        addError(`Upload failed: ${error}`);
       } finally {
         setLoading(false);
       }
@@ -117,7 +117,7 @@ export default function ModulesPage() {
             </Alert>
           )}
 
-          {!error && (
+          {!anyErrors() && (
             <div className="flex gap-4">
               <Button
                 color="indigo"
@@ -154,13 +154,7 @@ export default function ModulesPage() {
           </div>
         )}
 
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
-        )}
-
-        {!loading && !error && (
+        {!loading && !anyErrors() && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow mt-6">
             <Table>
               <TableHead>
@@ -208,7 +202,7 @@ export default function ModulesPage() {
           </div>
         )}
 
-        {!loading && !error && modules.length === 0 && (
+        {!loading && !anyErrors() && modules.length === 0 && (
           <div className="text-center py-8">
             <p className="text-gray-500 dark:text-gray-400">
               No modules found.
