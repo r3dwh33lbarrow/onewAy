@@ -4,8 +4,12 @@ import { HiOutlineCog, HiOutlineBell } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 
 import { apiClient, isApiError } from "../apiClient";
-import type { AllBucketsResponse } from "../schemas/module_bucket.ts";
+import type {
+  AllBucketsResponse,
+  BucketInfo,
+} from "../schemas/module_bucket.ts";
 import { useAuthStore } from "../stores/authStore";
+import { useNotificationStore } from "../stores/notificationStore.ts";
 import { useAvatarStore } from "../stores/useAvatarStore";
 
 const customDropdownTheme = {
@@ -45,19 +49,15 @@ const customDropdownTheme = {
 export default function TopIcons() {
   const navigate = useNavigate();
   const { avatarUrl, fetchAvatar } = useAvatarStore();
+  const { query } = useNotificationStore();
   const clearUser = useAuthStore((state) => state.clearUser);
   const clearAvatar = useAvatarStore((state) => state.clearAvatar);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [bucketNotifications, setBucketNotifications] = useState<
-    Record<string, string[]>
-  >({});
+  const [bucketNotifications, setBucketNotifications] = useState<BucketInfo[]>(
+    [],
+  );
   const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
   const notificationPanelRef = useRef<HTMLDivElement | null>(null);
-
-  // Check if there are any "not consumed" bucketNotifications
-  const hasUnread = Object.values(bucketNotifications).some((messages) =>
-    messages.some((msg) => msg === "not consumed"),
-  );
 
   useEffect(() => {
     if (!avatarUrl) {
@@ -72,10 +72,10 @@ export default function TopIcons() {
       );
 
       if (!isApiError(response)) {
-        for (const [module, consumed] of Object.entries(response.buckets)) {
+        for (const bucket_info of response.buckets) {
           setBucketNotifications((prev) => ({
             ...prev,
-            [module]: [consumed],
+            bucket_info,
           }));
         }
       }
