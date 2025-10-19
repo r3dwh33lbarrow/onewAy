@@ -11,17 +11,19 @@ interface NotificationStore {
   last_updated: Date;
   error: ApiError | null;
   query: () => Promise<void>;
-  hasUnread: () => boolean;
+  hasUnread: boolean;
 }
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
   notifications: [],
-  last_updated: new Date(),
+  last_updated: new Date(0),
   error: null,
+  hasUnread: false,
 
   query: async () => {
     const now = new Date();
     const lastUpdated = get().last_updated;
+
     const timeDiff = now.getTime() - lastUpdated.getTime();
     const oneMinute = 60 * 1000;
 
@@ -32,6 +34,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     const response = await apiClient.get<AllBucketsResponse>(
       "/module/all-buckets",
     );
+    console.log(response);
     if (isApiError(response)) {
       set({
         error: response,
@@ -39,13 +42,14 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       return;
     }
 
-    set({
-      notifications: response.buckets,
-      last_updated: now,
-    });
-  },
+    const buckets = Array.isArray(response.buckets) ? response.buckets : [];
+    const hasUnread = buckets.some((bucket) => !bucket.consumed);
 
-  hasUnread: () => {
-    return get().notifications.some((bucket) => !bucket.consumed);
+    set({
+      notifications: buckets,
+      last_updated: now,
+      hasUnread,
+      error: null,
+    });
   },
 }));
