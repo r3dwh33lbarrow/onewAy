@@ -34,6 +34,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     const response = await apiClient.get<AllBucketsResponse>(
       "/module/all-buckets",
     );
+    console.log(response);
     if (isApiError(response)) {
       set({
         error: response,
