@@ -159,9 +159,7 @@ export default function ConsolePage() {
       addError(apiErrorToString(error)),
     );
     return () => {
-      // Capture the current socket value to avoid stale reference in cleanup
-      const socket = socketRef.current;
-      socket?.removeEventListener("message", onMessage);
+      apiClient.removeWebSocketListener(onMessage);
     };
   }, [onMessage, addError]);
 

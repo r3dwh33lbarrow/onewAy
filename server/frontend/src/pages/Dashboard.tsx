@@ -71,10 +71,8 @@ export default function Dashboard() {
       addError(apiErrorToString(error)),
     );
 
-    const currentSocket = socketRef.current;
-
     return () => {
-      currentSocket?.removeEventListener("message", onMessage);
+      apiClient.removeWebSocketListener(onMessage);
     };
   }, [onMessage, addError]);
 
