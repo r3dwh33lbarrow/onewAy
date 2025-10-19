@@ -21,6 +21,7 @@ class ApiClient {
   private apiUrl: string | undefined;
   private userSocket: WebSocket | null = null;
   private userSocketConnecting = false;
+  private messageListeners = new Set<(event: MessageEvent) => void>();
 
   public constructor() {
     const apiUrl = localStorage.getItem("apiUrl");
@@ -235,19 +236,33 @@ class ApiClient {
     }
   }
 
+  private broadcastMessage(event: MessageEvent): void | ApiError {
+    this.messageListeners.forEach((listener) => {
+      try {
+        listener(event);
+      } catch (error) {
+        return {
+          statusCode: -1,
+          message:
+            error instanceof Error ? error.message : "Unknown error occurred",
+        };
+      }
+    });
+  }
+
   public async startWebSocket(
     sockRef: RefObject<WebSocket | null>,
     onMessage: (event: MessageEvent) => void,
     onError?: (error: ApiError) => void,
   ): Promise<void> {
-    // If a shared socket exists and is open/connecting, reuse it and attach listener
+    this.messageListeners.add(onMessage);
+
     if (
       this.userSocket &&
       (this.userSocket.readyState === WebSocket.OPEN ||
         this.userSocket.readyState === WebSocket.CONNECTING)
     ) {
       sockRef.current = this.userSocket;
-      this.userSocket.addEventListener("message", onMessage);
       return;
     }
 
@@ -260,11 +275,9 @@ class ApiClient {
     }
 
     if (this.userSocketConnecting) {
-      // Poll-wait until the socket is created, then attach
       const waitForSocket = async (): Promise<void> => {
         if (this.userSocket) {
           sockRef.current = this.userSocket;
-          this.userSocket.addEventListener("message", onMessage);
           return;
         }
         await new Promise((r) => setTimeout(r, 50));
@@ -296,13 +309,21 @@ class ApiClient {
       this.userSocket = socket;
       sockRef.current = socket;
 
-      // Attach the provided listener and keep shared socket reference
-      socket.addEventListener("message", onMessage);
+      socket.addEventListener("message", (event) => {
+        this.broadcastMessage(event);
+      });
+
       socket.addEventListener("open", () => {
         this.userSocketConnecting = false;
       });
+
       socket.addEventListener("error", () => {
         this.userSocketConnecting = false;
+      });
+
+      socket.addEventListener("close", () => {
+        this.userSocket = null;
+        this.messageListeners.clear();
       });
     } catch (error) {
       this.userSocketConnecting = false;
@@ -312,6 +333,12 @@ class ApiClient {
           error instanceof Error ? error.message : "Unknown error occurred",
       });
     }
+  }
+
+  public removeWebSocketListener(
+    onMessage: (event: MessageEvent) => void,
+  ): void {
+    this.messageListeners.delete(onMessage);
   }
 }
 
