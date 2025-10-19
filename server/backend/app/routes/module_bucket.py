@@ -8,7 +8,7 @@ from app.dependencies import get_db
 from app.models.module import Module
 from app.models.module_bucket import ModuleBucket
 from app.schemas.general import BasicTaskResponse
-from app.schemas.module_bucket import BucketData, AllBucketsResponse
+from app.schemas.module_bucket import BucketData, AllBucketsResponse, BucketInfo
 from app.services.authentication import get_current_user, verify_access_token, get_current_client
 
 router = APIRouter(prefix="/module")
@@ -228,8 +228,12 @@ async def module_all_buckets(db: AsyncSession = Depends(get_db), _=Depends(get_c
     """
     all_buckets = await db.execute(select(ModuleBucket))
     all_buckets = all_buckets.scalars().all()
-    bucket_names = {}
+    buckets = []
 
     for bucket in all_buckets:
-        bucket_names[bucket.module_name] = "consumed" if bucket.remove_at else "not consumed"
-    return {"buckets": bucket_names}
+        buckets.append(BucketInfo(
+            name=bucket.module_name,
+            consumed=True if bucket.remove_at else False,
+            created_at=bucket.created_at,
+        ))
+    return {"buckets": buckets}

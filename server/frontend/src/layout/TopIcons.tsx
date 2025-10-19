@@ -45,7 +45,9 @@ const customDropdownTheme = {
 export default function TopIcons() {
   const navigate = useNavigate();
   const { avatarUrl, fetchAvatar } = useAvatarStore();
-  const { notifications, query, hasUnread } = useNotificationStore();
+  const notifications = useNotificationStore((state) => state.notifications);
+  const hasUnread = useNotificationStore((state) => state.hasUnread);
+  const query = useNotificationStore((state) => state.query);
   const clearUser = useAuthStore((state) => state.clearUser);
   const clearAvatar = useAvatarStore((state) => state.clearAvatar);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -60,7 +62,7 @@ export default function TopIcons() {
 
   useEffect(() => {
     query();
-  }, [query]);
+  }, []);
 
   const handleLogout = async () => {
     await apiClient.post<object, { result: string }>("/user/auth/logout", {});
@@ -109,7 +111,7 @@ export default function TopIcons() {
           className="relative"
         >
           <HiOutlineBell className="h-5 w-5" />
-          {hasUnread() && (
+          {hasUnread && (
             <span className="absolute -top-0.5 -right-0.5 inline-flex h-3 w-3 rounded-full bg-red-500" />
           )}
         </Button>
@@ -130,6 +132,10 @@ export default function TopIcons() {
                   <div className="max-h-96 overflow-y-auto">
                     {notifications.map((bucket_info) => {
                       const isUnread = !bucket_info.consumed;
+                      const createdAtDate = new Date(bucket_info.created_at);
+                      const createdAtLabel = Number.isNaN(createdAtDate.getTime())
+                        ? bucket_info.created_at
+                        : createdAtDate.toLocaleString();
                       return (
                         <div
                           key={bucket_info.name}
@@ -148,7 +154,7 @@ export default function TopIcons() {
                             </div>
                           </div>
                           <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                            {new Date(bucket_info.created_at).toLocaleString()}
+                            {`Created at: ${createdAtLabel}`}
                           </div>
                         </div>
                       );
