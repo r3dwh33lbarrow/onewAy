@@ -7,16 +7,18 @@ import {
 import { HiOutlineViewGrid } from "react-icons/hi";
 import { HiMiniBeaker, HiOutlineCube } from "react-icons/hi2";
 
+import { customSidebarTheme } from "../themes/sidebarTheme";
+
 type Props = { onNavigate?: () => void };
 
 export default function MainSidebar({ onNavigate }: Props) {
   return (
-    <Sidebar aria-label="Main sidebar">
-      <div className="flex items-center justify-center pb-4 pr-4 pl-4">
+    <Sidebar aria-label="Main sidebar" theme={customSidebarTheme}>
+      <div className="flex items-center justify-center pb-2 pr-4 pl-4">
         <img src="/onewAy_logo.png" alt="onewAy logo" className="h-10 w-auto" />
         <p className="ml-3 text-3xl">onewAy</p>
       </div>
-      <hr className="border-t border-gray-300 mb-3" />
+      <hr className="border-t border-gray-400 mb-2.5 mt-[3px]" />
 
       <SidebarItems>
         <SidebarItemGroup>
