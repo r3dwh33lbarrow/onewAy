@@ -57,7 +57,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     const notifications = get().notifications.map((notification) =>
       notification.name === moduleName
         ? { ...notification, consumed: true }
-        : notification
+        : notification,
     );
     const hasUnread = notifications.some((bucket) => !bucket.consumed);
 

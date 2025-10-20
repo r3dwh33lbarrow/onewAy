@@ -133,7 +133,9 @@ export default function TopIcons() {
                     {notifications.map((bucket_info) => {
                       const isUnread = !bucket_info.consumed;
                       const createdAtDate = new Date(bucket_info.created_at);
-                      const createdAtLabel = Number.isNaN(createdAtDate.getTime())
+                      const createdAtLabel = Number.isNaN(
+                        createdAtDate.getTime(),
+                      )
                         ? bucket_info.created_at
                         : createdAtDate.toLocaleString();
                       return (

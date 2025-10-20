@@ -45,7 +45,6 @@ export default function InstallModuleModal({
     <Modal show={show} onClose={onClose} size="2xl">
       <ModalHeader>Select Module to Install</ModalHeader>
       <ModalBody className="space-y-6">
-
         {loading && (
           <div className="animate-pulse space-y-2">
             <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
