@@ -6,17 +6,16 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiClient, isApiError } from "../apiClient.ts";
 import MainSkeleton from "../components/MainSkeleton.tsx";
 import type { BasicTaskResponse } from "../schemas/general.ts";
-import type {
-  AllBucketsResponse,
-  BucketData,
-} from "../schemas/module_bucket.ts";
+import type { BucketData } from "../schemas/module_bucket.ts";
 import { useErrorStore } from "../stores/errorStore.ts";
+import { useNotificationStore } from "../stores/notificationStore.ts";
 import { snakeCaseToTitle } from "../utils.ts";
 
 export function BucketPage() {
   const navigate = useNavigate();
   const module = useParams<{ module: string }>();
   const { addError } = useErrorStore();
+  const { markAsConsumed } = useNotificationStore();
 
   const [bucketData, setBucketData] = useState<string | null>(null);
 
@@ -37,6 +36,8 @@ export function BucketPage() {
 
   useEffect(() => {
     if (!module.module) return;
+    markAsConsumed(module.module);
+
     const getBucket = async () => {
       const response = await apiClient.get<BucketData>(
         `/module/bucket?module_name=${module.module}`,
@@ -52,7 +53,7 @@ export function BucketPage() {
     };
 
     getBucket();
-  }, [module, addError]);
+  }, [module, addError, markAsConsumed]);
 
   return (
     <MainSkeleton

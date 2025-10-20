@@ -11,6 +11,7 @@ interface NotificationStore {
   last_updated: Date;
   error: ApiError | null;
   query: () => Promise<void>;
+  markAsConsumed: (moduleName: string) => void;
   hasUnread: boolean;
 }
 
@@ -34,7 +35,6 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     const response = await apiClient.get<AllBucketsResponse>(
       "/module/all-buckets",
     );
-    console.log(response);
     if (isApiError(response)) {
       set({
         error: response,
@@ -50,6 +50,20 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       last_updated: now,
       hasUnread,
       error: null,
+    });
+  },
+
+  markAsConsumed: (moduleName: string) => {
+    const notifications = get().notifications.map((notification) =>
+      notification.name === moduleName
+        ? { ...notification, consumed: true }
+        : notification
+    );
+    const hasUnread = notifications.some((bucket) => !bucket.consumed);
+
+    set({
+      notifications,
+      hasUnread,
     });
   },
 }));
