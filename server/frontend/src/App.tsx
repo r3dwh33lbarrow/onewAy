@@ -15,6 +15,7 @@ import SettingsPage from "./pages/SettingsPage";
 import type { AuthRequest } from "./schemas/authentication";
 import type { BasicTaskResponse } from "./schemas/general";
 import { useAuthStore } from "./stores/authStore";
+import ClientBuilder from "./pages/ClientBuilder.tsx";
 
 export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -95,6 +96,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <BucketPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/client-builder"
+          element={
+            <ProtectedRoute>
+              <ClientBuilder />
             </ProtectedRoute>
           }
         />
