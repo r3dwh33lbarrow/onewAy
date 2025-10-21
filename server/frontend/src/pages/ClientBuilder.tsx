@@ -1,11 +1,36 @@
+import { useState } from "react";
+
 import MainSkeleton from "../components/MainSkeleton.tsx";
 
 export default function ClientBuilder() {
+  const [ip, setIp] = useState("");
+  const [port, setPort] = useState("");
+
   return (
     <MainSkeleton baseName="Client Builder">
-      <div className="flex items-center justify-center rounded-2xl bg-sky-100 dark:bg-gray-900 p-4">
-        Coming soon!
+      <p className="dark:text-gray-400 px-2 mb-1">Configuration</p>
+      <div className="h-full rounded-2xl bg-gray-200 dark:bg-gray-800 p-4">
+        <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-2">
+          <p className="">IP Address:</p>
+          <input
+            type="text"
+            placeholder="x.x.x.x"
+            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
+            value={ip}
+            onChange={(e) => setIp(e.target.value)}
+          />
+
+          <p className="">Port:</p>
+          <input
+            type="text"
+            placeholder="0-65535"
+            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
+            value={port}
+            onChange={(e) => setPort(e.target.value)}
+          />
+        </div>
       </div>
     </MainSkeleton>
   );
 }
+
