@@ -14,10 +14,14 @@ type Props = { onNavigate?: () => void };
 export default function MainSidebar({ onNavigate }: Props) {
   return (
     <Sidebar aria-label="Main sidebar" theme={customSidebarTheme}>
-      <div className="flex items-center justify-center pb-2 pr-4 pl-4">
+      <a
+        href="/dashboard"
+        onClick={onNavigate}
+        className="flex items-center justify-center pb-2 pr-4 pl-4 cursor-pointer hover:opacity-80 transition-opacity"
+      >
         <img src="/onewAy_logo.png" alt="onewAy logo" className="h-10 w-auto" />
         <p className="ml-3 text-3xl dark:text-white">onewAy</p>
-      </div>
+      </a>
       <hr className="border-t border-gray-400 dark:border-gray-700 mb-2.5 mt-[3px]" />
 
       <SidebarItems>
