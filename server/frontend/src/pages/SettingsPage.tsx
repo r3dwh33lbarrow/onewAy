@@ -1,4 +1,4 @@
-import { Button, Label, TextInput } from "flowbite-react";
+import { Button, Label, TextInput, ToggleSwitch } from "flowbite-react";
 import { useEffect, useMemo, useState } from "react";
 import { HiOutlineCamera } from "react-icons/hi";
 
@@ -8,11 +8,11 @@ import type { BasicTaskResponse } from "../schemas/general";
 import type { UserInfoResponse, UserUpdateRequest } from "../schemas/user";
 import { useErrorStore } from "../stores/errorStore.ts";
 import { useAvatarStore } from "../stores/useAvatarStore.ts";
+import { useTheme } from "../themes/ThemeProvider.tsx";
 
 export default function SettingsPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-
   const [username, setUsername] = useState<string>("");
   const [initialUsername, setInitialUsername] = useState<string>("");
   const [createdAt, setCreatedAt] = useState<string>("");
@@ -21,6 +21,8 @@ export default function SettingsPage() {
 
   const { addError, anyErrors } = useErrorStore();
   const { fetchAvatar } = useAvatarStore();
+
+  const { isDark, setIsDark } = useTheme();
 
   const dirty = useMemo(
     () => username.trim() !== initialUsername.trim(),
@@ -205,6 +207,33 @@ export default function SettingsPage() {
                   <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
                     Manage your profile information and avatar. Username must be
                     unique.
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 mt-6">
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                    Theme
+                  </h2>
+                  <div className="flex gap-4">
+                    <p
+                      className={
+                        !isDark
+                          ? "text-sm font-bold text-gray-500 dark:text-gray-400"
+                          : "text-sm text-gray-500 dark:text-gray-400"
+                      }
+                    >
+                      Light
+                    </p>
+                    <ToggleSwitch checked={isDark} onChange={setIsDark} />
+                    <p
+                      className={
+                        isDark
+                          ? "text-sm font-bold text-gray-500 dark:text-gray-400"
+                          : "text-sm text-gray-500 dark:text-gray-400"
+                      }
+                    >
+                      Dark
+                    </p>
                   </div>
                 </div>
               </div>
