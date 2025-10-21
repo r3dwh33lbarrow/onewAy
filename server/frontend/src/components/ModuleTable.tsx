@@ -16,24 +16,26 @@ import { snakeCaseToTitle } from "../utils";
 
 interface ModuleTableProps {
   showEmptyState?: boolean;
-  onLoadingChange?: (loading: boolean) => void;
+  onModuleTick?: (selectedModules: Record<string, boolean>) => void;
 }
 
 export default function ModuleTable({
   showEmptyState = true,
-  onLoadingChange,
+  onModuleTick,
 }: ModuleTableProps) {
   const navigate = useNavigate();
   const { addError } = useErrorStore();
 
   const [modules, setModules] = useState<UserModuleAllResponse["modules"]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedModules, setSelectedModules] = useState<
+    Record<string, boolean>
+  >({});
 
   useEffect(() => {
     const fetchModules = async () => {
       try {
         setLoading(true);
-        onLoadingChange?.(true);
         const result =
           await apiClient.get<UserModuleAllResponse>("/module/all");
 
@@ -46,12 +48,20 @@ export default function ModuleTable({
         addError("Failed to fetch modules: " + err);
       } finally {
         setLoading(false);
-        onLoadingChange?.(false);
       }
     };
 
     fetchModules();
-  }, [addError, onLoadingChange]);
+  }, [addError]);
+
+  const handleCheckboxChange = (moduleName: string, checked: boolean) => {
+    const newSelectedModules = {
+      ...selectedModules,
+      [moduleName]: checked,
+    };
+    setSelectedModules(newSelectedModules);
+    onModuleTick?.(newSelectedModules);
+  };
 
   if (loading) {
     return (
@@ -86,6 +96,7 @@ export default function ModuleTable({
             <TableHeadCell>Version</TableHeadCell>
             <TableHeadCell>Start</TableHeadCell>
             <TableHeadCell>Supported Platforms</TableHeadCell>
+            {onModuleTick && <TableHeadCell>Install</TableHeadCell>}
           </TableRow>
         </TableHead>
         <TableBody className="divide-y">
@@ -93,7 +104,14 @@ export default function ModuleTable({
             <TableRow
               key={`${module.name}-${module.version}-${index}`}
               className="bg-white dark:border-gray-700 dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-              onClick={() => navigate(`/modules/${module.name}`)}
+              onClick={(e) => {
+                // Don't navigate if clicking on checkbox
+                if (
+                  !(e.target as HTMLElement).closest('input[type="checkbox"]')
+                ) {
+                  navigate(`/modules/${module.name}`);
+                }
+              }}
             >
               <TableCell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
                 {snakeCaseToTitle(module.name)}
@@ -115,6 +133,18 @@ export default function ModuleTable({
                   ))}
                 </div>
               </TableCell>
+              {onModuleTick && (
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedModules[module.name] || false}
+                    onChange={(e) =>
+                      handleCheckboxChange(module.name, e.target.checked)
+                    }
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
+                  />
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

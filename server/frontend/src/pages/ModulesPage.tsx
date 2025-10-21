@@ -13,7 +13,6 @@ import { useErrorStore } from "../stores/errorStore.ts";
 export default function ModulesPage() {
   const { addError, anyErrors } = useErrorStore();
 
-  const [loading, setLoading] = useState(false);
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -38,7 +37,6 @@ export default function ModulesPage() {
       }
 
       try {
-        setLoading(true);
         setAlertMsg(null);
 
         const filesArray = Array.from(files);
@@ -56,8 +54,6 @@ export default function ModulesPage() {
         }
       } catch (error) {
         addError(`Upload failed: ${error}`);
-      } finally {
-        setLoading(false);
       }
 
       document.body.removeChild(fileInput);
@@ -106,9 +102,7 @@ export default function ModulesPage() {
           )}
         </div>
 
-        {!anyErrors() && (
-          <ModuleTable key={refreshKey} onLoadingChange={setLoading} />
-        )}
+        {!anyErrors() && <ModuleTable key={refreshKey} />}
       </div>
 
       <ModuleAddModal

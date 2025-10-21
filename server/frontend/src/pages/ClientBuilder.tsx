@@ -8,7 +8,9 @@ export default function ClientBuilder() {
   // TODO: Add autofill
   const [ip, setIp] = useState("");
   const [port, setPort] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [selectedModules, setSelectedModules] = useState<
+    Record<string, boolean>
+  >({});
   const { anyErrors } = useErrorStore();
 
   return (
@@ -39,8 +41,7 @@ export default function ClientBuilder() {
       <p className="font-bold dark:text-gray-400 px-2 mb-1 mt-6">
         Available Modules to Add
       </p>
-      {!anyErrors() && loading && <p>Loading...</p>}
-      {!anyErrors() && <ModuleTable onLoadingChange={setLoading} />}
+      {!anyErrors() && <ModuleTable onModuleTick={setSelectedModules} />}
     </MainSkeleton>
   );
 }
