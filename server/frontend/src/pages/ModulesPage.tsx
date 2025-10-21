@@ -1,5 +1,5 @@
 import { Alert, Button } from "flowbite-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { HiInformationCircle, HiOutlineUpload } from "react-icons/hi";
 import { HiMiniPlus } from "react-icons/hi2";
 
@@ -7,40 +7,20 @@ import { apiClient } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
 import ModuleAddModal from "../components/ModuleAddModal";
 import ModuleTable from "../components/ModuleTable";
-import type {
-  UserModuleAllResponse,
-  UploadModuleResponse,
-} from "../schemas/module.ts";
+import type { UploadModuleResponse } from "../schemas/module.ts";
 import { useErrorStore } from "../stores/errorStore.ts";
 
 export default function ModulesPage() {
   const { addError, anyErrors } = useErrorStore();
 
-  const [modules, setModules] = useState<UserModuleAllResponse["modules"]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const fetchModules = async () => {
-    try {
-      setLoading(true);
-      const result = await apiClient.get<UserModuleAllResponse>("/module/all");
-
-      if ("modules" in result) {
-        setModules(result.modules);
-      } else {
-        addError(result.message || "Failed to fetch modules: Unknown error");
-      }
-    } catch (err) {
-      addError("Failed to fetch modules: " + err);
-    } finally {
-      setLoading(false);
-    }
+  const refreshModules = () => {
+    setRefreshKey((prev) => prev + 1);
   };
-
-  useEffect(() => {
-    fetchModules();
-  }, [addError]);
 
   const uploadAndAdd = () => {
     const fileInput = document.createElement("input");
@@ -70,11 +50,7 @@ export default function ModulesPage() {
 
         if ("result" in result) {
           setAlertMsg("Module uploaded successfully!");
-          const modulesResult =
-            await apiClient.get<UserModuleAllResponse>("/module/all");
-          if ("modules" in modulesResult) {
-            setModules(modulesResult.modules);
-          }
+          refreshModules();
         } else {
           addError(`Upload failed: ${result.message || "Unknown error"}`);
         }
@@ -130,13 +106,15 @@ export default function ModulesPage() {
           )}
         </div>
 
-        {!anyErrors() && <ModuleTable modules={modules} loading={loading} />}
+        {!anyErrors() && (
+          <ModuleTable key={refreshKey} onLoadingChange={setLoading} />
+        )}
       </div>
 
       <ModuleAddModal
         show={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onModuleAdded={fetchModules}
+        onModuleAdded={refreshModules}
       />
     </MainSkeleton>
   );

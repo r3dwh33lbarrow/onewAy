@@ -6,23 +6,52 @@ import {
   TableHeadCell,
   TableRow,
 } from "flowbite-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { apiClient } from "../apiClient";
 import type { UserModuleAllResponse } from "../schemas/module.ts";
+import { useErrorStore } from "../stores/errorStore.ts";
 import { snakeCaseToTitle } from "../utils";
 
 interface ModuleTableProps {
-  modules: UserModuleAllResponse["modules"];
-  loading?: boolean;
   showEmptyState?: boolean;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 export default function ModuleTable({
-  modules,
-  loading = false,
   showEmptyState = true,
+  onLoadingChange,
 }: ModuleTableProps) {
   const navigate = useNavigate();
+  const { addError } = useErrorStore();
+
+  const [modules, setModules] = useState<UserModuleAllResponse["modules"]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchModules = async () => {
+      try {
+        setLoading(true);
+        onLoadingChange?.(true);
+        const result =
+          await apiClient.get<UserModuleAllResponse>("/module/all");
+
+        if ("modules" in result) {
+          setModules(result.modules);
+        } else {
+          addError(result.message || "Failed to fetch modules: Unknown error");
+        }
+      } catch (err) {
+        addError("Failed to fetch modules: " + err);
+      } finally {
+        setLoading(false);
+        onLoadingChange?.(false);
+      }
+    };
+
+    fetchModules();
+  }, [addError, onLoadingChange]);
 
   if (loading) {
     return (

@@ -1,11 +1,15 @@
 import { useState } from "react";
 
 import MainSkeleton from "../components/MainSkeleton.tsx";
+import ModuleTable from "../components/ModuleTable.tsx";
+import { useErrorStore } from "../stores/errorStore.ts";
 
 export default function ClientBuilder() {
   // TODO: Add autofill
   const [ip, setIp] = useState("");
   const [port, setPort] = useState("");
+  const [loading, setLoading] = useState(true);
+  const { anyErrors } = useErrorStore();
 
   return (
     <MainSkeleton baseName="Client Builder">
@@ -31,7 +35,12 @@ export default function ClientBuilder() {
           />
         </div>
       </div>
+
+      <p className="font-bold dark:text-gray-400 px-2 mb-1 mt-6">
+        Available Modules to Add
+      </p>
+      {!anyErrors() && loading && <p>Loading...</p>}
+      {!anyErrors() && <ModuleTable onLoadingChange={setLoading} />}
     </MainSkeleton>
   );
 }
-
