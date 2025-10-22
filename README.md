@@ -58,7 +58,7 @@ Rust Client
 -----------
 - Configure `client/config.toml`:
   - `[module]` `modules_directory` (defaults to `[CURRENT_DIR]/../modules`)
-  - `[auth]` `username`, `password`, `enrolled`
+  - `[auth]` `username`, `password`
 - The client connects to `http://127.0.0.1:8000` and `ws://127.0.0.1:8000/ws-client` by default (see `client/src/main.rs`).
 - From `client/`: `cargo run`
 

@@ -1,5 +1,5 @@
 use client::{
-    ApiClient, CONFIG, ModuleManager, ModuleStart, debug, enroll, error, info, login, set_enrolled,
+    ApiClient, CONFIG, ModuleManager, ModuleStart, debug, error, info, login,
     start_websocket_client, warn,
 };
 use std::sync::Arc;
@@ -18,22 +18,6 @@ async fn main() {
     ));
 
     println!("{:?}", config);
-    if !config.auth.enrolled {
-        let result = enroll(
-            Arc::clone(&api_client),
-            config.auth.username.as_str(),
-            config.auth.password.as_str(),
-            config.module.version.as_str(),
-        )
-        .await;
-        if !result {
-            panic!("failed to enroll client");
-        }
-
-        set_enrolled().expect("failed to save enrolled status");
-    } else {
-        debug!("Client already enrolled");
-    }
 
     if !login(
         Arc::clone(&api_client),

@@ -1,37 +1,8 @@
 use crate::http::api_client::ApiClient;
-use crate::schemas::BasicTaskResponse;
-use crate::schemas::auth::{ClientEnrollRequest, ClientLoginRequest, TokenResponse};
+use crate::schemas::auth::{ClientLoginRequest, TokenResponse};
 use crate::{error, info};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
-pub async fn enroll(
-    api_client: Arc<Mutex<ApiClient>>,
-    username: &str,
-    password: &str,
-    client_version: &str,
-) -> bool {
-    let mut enroll_data = ClientEnrollRequest::default();
-    enroll_data.username = username.to_string();
-    enroll_data.password = password.to_string();
-    enroll_data.client_version = client_version.to_string();
-
-    let api_client = api_client.lock().await;
-    let response = api_client
-        .post::<ClientEnrollRequest, BasicTaskResponse>("/client/auth/enroll", &enroll_data)
-        .await;
-
-    match response {
-        Ok(_) => {
-            info!("Enrollment successful");
-            true
-        }
-        Err(e) => {
-            error!("Failed to enroll client: {e}");
-            false
-        }
-    }
-}
 
 pub async fn login(api_client: Arc<Mutex<ApiClient>>, username: &str, password: &str) -> bool {
     let mut login_data = ClientLoginRequest::default();

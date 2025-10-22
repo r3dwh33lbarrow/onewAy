@@ -63,8 +63,13 @@ pub async fn start_websocket_client(
             Ok(Message::Text(text)) => match serde_json::from_str::<websockets::Message>(&text) {
                 Ok(ws_msg) => {
                     debug!("Received message: {:?}", ws_msg);
-                    handle_websocket_message(ws_msg, Arc::clone(&module_manager), text_tx.clone(), Arc::clone(&api_client))
-                        .await;
+                    handle_websocket_message(
+                        ws_msg,
+                        Arc::clone(&module_manager),
+                        text_tx.clone(),
+                        Arc::clone(&api_client),
+                    )
+                    .await;
                 }
 
                 Err(e) => {
@@ -105,7 +110,7 @@ async fn handle_websocket_message(
     message: websockets::Message,
     module_manager: Arc<ModuleManager>,
     tx: UnboundedSender<String>,
-    api_client: Arc<Mutex<ApiClient>>
+    api_client: Arc<Mutex<ApiClient>>,
 ) {
     match message {
         websockets::Message::ModuleRun { from: _, module } => {

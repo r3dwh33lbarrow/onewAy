@@ -1,7 +1,9 @@
 use client::ApiClient;
-use client::http::auth::{enroll, login, refresh_access_token};
+use client::http::auth::{login, refresh_access_token};
 use client::schemas::{ApiError, RootResponse};
+use reqwest::Client;
 use serde::Deserialize;
+use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_tungstenite::connect_async;
@@ -17,6 +19,55 @@ fn unique_username(prefix: &str) -> String {
         .unwrap()
         .as_nanos();
     format!("{}_{}", prefix, nanos)
+}
+
+async fn provision_client(username: &str, password: &str) -> anyhow::Result<()> {
+    const CLIENT_VERSION: &str = "0.1.0";
+    let http = Client::builder().cookie_store(true).build()?;
+
+    let user_username = unique_username("rust_user");
+    let user_password = "pw123";
+
+    let register_resp = http
+        .post(format!("{}user/auth/register", base_url()))
+        .json(&json!({
+            "username": user_username,
+            "password": user_password
+        }))
+        .send()
+        .await?;
+
+    if !(register_resp.status().is_success()
+        || register_resp.status() == reqwest::StatusCode::CONFLICT)
+    {
+        return Err(anyhow::anyhow!(
+            "failed to register helper user: {}",
+            register_resp.status()
+        ));
+    }
+
+    let login_resp = http
+        .post(format!("{}user/auth/login", base_url()))
+        .json(&json!({
+            "username": user_username,
+            "password": user_password
+        }))
+        .send()
+        .await?;
+    login_resp.error_for_status_ref()?;
+
+    let enroll_resp = http
+        .post(format!("{}client/auth/enroll", base_url()))
+        .json(&json!({
+            "username": username,
+            "password": password,
+            "client_version": CLIENT_VERSION
+        }))
+        .send()
+        .await?;
+    enroll_resp.error_for_status_ref()?;
+
+    Ok(())
 }
 
 #[tokio::test]
@@ -38,8 +89,9 @@ async fn test_enroll_login_and_me() {
     let username = unique_username("rust_int");
     let password = "pw123";
 
-    let enrolled = enroll(api.clone(), &username, password, "0.1.0").await;
-    assert!(enrolled, "expected enroll to succeed");
+    provision_client(&username, password)
+        .await
+        .expect("client provisioned");
 
     let logged_in = login(api.clone(), &username, password).await;
     assert!(logged_in, "expected login to succeed");
@@ -60,7 +112,9 @@ async fn test_refresh_access_token_and_me() {
     let username = unique_username("rust_refresh");
     let password = "pw123";
 
-    assert!(enroll(api.clone(), &username, password, "0.1.0").await);
+    provision_client(&username, password)
+        .await
+        .expect("client provisioned");
     assert!(login(api.clone(), &username, password).await);
 
     let refreshed = refresh_access_token(&mut *api.lock().await).await;
@@ -82,7 +136,9 @@ async fn test_client_get_unknown_404() {
     let username = unique_username("rust_unknown");
     let password = "pw123";
 
-    assert!(enroll(api.clone(), &username, password, "0.1.0").await);
+    provision_client(&username, password)
+        .await
+        .expect("client provisioned");
     assert!(login(api.clone(), &username, password).await);
 
     let res: anyhow::Result<serde_json::Value> =
@@ -105,7 +161,9 @@ async fn test_client_update_missing_binary_500() {
     let username = unique_username("rust_update");
     let password = "pw123";
 
-    assert!(enroll(api.clone(), &username, password, "0.0.1").await);
+    provision_client(&username, password)
+        .await
+        .expect("client provisioned");
     assert!(login(api.clone(), &username, password).await);
 
     let tmp_path = std::env::temp_dir().join(format!("{}_client_update.bin", username));
@@ -129,7 +187,9 @@ async fn test_ws_client_token_and_ping_pong() {
     let username = unique_username("rust_ws");
     let password = "pw123";
 
-    assert!(enroll(api.clone(), &username, password, "0.1.0").await);
+    provision_client(&username, password)
+        .await
+        .expect("client provisioned");
     assert!(login(api.clone(), &username, password).await);
 
     let token_val: serde_json::Value = api

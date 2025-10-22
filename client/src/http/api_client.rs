@@ -1,8 +1,8 @@
 use crate::schemas::{ApiError, ApiErrorResponse};
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use reqwest::{Client, Method};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
@@ -70,14 +70,20 @@ impl ApiClient {
     pub async fn get_text(&self, endpoint: &str) -> Result<String, ApiError> {
         let url = self.parse_endpoint(endpoint)?;
         let request = self.client.get(url).headers(self.build_headers());
-        let response = request.send().await.map_err(|err| self.map_request_error(err))?;
+        let response = request
+            .send()
+            .await
+            .map_err(|err| self.map_request_error(err))?;
         self.handle_text(response).await
     }
 
     pub async fn get_file(&self, endpoint: &str, path: &PathBuf) -> Result<(), ApiError> {
         let url = self.parse_endpoint(endpoint)?;
         let request = self.client.get(url).headers(self.build_headers());
-        let response = request.send().await.map_err(|err| self.map_request_error(err))?;
+        let response = request
+            .send()
+            .await
+            .map_err(|err| self.map_request_error(err))?;
         self.handle_file(response, path).await
     }
 
@@ -102,7 +108,10 @@ impl ApiClient {
             request = request.json(b);
         }
 
-        let response = request.send().await.map_err(|err| self.map_request_error(err))?;
+        let response = request
+            .send()
+            .await
+            .map_err(|err| self.map_request_error(err))?;
         self.handle_response(response).await
     }
 
@@ -115,13 +124,10 @@ impl ApiClient {
     {
         if response.status().is_success() {
             let status_code = response.status().as_u16() as i32;
-            let data = response
-                .json::<Response>()
-                .await
-                .map_err(|_| ApiError {
-                    status_code,
-                    detail: "Could not parse JSON".to_string(),
-                })?;
+            let data = response.json::<Response>().await.map_err(|_| ApiError {
+                status_code,
+                detail: "Could not parse JSON".to_string(),
+            })?;
             Ok(data)
         } else {
             Err(self.parse_error(response).await)
@@ -130,28 +136,26 @@ impl ApiClient {
 
     async fn handle_text(&self, response: reqwest::Response) -> Result<String, ApiError> {
         if response.status().is_success() {
-            let body = response
-                .text()
-                .await
-                .map_err(|_| ApiError {
-                    status_code: -1,
-                    detail: "Failed to read response text".to_string(),
-                })?;
+            let body = response.text().await.map_err(|_| ApiError {
+                status_code: -1,
+                detail: "Failed to read response text".to_string(),
+            })?;
             Ok(body)
         } else {
             Err(self.parse_error(response).await)
         }
     }
 
-    async fn handle_file(&self, response: reqwest::Response, path: &PathBuf) -> Result<(), ApiError> {
+    async fn handle_file(
+        &self,
+        response: reqwest::Response,
+        path: &PathBuf,
+    ) -> Result<(), ApiError> {
         if response.status().is_success() {
-            let bytes = response
-                .bytes()
-                .await
-                .map_err(|_| ApiError {
-                    status_code: -1,
-                    detail: "Failed to read response bytes".to_string(),
-                })?;
+            let bytes = response.bytes().await.map_err(|_| ApiError {
+                status_code: -1,
+                detail: "Failed to read response bytes".to_string(),
+            })?;
             std::fs::write(path, bytes).map_err(|_| ApiError {
                 status_code: -1,
                 detail: "Failed to write file".to_string(),
@@ -176,10 +180,13 @@ impl ApiClient {
         url.query_pairs_mut().extend_pairs(query);
         let mut request = self.client.request(Method::POST, url);
         request = request.headers(self.build_headers()).json(body);
-        let response = request.send().await.map_err(|err| self.map_request_error(err))?;
+        let response = request
+            .send()
+            .await
+            .map_err(|err| self.map_request_error(err))?;
         self.handle_response(response).await
     }
-    
+
     pub async fn put_with_query<Request, Response>(
         &self,
         endpoint: &str,
@@ -194,19 +201,19 @@ impl ApiClient {
         url.query_pairs_mut().extend_pairs(query);
         let mut request = self.client.request(Method::PUT, url);
         request = request.headers(self.build_headers()).json(body);
-        let response = request.send().await.map_err(|err| self.map_request_error(err))?;
+        let response = request
+            .send()
+            .await
+            .map_err(|err| self.map_request_error(err))?;
         self.handle_response(response).await
     }
 
     async fn parse_error(&self, response: reqwest::Response) -> ApiError {
         let status_code = response.status().as_u16();
-        let error_text = response
-            .text()
-            .await
-            .map_err(|_| ApiError {
-                status_code: -1,
-                detail: "Failed to parse error response".to_string(),
-            });
+        let error_text = response.text().await.map_err(|_| ApiError {
+            status_code: -1,
+            detail: "Failed to parse error response".to_string(),
+        });
 
         match error_text {
             Ok(text) => {
@@ -221,7 +228,7 @@ impl ApiClient {
                         detail: text,
                     }
                 }
-            },
+            }
             Err(e) => e,
         }
     }

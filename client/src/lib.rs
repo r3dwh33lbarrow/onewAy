@@ -6,8 +6,8 @@ pub mod schemas;
 pub mod update;
 pub mod utils;
 
-pub use config::{CONFIG, set_enrolled};
+pub use config::CONFIG;
 pub use http::api_client::ApiClient;
-pub use http::auth::{enroll, login};
+pub use http::auth::login;
 pub use http::websockets::start_websocket_client;
 pub use module_manager::{ModuleManager, ModuleStart};

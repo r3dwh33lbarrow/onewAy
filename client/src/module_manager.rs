@@ -1,9 +1,9 @@
 use crate::config::CONFIG;
-use crate::schemas::{ApiError, BasicTaskResponse};
+use crate::schemas::module_bucket::BucketData;
 use crate::schemas::modules::{AllInstalledResponse, ModuleAllResponse};
+use crate::schemas::{ApiError, BasicTaskResponse};
 use crate::utils::{str_to_snake_case, title_case_to_camel_case};
 use crate::{ApiClient, debug, error, info};
-use crate::schemas::module_bucket::BucketData;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::io;
@@ -111,20 +111,34 @@ impl ModuleManager {
         config.parent_directory = parent_dir;
 
         if let Some(depends) = &config.dependencies {
-            let mapped_deps: Vec<String> = depends.split(",").map(|s| s.trim().to_string()).collect();
+            let mapped_deps: Vec<String> =
+                depends.split(",").map(|s| s.trim().to_string()).collect();
             for deps in mapped_deps {
                 if deps == "bucket" {
                     let api = api_client.lock().await;
-                    let result = api.post_with_query::<(), BasicTaskResponse>("/module/new-bucket", &[("module_name", &*title_case_to_camel_case(&*config.name))], &()).await;
+                    let result = api
+                        .post_with_query::<(), BasicTaskResponse>(
+                            "/module/new-bucket",
+                            &[("module_name", &*title_case_to_camel_case(&*config.name))],
+                            &(),
+                        )
+                        .await;
                     match result {
-                        Ok(_) => { info!("Created bucket successfully"); },
+                        Ok(_) => {
+                            info!("Created bucket successfully");
+                        }
                         Err(err) => {
-                            if err.status_code == 400 && err.detail == "Bucket for module already exists" {
+                            if err.status_code == 400
+                                && err.detail == "Bucket for module already exists"
+                            {
                                 debug!("Bucket for module already exists!");
                             } else {
-                                error!("Error creating bucket for {}: {} ({})", &config.name, err.detail, err.status_code);
+                                error!(
+                                    "Error creating bucket for {}: {} ({})",
+                                    &config.name, err.detail, err.status_code
+                                );
                             }
-                        },
+                        }
                     }
                 }
             }
@@ -137,7 +151,10 @@ impl ModuleManager {
         Ok(())
     }
 
-    pub async fn load_all_modules(&mut self, api_client: Arc<Mutex<ApiClient>>) -> Result<(), ModuleManagerError> {
+    pub async fn load_all_modules(
+        &mut self,
+        api_client: Arc<Mutex<ApiClient>>,
+    ) -> Result<(), ModuleManagerError> {
         let mut module_folders = Vec::new();
         let mut read_dir = tokio::fs::read_dir(&self.modules_directory).await?;
 
@@ -164,8 +181,12 @@ impl ModuleManager {
                 continue;
             }
 
-            self.load_module(config_path.to_str().unwrap(), Some(folder), api_client.clone())
-                .await?
+            self.load_module(
+                config_path.to_str().unwrap(),
+                Some(folder),
+                api_client.clone(),
+            )
+            .await?
         }
 
         Ok(())
@@ -225,7 +246,7 @@ impl ModuleManager {
 
         let mapped_deps: Vec<String>;
         if let Some(depends) = &module.dependencies {
-             mapped_deps = depends.split(",").map(|s| s.trim().to_string()).collect();
+            mapped_deps = depends.split(",").map(|s| s.trim().to_string()).collect();
         } else {
             mapped_deps = Vec::new();
         }
@@ -282,27 +303,36 @@ impl ModuleManager {
                 while let Ok(Some(line)) = reader.next_line().await {
                     if deps.contains(&"bucket".to_string()) {
                         let mutex = api_clone.lock().await;
-                        let bucket_data = BucketData {
-                            data: line,
-                        };
-                        let result = mutex.put_with_query::<BucketData, BasicTaskResponse>("/module/bucket", &[("module_name", str_to_snake_case(&module_name).as_str())], &bucket_data).await;
+                        let bucket_data = BucketData { data: line };
+                        let result = mutex
+                            .put_with_query::<BucketData, BasicTaskResponse>(
+                                "/module/bucket",
+                                &[("module_name", str_to_snake_case(&module_name).as_str())],
+                                &bucket_data,
+                            )
+                            .await;
                         match result {
-                            Ok(_) => { debug!("Successfully sent to bucket"); },
+                            Ok(_) => {
+                                debug!("Successfully sent to bucket");
+                            }
                             Err(err) => {
-                                error!("Failed to send data to bucket: {} ({})", err.detail, err.status_code);
-                            },
+                                error!(
+                                    "Failed to send data to bucket: {} ({})",
+                                    err.detail, err.status_code
+                                );
+                            }
                         };
                     } else {
                         let _ = sender_clone.send(
                             serde_json::json!({
-                            "type": "console_output",
-                            "output": {
-                                "module_name": module_name,
-                                "stream": "stdout",
-                                "line": line
-                            }
-                        })
-                                .to_string(),
+                                "type": "console_output",
+                                "output": {
+                                    "module_name": module_name,
+                                    "stream": "stdout",
+                                    "line": line
+                                }
+                            })
+                            .to_string(),
                         );
                     }
                 }
@@ -322,27 +352,36 @@ impl ModuleManager {
                     if deps.contains(&"bucket".to_string()) {
                         debug!("Sending to bucket for module {}", module_name);
                         let mutex = api_clone.lock().await;
-                        let bucket_data = BucketData {
-                            data: line,
-                        };
-                        let result = mutex.put_with_query::<BucketData, BasicTaskResponse>("/module/bucket", &[("module_name", &module_name)], &bucket_data).await;
+                        let bucket_data = BucketData { data: line };
+                        let result = mutex
+                            .put_with_query::<BucketData, BasicTaskResponse>(
+                                "/module/bucket",
+                                &[("module_name", &module_name)],
+                                &bucket_data,
+                            )
+                            .await;
                         match result {
-                            Ok(_) => { debug!("Successfully sent to bucket"); },
+                            Ok(_) => {
+                                debug!("Successfully sent to bucket");
+                            }
                             Err(err) => {
-                                error!("Failed to send data to bucket: {} ({})", err.detail, err.status_code);
-                            },
+                                error!(
+                                    "Failed to send data to bucket: {} ({})",
+                                    err.detail, err.status_code
+                                );
+                            }
                         };
                     } else {
                         let _ = sender_clone.send(
                             serde_json::json!({
-                            "type": "console_output",
-                            "output": {
-                                "module_name": module_name,
-                                "stream": "stderr",
-                                "line": line
-                            }
-                        })
-                                .to_string(),
+                                "type": "console_output",
+                                "output": {
+                                    "module_name": module_name,
+                                    "stream": "stderr",
+                                    "line": line
+                                }
+                            })
+                            .to_string(),
                         );
                     }
                 }
@@ -447,7 +486,8 @@ impl ModuleManager {
 
             if has_bucket_dependency {
                 // Use streaming mode with a dummy sender for bucket modules
-                let (dummy_sender, mut dummy_receiver) = tokio::sync::mpsc::unbounded_channel::<String>();
+                let (dummy_sender, mut dummy_receiver) =
+                    tokio::sync::mpsc::unbounded_channel::<String>();
 
                 // Spawn a task to discard messages from the dummy sender
                 tokio::spawn(async move {
@@ -456,8 +496,14 @@ impl ModuleManager {
                     }
                 });
 
-                if let Err(e) = self.start_module_streaming(&module.name, dummy_sender, api_client.clone()).await {
-                    error!("Failed to start module {} with streaming: {}", module.name, e);
+                if let Err(e) = self
+                    .start_module_streaming(&module.name, dummy_sender, api_client.clone())
+                    .await
+                {
+                    error!(
+                        "Failed to start module {} with streaming: {}",
+                        module.name, e
+                    );
                     return Err(e);
                 }
             } else {
@@ -525,7 +571,7 @@ impl ModuleManager {
             .iter()
             .map(|m| title_case_to_camel_case(&m.name))
             .collect();
-        
+
         let discrepancies: Vec<String> = local_modules
             .iter()
             .filter(|module| {
