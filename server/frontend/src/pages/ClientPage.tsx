@@ -34,7 +34,7 @@ export default function ClientPage() {
 
   const onDelete = async () => {
     const response = await apiClient.delete<BasicTaskResponse>(
-      "/client/" + username,
+      "/client/action/" + username,
     );
     if (isApiError(response)) {
       addError(`Failed to delete client: ${response.detail}`);
@@ -87,7 +87,7 @@ export default function ClientPage() {
   useEffect(() => {
     if (!username) return;
     const fetchClientInfo = async () => {
-      const response = await apiClient.get<ClientInfo>("/client/" + username);
+      const response = await apiClient.get<ClientInfo>("/client/action/" + username);
 
       if (isApiError(response)) {
         if (response.statusCode === 404) {

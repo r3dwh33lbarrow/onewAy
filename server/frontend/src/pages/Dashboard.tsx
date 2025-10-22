@@ -42,7 +42,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        const response = await apiClient.get<ClientAllResponse>("/client/all");
+        const response = await apiClient.get<ClientAllResponse>("/client/get-all");
         if (isApiError(response)) {
           if (response.statusCode === 401) {
             navigate("/login");
