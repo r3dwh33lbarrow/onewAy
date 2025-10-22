@@ -2,6 +2,7 @@ pub mod auth;
 pub(crate) mod module_bucket;
 pub mod modules;
 pub mod websockets;
+pub mod update_info;
 
 use serde::{Deserialize, Serialize};
 

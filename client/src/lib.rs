@@ -5,6 +5,7 @@ pub mod module_manager;
 pub mod schemas;
 pub mod update;
 pub mod utils;
+pub mod update_info;
 
 pub use config::CONFIG;
 pub use http::api_client::ApiClient;

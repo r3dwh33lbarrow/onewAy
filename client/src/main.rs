@@ -4,6 +4,7 @@ use client::{
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use client::update_info::update_info;
 
 #[tokio::main]
 async fn main() {
@@ -16,9 +17,7 @@ async fn main() {
     let api_client = Arc::new(Mutex::new(
         ApiClient::new(&base_url).expect("failed to initialize ApiClient"),
     ));
-
-    println!("{:?}", config);
-
+    
     if !login(
         Arc::clone(&api_client),
         config.auth.username.as_str(),
@@ -30,6 +29,7 @@ async fn main() {
     }
 
     debug!("Client logged in");
+    update_info(api_client.clone()).await;
     debug!("Loading modules from {}", config.module.modules_directory);
     let mut module_manager = ModuleManager::new(&config.module.modules_directory);
     if let Err(e) = module_manager.load_all_modules(api_client.clone()).await {
