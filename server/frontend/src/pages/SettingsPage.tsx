@@ -1,4 +1,4 @@
-import { Button, Label, TextInput, ToggleSwitch } from "flowbite-react";
+import { Button, Checkbox, Label, TextInput, ToggleSwitch } from "flowbite-react";
 import { useEffect, useMemo, useState } from "react";
 import { HiOutlineCamera } from "react-icons/hi";
 
@@ -22,7 +22,7 @@ export default function SettingsPage() {
   const { addError, anyErrors } = useErrorStore();
   const { fetchAvatar } = useAvatarStore();
 
-  const { isDark, setIsDark } = useTheme();
+  const { isDark, setIsDark, useSystemTheme, setUseSystemTheme } = useTheme();
 
   const dirty = useMemo(
     () => username.trim() !== initialUsername.trim(),
@@ -214,26 +214,39 @@ export default function SettingsPage() {
                   <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">
                     Theme
                   </h2>
-                  <div className="flex gap-4">
-                    <p
-                      className={
-                        !isDark
-                          ? "text-sm font-bold text-gray-500 dark:text-gray-400"
-                          : "text-sm text-gray-500 dark:text-gray-400"
-                      }
-                    >
-                      Light
-                    </p>
-                    <ToggleSwitch checked={isDark} onChange={setIsDark} />
-                    <p
-                      className={
-                        isDark
-                          ? "text-sm font-bold text-gray-500 dark:text-gray-400"
-                          : "text-sm text-gray-500 dark:text-gray-400"
-                      }
-                    >
-                      Dark
-                    </p>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex gap-4 items-center">
+                      <p
+                        className={
+                          !isDark
+                            ? "text-sm font-bold text-gray-500 dark:text-gray-400"
+                            : "text-sm text-gray-500 dark:text-gray-400"
+                        }
+                      >
+                        Light
+                      </p>
+                      <ToggleSwitch
+                        checked={isDark}
+                        onChange={setIsDark}
+                        disabled={useSystemTheme}
+                      />
+                      <p
+                        className={
+                          isDark
+                            ? "text-sm font-bold text-gray-500 dark:text-gray-400"
+                            : "text-sm text-gray-500 dark:text-gray-400"
+                        }
+                      >
+                        Dark
+                      </p>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                      <Checkbox
+                        checked={useSystemTheme}
+                        onChange={(event) => setUseSystemTheme(event.target.checked)}
+                      />
+                      Use system theme preference
+                    </label>
                   </div>
                 </div>
               </div>

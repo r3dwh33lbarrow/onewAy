@@ -58,34 +58,46 @@ export default function ClientBuilder() {
       .map(([key]) => key);
 
     setIsSubmitting(true);
-    const response = await apiClient.post<
-      {
-        platform: "windows" | "mac";
-        ip_address: string;
-        port: number;
-        username: string;
-        password: string;
-        packaged_modules: string[];
-      },
-      BasicTaskResponse
-    >("/user/generate-client", {
-      platform,
-      ip_address: trimmedIp,
-      port: portNumber,
-      username: trimmedUsername,
-      password: trimmedPassword,
-      packaged_modules: modules,
-    });
-    setIsSubmitting(false);
+    try {
+      const response = await apiClient.requestBytes("/user/generate-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform,
+          ip_address: trimmedIp,
+          port: portNumber,
+          username: trimmedUsername,
+          password: trimmedPassword,
+          packaged_modules: modules,
+        }),
+      });
 
-    if (isApiError(response)) {
+      if (isApiError(response)) {
+        addError(
+          `Failed to generate client (${response.statusCode}): ${response.detail || response.message}`,
+        );
+        return;
+      }
+
+      const blob = new Blob([response], { type: "application/zip" });
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      const safeUsername = trimmedUsername || "client";
+      link.download = `${safeUsername}-bundle.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
       addError(
-        `Failed to generate client (${response.statusCode}): ${response.detail || response.message}`,
+        error instanceof Error
+          ? error.message
+          : "Unexpected error while generating client.",
       );
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // TODO: Hook up download once backend returns an artifact.
   }, [
     addError,
     ip,

@@ -1,10 +1,10 @@
-import os
 import shutil
 import subprocess
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 
 from app.models.user import User
 from app.schemas.general import BasicTaskResponse
@@ -36,14 +36,26 @@ async def user_verify_rust(_=Depends(get_current_user)) -> BasicTaskResponse:
     return {"result": "success"}
 
 
-@router.post(
-    "/generate-client",
-    response_model=BasicTaskResponse,
-    status_code=status.HTTP_201_CREATED,
-)
+def _safe_rmtree(path: Path) -> None:
+    shutil.rmtree(path, ignore_errors=True)
+
+
+def _safe_unlink(path: Path) -> None:
+    try:
+        path.unlink(missing_ok=True)
+    except AttributeError:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+
+
+@router.post("/generate-client")
 async def user_generate_client(
-    client_info: GenerateClientRequest, user: User = Depends(get_current_user)
-) -> BasicTaskResponse:
+    client_info: GenerateClientRequest,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+):
     path_name = f"{str(uuid.uuid4())}_{user.username}"
     prefix = Path(settings.paths.resources_dir) / "clients"
     prefix.mkdir(parents=True, exist_ok=True)
@@ -62,6 +74,9 @@ async def user_generate_client(
             str(client_info.ip_address),
             client_info.port,
         )
+        archive_path = shutil.make_archive(
+            str(full_path), "zip", root_dir=prefix, base_dir=path_name
+        )
     except Exception as error:
         if full_path.exists():
             shutil.rmtree(full_path, ignore_errors=True)
@@ -71,4 +86,12 @@ async def user_generate_client(
             detail=f"Failed to generate client: {error}",
         ) from error
 
-    return {"result": "success"}
+    background_tasks.add_task(_safe_rmtree, full_path)
+    background_tasks.add_task(_safe_unlink, Path(archive_path))
+
+    return FileResponse(
+        archive_path,
+        media_type="application/zip",
+        filename=f"{path_name}.zip",
+        background=background_tasks,
+    )
