@@ -5,6 +5,8 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import FileResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
 from app.schemas.general import BasicTaskResponse
@@ -15,13 +17,16 @@ from app.services.client_generation import (
     generate_client_config,
     move_modules,
 )
+from app.services.password import hash_password
+from app.dependencies import get_db
+from app.models.client import Client
 from app.settings import settings
 
 router = APIRouter(prefix="/user", tags=["User Client"])
 
 
 @router.get("/verify-rust", response_model=BasicTaskResponse)
-async def user_verify_rust(_=Depends(get_current_user)) -> BasicTaskResponse:
+async def user_verify_rust(_=Depends(get_current_user)):
     for command in (("rustc", "--version"), ("cargo", "--version")):
         try:
             subprocess.run(
@@ -54,6 +59,7 @@ def _safe_unlink(path: Path) -> None:
 async def user_generate_client(
     client_info: GenerateClientRequest,
     background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     path_name = f"{str(uuid.uuid4())}_{user.username}"
@@ -61,6 +67,15 @@ async def user_generate_client(
     prefix.mkdir(parents=True, exist_ok=True)
 
     full_path = prefix / path_name
+
+    existing_client = await db.execute(
+        select(Client).where(Client.username == client_info.username)
+    )
+    if existing_client.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Client username already exists",
+        )
 
     try:
         full_path.mkdir()
@@ -77,10 +92,25 @@ async def user_generate_client(
         archive_path = shutil.make_archive(
             str(full_path), "zip", root_dir=prefix, base_dir=path_name
         )
+
+        new_client = Client(
+            username=client_info.username,
+            hashed_password=hash_password(client_info.password),
+            ip_address="0.0.0.0",
+            client_version=settings.app.client_version,
+        )
+
+        db.add(new_client)
+        await db.commit()
+    except HTTPException:
+        if full_path.exists():
+            shutil.rmtree(full_path, ignore_errors=True)
+        raise
     except Exception as error:
         if full_path.exists():
             shutil.rmtree(full_path, ignore_errors=True)
 
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate client: {error}",

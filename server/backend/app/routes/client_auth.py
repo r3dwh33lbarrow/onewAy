@@ -13,6 +13,7 @@ from app.services.authentication import (
     TokenType,
     create_access_token,
     create_refresh_token,
+    get_current_user,
     rotate_refresh_token,
 )
 from app.services.password import hash_password
@@ -26,6 +27,7 @@ async def client_auth_enroll(
     enroll_request: ClientEnrollRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    _ = Depends(get_current_user),
 ):
     """
     Register a new client in the system.
