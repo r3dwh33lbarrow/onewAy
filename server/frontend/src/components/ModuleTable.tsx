@@ -17,11 +17,13 @@ import { snakeCaseToTitle } from "../utils";
 interface ModuleTableProps {
   showEmptyState?: boolean;
   onModuleTick?: (selectedModules: Record<string, boolean>) => void;
+  marginTop?: string;
 }
 
 export default function ModuleTable({
   showEmptyState = true,
   onModuleTick,
+  marginTop = "mt-6",
 }: ModuleTableProps) {
   const navigate = useNavigate();
   const { addError } = useErrorStore();
@@ -87,7 +89,7 @@ export default function ModuleTable({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow mt-6">
+    <div className={"bg-white dark:bg-gray-800 rounded-lg shadow " + marginTop}>
       <Table>
         <TableHead>
           <TableRow>
