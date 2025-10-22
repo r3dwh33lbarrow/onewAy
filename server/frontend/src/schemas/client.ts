@@ -12,7 +12,7 @@ export interface ClientAllResponse {
 
 export interface ClientInfo extends BasicClientInfo {
   uuid: string;
-  last_known_location: string;
+  client_version: string;
   any_valid_tokens: boolean;
 }
 
@@ -23,6 +23,6 @@ export interface ClientAllInfo {
   hostname: string;
   alive: boolean;
   last_contact: string;
-  last_known_location: string;
   client_version: string;
+  any_valid_tokens: boolean;
 }

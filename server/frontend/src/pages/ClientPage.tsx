@@ -275,15 +275,6 @@ export default function ClientPage() {
                   </div>
                   <div>
                     <span className="font-medium text-gray-600 dark:text-gray-300">
-                      Location:
-                    </span>
-                    <span className="ml-2 text-gray-900 dark:text-gray-100">
-                      {clientInfo.last_known_location}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="font-medium text-gray-600 dark:text-gray-300">
                       Any valid tokens:
                     </span>
                     {clientInfo.any_valid_tokens ? (
