@@ -19,7 +19,7 @@ def generate_client_config(path: Path, username: str, password: str) -> None:
     data = {
         "module": {
             "version": __version__,
-            "modules_directory": "[CURRENT_DIRECTORY]/modules",
+            "modules_directory": "[CURRENT_DIR]/modules",
         },
         "auth": {
             "username": username,

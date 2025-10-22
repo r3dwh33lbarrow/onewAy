@@ -26,13 +26,15 @@ pub(crate) fn title_case_to_camel_case(input: &str) -> String {
 }
 
 pub(crate) fn resolve_current_dir(path: &str) -> String {
-    let replaced = path.replace(
-        "[CURRENT_DIR]",
-        env::current_dir()
-            .expect("Failed to get current dir")
-            .to_str()
-            .unwrap(),
-    );
+    let current = env::current_dir()
+        .expect("Failed to get current dir")
+        .to_str()
+        .unwrap()
+        .to_string();
+
+    let replaced = path
+        .replace("[CURRENT_DIR]", &current)
+        .replace("[CURRENT_DIRECTORY]", &current);
 
     let p = Path::new(&replaced);
 
@@ -84,5 +86,12 @@ mod tests {
     fn test_resolve_current_dir_normalization() {
         let p = resolve_current_dir("[CURRENT_DIR]/./a/../b");
         assert!(p.ends_with("/b") || p.ends_with("\\b"));
+
+        let alt = resolve_current_dir("[CURRENT_DIRECTORY]/c");
+        assert!(alt.ends_with("/c") || alt.ends_with("\\c"));
+
+        let cur = resolve_current_dir("[CURRENT_DIR]");
+        let cur_alt = resolve_current_dir("[CURRENT_DIRECTORY]");
+        assert_eq!(cur, cur_alt);
     }
 }
