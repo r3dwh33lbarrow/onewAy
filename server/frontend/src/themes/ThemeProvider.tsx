@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 interface ThemeContextValue {
   isDark: boolean;
@@ -12,7 +6,6 @@ interface ThemeContextValue {
   useSystemTheme: boolean;
   setUseSystemTheme: (value: boolean) => void;
 }
-
 
 const ThemeContext = createContext<ThemeContextValue>({
   isDark: false,
@@ -46,8 +39,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     () => getInitialPreference(),
     [],
   );
-  const [useSystemTheme, setUseSystemTheme] =
-    useState<boolean>(initialSystem);
+  const [useSystemTheme, setUseSystemTheme] = useState<boolean>(initialSystem);
   const [isDarkState, setIsDarkState] = useState<boolean>(initialDark);
 
   useEffect(() => {
@@ -91,7 +83,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeContext.Provider
-      value={{ isDark: isDarkState, setIsDark, useSystemTheme, setUseSystemTheme }}
+      value={{
+        isDark: isDarkState,
+        setIsDark,
+        useSystemTheme,
+        setUseSystemTheme,
+      }}
     >
       {children}
     </ThemeContext.Provider>

@@ -31,4 +31,3 @@ export const customDropdownTheme = {
   },
   inlineWrapper: "flex items-center",
 };
-

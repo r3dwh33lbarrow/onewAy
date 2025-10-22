@@ -6,6 +6,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import RegisterPanel from "./components/RegisterPanel";
 import NotFound from "./pages/404";
 import { BucketPage } from "./pages/BucketPage.tsx";
+import ClientBuilder from "./pages/ClientBuilder.tsx";
 import ClientPage from "./pages/ClientPage";
 import ConsolePage from "./pages/ConsolePage";
 import Dashboard from "./pages/Dashboard";
@@ -15,7 +16,6 @@ import SettingsPage from "./pages/SettingsPage";
 import type { AuthRequest } from "./schemas/authentication";
 import type { BasicTaskResponse } from "./schemas/general";
 import { useAuthStore } from "./stores/authStore";
-import ClientBuilder from "./pages/ClientBuilder.tsx";
 
 export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);

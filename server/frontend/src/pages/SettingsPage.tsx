@@ -1,4 +1,10 @@
-import { Button, Checkbox, Label, TextInput, ToggleSwitch } from "flowbite-react";
+import {
+  Button,
+  Checkbox,
+  Label,
+  TextInput,
+  ToggleSwitch,
+} from "flowbite-react";
 import { useEffect, useMemo, useState } from "react";
 import { HiOutlineCamera } from "react-icons/hi";
 
@@ -243,7 +249,9 @@ export default function SettingsPage() {
                     <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                       <Checkbox
                         checked={useSystemTheme}
-                        onChange={(event) => setUseSystemTheme(event.target.checked)}
+                        onChange={(event) =>
+                          setUseSystemTheme(event.target.checked)
+                        }
                       />
                       Use system theme preference
                     </label>
