@@ -13,8 +13,8 @@ export default function ClientBuilder() {
   const [ip, setIp] = useState("");
   const [port, setPort] = useState("");
   const [username, setUsername] = useState("");
-  const [passwordLength, setPasswordLength] = useState(13);
-  const [password, setPassword] = useState(generatePassword(13));
+  const [passwordLength, setPasswordLength] = useState(15);
+  const [password, setPassword] = useState(generatePassword(15));
   const [platform, setPlatform] = useState<"windows" | "mac">("windows");
   const [selectedModules, setSelectedModules] = useState<
     Record<string, boolean>
@@ -36,21 +36,12 @@ export default function ClientBuilder() {
     const trimmedPassword = password.trim();
     const portNumber = Number(port);
 
-    if (
-      !trimmedIp ||
-      !port ||
-      !trimmedUsername ||
-      !trimmedPassword
-    ) {
+    if (!trimmedIp || !port || !trimmedUsername || !trimmedPassword) {
       addError("All fields are required before generating a client.");
       return;
     }
 
-    if (
-      !Number.isInteger(portNumber) ||
-      portNumber < 1 ||
-      portNumber > 65535
-    ) {
+    if (!Number.isInteger(portNumber) || portNumber < 1 || portNumber > 65535) {
       addError("Port must be an integer between 1 and 65535.");
       return;
     }
@@ -116,11 +107,16 @@ export default function ClientBuilder() {
     if (apiUrl) {
       try {
         const url = new URL(apiUrl);
-        const hostname = url.hostname === "localhost" ? "127.0.0.1" : url.hostname;
+        const hostname =
+          url.hostname === "localhost" ? "127.0.0.1" : url.hostname;
         setIp(hostname);
         const derivedPort =
           url.port ||
-          (url.protocol === "https:" ? "443" : url.protocol === "http:" ? "80" : "");
+          (url.protocol === "https:"
+            ? "443"
+            : url.protocol === "http:"
+              ? "80"
+              : "");
         if (derivedPort) {
           setPort(derivedPort);
         }
@@ -155,7 +151,7 @@ export default function ClientBuilder() {
     <MainSkeleton baseName="Client Builder">
       <div className="flex justify-between items-center mb-1">
         <p className="font-bold dark:text-gray-400 px-2">Configuration</p>
-        { rustInstalled === null ? (
+        {rustInstalled === null ? (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
             Loading...
           </span>
@@ -194,9 +190,7 @@ export default function ClientBuilder() {
           <select
             className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
             value={platform}
-            onChange={(e) =>
-              setPlatform(e.target.value as "windows" | "mac")
-            }
+            onChange={(e) => setPlatform(e.target.value as "windows" | "mac")}
           >
             <option value="windows">Windows</option>
             <option value="mac">macOS</option>
@@ -218,25 +212,30 @@ export default function ClientBuilder() {
             onChange={(e) => {
               const value = e.target.value;
               setPassword(value);
-              const nextLength = value.length === 0 ? 1 : Math.min(100, value.length);
-              setPasswordLength(Math.max(1, nextLength));
+              setPasswordLength(value.length);
             }}
           />
 
           <p className="self-center">Password length:</p>
           <div className="flex items-center gap-4">
-            <input
-              type="range"
-              min={1}
-              max={100}
-              value={passwordLength}
-              className="w-1/2"
-              onChange={(event) => {
-                const length = Number(event.target.value);
-                setPasswordLength(length);
-                setPassword(generatePassword(length));
-              }}
-            />
+            <div className="flex items-center gap-2 w-1/2">
+              <input
+                type="range"
+                min={1}
+                max={100}
+                value={passwordLength}
+                className="w-full"
+                onChange={(event) => {
+                  const length = Number(event.target.value);
+                  setPasswordLength(length);
+                  setPassword(generatePassword(length));
+                  setPasswordLength(length);
+                }}
+              />
+              <span className="text-sm text-gray-600 dark:text-gray-300">
+                {passwordLength}
+              </span>
+            </div>
             <span
               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                 passwordLengthSecure
@@ -255,9 +254,7 @@ export default function ClientBuilder() {
       <p className="font-bold dark:text-gray-400 px-2 mt-6">
         Available Modules to Package
       </p>
-      {!anyErrors() && (
-        <ModuleTable onModuleTick={setSelectedModules} marginTop="mt-1" />
-      )}
+      <ModuleTable onModuleTick={setSelectedModules} marginTop="mt-1" />
 
       <div className="flex justify-end mt-4">
         <Button

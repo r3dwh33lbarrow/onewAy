@@ -13,6 +13,7 @@ export interface ClientAllResponse {
 export interface ClientInfo extends BasicClientInfo {
   uuid: string;
   last_known_location: string;
+  any_valid_tokens: boolean;
 }
 
 export interface ClientAllInfo {

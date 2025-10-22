@@ -51,6 +51,15 @@ export default function ClientPage() {
       addError(`Failed to revoke tokens: ${response.detail}`);
       return;
     }
+
+    const refresh = await apiClient.get<ClientInfo>(
+      "/client/action/" + username,
+    );
+    if (isApiError(refresh)) {
+      addError(`Failed to refresh client info: ${refresh.detail}`);
+    } else {
+      setClientInfo(refresh);
+    }
   };
 
   const updateClientAliveStatus = useCallback(
@@ -87,7 +96,9 @@ export default function ClientPage() {
   useEffect(() => {
     if (!username) return;
     const fetchClientInfo = async () => {
-      const response = await apiClient.get<ClientInfo>("/client/action/" + username);
+      const response = await apiClient.get<ClientInfo>(
+        "/client/action/" + username,
+      );
 
       if (isApiError(response)) {
         if (response.statusCode === 404) {
@@ -269,6 +280,21 @@ export default function ClientPage() {
                     <span className="ml-2 text-gray-900 dark:text-gray-100">
                       {clientInfo.last_known_location}
                     </span>
+                  </div>
+
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                      Any valid tokens:
+                    </span>
+                    {clientInfo.any_valid_tokens ? (
+                      <span className="ml-2 text-green-500 dark:text-green-400">
+                        Yes
+                      </span>
+                    ) : (
+                      <span className="ml-2 text-red-500 dark:text-red-400">
+                        No
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
