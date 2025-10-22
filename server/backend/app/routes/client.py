@@ -17,8 +17,10 @@ from app.schemas.client import *
 from app.schemas.general import BasicTaskResponse
 from app.services.authentication import (
     get_current_client,
-    verify_access_token, get_current_user, is_client,
+    verify_access_token, get_current_user, is_client, any_valid_refresh_tokens,
 )
+from app.services.client_websockets import client_websocket_manager
+from app.services.password import hash_password
 from app.settings import settings
 
 router = APIRouter(prefix="/client")
@@ -73,6 +75,7 @@ async def client_username(
             last_contact=result.last_contact,
             last_known_location=result.last_known_location,
             client_version=result.client_version,
+            any_valid_tokens=await any_valid_refresh_tokens(result.uuid, db)
         )
     logger.warning("Client lookup failed for username '%s'", username)
     raise HTTPException(status_code=404, detail="Client not found")
@@ -164,12 +167,18 @@ async def revoke_client_refresh_tokens(
             token.revoked = True
             revoked_count += 1
 
+        target_client.revoked = True
+        target_client.alive = False
+        target_client.hashed_password = hash_password(uuid.uuid4().hex)
+
         await db.commit()
         logger.info(
             "Revoked %d refresh token(s) for client '%s'",
             revoked_count,
             username,
         )
+
+        await client_websocket_manager.disconnect_all(str(target_client.uuid))
         return {"result": "success"}
 
     except SQLAlchemyError as e:

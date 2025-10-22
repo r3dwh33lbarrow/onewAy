@@ -116,6 +116,10 @@ async def client_auth_login(
         logger.warning("Invalid credentials for client '%s'", login_request.username)
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
+    if getattr(client, "revoked", False):
+        logger.warning("Login attempt for revoked client '%s'", login_request.username)
+        raise HTTPException(status_code=403, detail="Client credentials revoked")
+
     client.ip_address = request.client.host
     client.alive = True
     client.last_contact = datetime.now(UTC)

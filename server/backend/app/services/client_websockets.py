@@ -85,6 +85,18 @@ class ClientWebSocketManager:
                 if not self.active_connections[client_uuid]:
                     del self.active_connections[client_uuid]
 
+    async def disconnect_all(self, client_uuid: str, code: int = 1011, reason: str = "Client revoked"):
+        """Close and remove all WebSocket connections for a client."""
+        async with self._lock:
+            connections = list(self.active_connections.get(client_uuid, set()))
+
+        for websocket in connections:
+            try:
+                await websocket.close(code=code, reason=reason)
+            except Exception as exc:
+                log.debug("Failed to close websocket cleanly for %s: %s", client_uuid, exc)
+            await self.disconnect(websocket, client_uuid)
+
     @staticmethod
     async def broadcast_client_alive_status(username: str, alive: bool):
         """

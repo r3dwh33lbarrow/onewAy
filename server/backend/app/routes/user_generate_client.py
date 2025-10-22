@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -20,6 +20,7 @@ from app.services.client_generation import (
 from app.services.password import hash_password
 from app.dependencies import get_db
 from app.models.client import Client
+from app.models.refresh_token import RefreshToken
 from app.settings import settings
 
 router = APIRouter(prefix="/user", tags=["User Client"])
@@ -68,14 +69,10 @@ async def user_generate_client(
 
     full_path = prefix / path_name
 
-    existing_client = await db.execute(
+    existing_client_result = await db.execute(
         select(Client).where(Client.username == client_info.username)
     )
-    if existing_client.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Client username already exists",
-        )
+    existing_client = existing_client_result.scalar_one_or_none()
 
     try:
         full_path.mkdir()
@@ -93,13 +90,29 @@ async def user_generate_client(
             str(full_path), "zip", root_dir=prefix, base_dir=path_name
         )
 
-        new_client = Client(
-            username=client_info.username,
-            hashed_password=hash_password(client_info.password),
-            client_version=settings.app.client_version,
-        )
+        hashed_password_value = hash_password(client_info.password)
 
-        db.add(new_client)
+        if existing_client:
+            existing_client.hashed_password = hashed_password_value
+            existing_client.client_version = settings.app.client_version
+            existing_client.revoked = False
+            existing_client.alive = False
+            existing_client.ip_address = None
+            existing_client.last_contact = None
+            existing_client.hostname = None
+
+            await db.execute(
+                update(RefreshToken)
+                .where(RefreshToken.client_uuid == existing_client.uuid)
+                .values(revoked=True)
+            )
+        else:
+            new_client = Client(
+                username=client_info.username,
+                hashed_password=hashed_password_value,
+                client_version=settings.app.client_version,
+            )
+            db.add(new_client)
         await db.commit()
     except HTTPException:
         if full_path.exists():

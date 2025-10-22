@@ -345,3 +345,39 @@ def verify_websocket_access_token(token: str) -> str:
     except JWTError:
         logger.warning("Failed to decode websocket token", exc_info=True)
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def any_valid_refresh_tokens(client_uuid: uuid.UUID, db: AsyncSession) -> bool:
+    """
+    Check if a client has any valid (non-revoked, non-expired) refresh tokens.
+
+    Args:
+        client_uuid: The UUID of the client to check
+        db: The database session
+
+    Returns:
+        True if the client has at least one valid refresh token, False otherwise
+    """
+    try:
+        result = await db.execute(
+            select(RefreshToken).where(
+                RefreshToken.client_uuid == client_uuid,
+                RefreshToken.revoked == False,
+                RefreshToken.expires_at > datetime.now(UTC),
+            )
+        )
+        valid_tokens = result.scalars().all()
+
+        has_valid_tokens = len(valid_tokens) > 0
+        logger.debug(
+            "Client %s has %d valid refresh token(s)",
+            client_uuid,
+            len(valid_tokens)
+        )
+        return has_valid_tokens
+
+    except Exception:
+        logger.exception("Error checking valid refresh tokens for client %s", client_uuid)
+        return False
+
+

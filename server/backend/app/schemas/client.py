@@ -28,6 +28,7 @@ class ClientAllInfo(BasicClientInfo):
     uuid: UUID
     last_known_location: str | None = None
     client_version: str = Field(min_length=1)
+    any_valid_tokens: bool
 
 
 class ClientMeResponse(BaseModel):
