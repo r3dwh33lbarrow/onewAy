@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, IPvAnyAddress
 
 class BasicClientInfo(BaseModel):
     username: str
-    ip_address: IPvAnyAddress
+    ip_address: IPvAnyAddress | None = None
     hostname: str | None = None
     alive: bool
     last_contact: datetime | None = None
