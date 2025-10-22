@@ -22,7 +22,7 @@ class Client(Base):
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     username = Column(String, nullable=False, unique=True, index=True)
     hashed_password = Column(String, nullable=False)
-    ip_address = Column(INET, nullable=False)
+    ip_address = Column(INET, nullable=True)
     hostname = Column(String)
     alive = Column(Boolean, nullable=False, default=False)
     last_contact = Column(DateTime(timezone=True))

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.logger import get_logger
 from app.models.client import Client
-from app.models.user import User
+from app.models.refresh_token import RefreshToken
 from app.schemas.client import *
 from app.schemas.general import BasicTaskResponse
 from app.services.authentication import (
@@ -20,7 +20,6 @@ from app.services.authentication import (
     verify_access_token, get_current_user, is_client,
 )
 from app.settings import settings
-from app.models.refresh_token import RefreshToken
 
 router = APIRouter(prefix="/client")
 logger = get_logger()
@@ -41,7 +40,7 @@ async def client_me(client: Client = Depends(get_current_client)):
     return ClientMeResponse(username=client.username)
 
 
-@router.get("/{username}", response_model=ClientAllInfo)
+@router.get("/action/{username}", response_model=ClientAllInfo)
 async def client_username(
     username: str,
     db: AsyncSession = Depends(get_db),
@@ -79,8 +78,8 @@ async def client_username(
     raise HTTPException(status_code=404, detail="Client not found")
 
 
-@router.delete("/{username}", response_model=BasicTaskResponse)
-async def client_delete_username(username: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+@router.delete("/action/{username}", response_model=BasicTaskResponse)
+async def client_delete_username(username: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     client = await db.execute(select(Client).where(Client.username == username))
     client = client.scalar_one_or_none()
 
@@ -93,6 +92,7 @@ async def client_delete_username(username: str, db: AsyncSession = Depends(get_d
     try:
         await db.delete(client)
         await db.commit()
+        return {"result": "success"}
     except SQLAlchemyError as e:
         await db.rollback()
         raise HTTPException(
@@ -181,7 +181,7 @@ async def revoke_client_refresh_tokens(
         )
 
 
-@router.get("/all", response_model=ClientAllResponse)
+@router.get("/get-all", response_model=ClientAllResponse)
 async def client_all(
     db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)
 ):
