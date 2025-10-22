@@ -57,7 +57,7 @@ async def test_client_update_info(client: AsyncClient):
     token = r.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}", "user-agent": "oneway-client"}
 
-    payload = {"hostname": "bob-new", "last_known_location": "UK"}
+    payload = {"hostname": "bob-new"}
     r = await client.post("/client/update-info", headers=headers, json=payload)
     assert r.status_code == 200
     assert r.json() == {"result": "success"}
@@ -66,7 +66,7 @@ async def test_client_update_info(client: AsyncClient):
     assert r.status_code == 200
     data = r.json()
     assert data["hostname"] == "bob-new"
-    assert data["last_known_location"] == "UK"
+    assert "last_known_location" not in data
 
 
 @pytest.mark.asyncio

@@ -20,13 +20,11 @@ class ClientAllResponse(BaseModel):
 class ClientUpdateInfo(BaseModel):
     ip_address: IPvAnyAddress | None = None
     hostname: str | None = None
-    last_known_location: str | None = None
     client_version: str | None = None
 
 
 class ClientAllInfo(BasicClientInfo):
     uuid: UUID
-    last_known_location: str | None = None
     client_version: str = Field(min_length=1)
     any_valid_tokens: bool
 

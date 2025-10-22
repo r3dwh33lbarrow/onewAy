@@ -76,7 +76,6 @@ async def client_username(
             hostname=result.hostname,
             alive=result.alive,
             last_contact=result.last_contact,
-            last_known_location=result.last_known_location,
             client_version=result.client_version,
             any_valid_tokens=await any_valid_refresh_tokens(result.uuid, db),
         )
@@ -277,7 +276,12 @@ async def client_update_info(
     Raises:
         HTTPException: 500 if database update fails
     """
-    update_data = update_info.model_dump(exclude_unset=True)
+    update_data = {
+        field: value
+        for field, value in update_info.model_dump(exclude_unset=True).items()
+        if value is not None
+    }
+
     for field, value in update_data.items():
         setattr(client, field, value)
 
