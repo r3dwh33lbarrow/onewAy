@@ -318,10 +318,6 @@ export default function ClientPage() {
                       <TableHeadCell>Module Name</TableHeadCell>
                       <TableHeadCell>Version</TableHeadCell>
                       <TableHeadCell>Description</TableHeadCell>
-                      <TableHeadCell>Status</TableHeadCell>
-                      <TableHeadCell>
-                        <span className="sr-only">Actions</span>
-                      </TableHeadCell>
                     </TableRow>
                   </TableHead>
                   <TableBody className="divide-y">
@@ -334,16 +330,6 @@ export default function ClientPage() {
                           <TableCell>{module.version}</TableCell>
                           <TableCell>
                             {module.description || "No description available"}
-                          </TableCell>
-                          <TableCell>{module.status}</TableCell>
-                          <TableCell>
-                            <button
-                              className="font-medium text-cyan-600 hover:underline dark:text-cyan-500 disabled:opacity-50 disabled:no-underline"
-                              disabled={clientInfo?.alive !== true}
-                              onClick={() => handleRunModule(module.name)}
-                            >
-                              Run
-                            </button>
                           </TableCell>
                         </TableRow>
                       ))
