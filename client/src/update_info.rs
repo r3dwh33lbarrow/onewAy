@@ -14,9 +14,10 @@ fn get_hostname() -> Option<String> {
 
 pub async fn update_info(api_client: Arc<Mutex<ApiClient>>) {
     let api_client = api_client.lock().await;
+    let hostname = get_hostname().unwrap_or_else(|| "N/A".to_string());
     let client_info = ClientUpdateInfo {
         ip_address: None,
-        hostname: None,
+        hostname: Some(hostname),
         client_version: None,
     };
     let result = api_client.post::<ClientUpdateInfo, BasicTaskResponse>("/client/update-info", &client_info).await;
