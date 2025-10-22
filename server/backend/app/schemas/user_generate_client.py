@@ -1,0 +1,11 @@
+from typing import List, Literal
+
+from pydantic import BaseModel, Field, IPvAnyAddress
+
+class GenerateClientRequest(BaseModel):
+    platform: Literal["windows", "mac"]
+    ip_address: IPvAnyAddress
+    port: int = Field(..., ge=1, le=65535)
+    username: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=1)
+    packaged_modules: List[str] = Field(default_factory=list)

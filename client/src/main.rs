@@ -7,9 +7,14 @@ use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() {
+    let ip: &str = option_env!("IP").unwrap_or("127.0.0.1");
+    let port: &str = option_env!("PORT").unwrap_or("8000");
+
+    let base_url = format!("http://{}:{}/", ip, port);
+    let websocket_url = format!("ws://{}:{}/ws-client", ip, port);
     let config = CONFIG.clone();
     let api_client = Arc::new(Mutex::new(
-        ApiClient::new("http://127.0.0.1:8000/").expect("failed to initialize ApiClient"),
+        ApiClient::new(&base_url).expect("failed to initialize ApiClient"),
     ));
 
     println!("{:?}", config);
@@ -86,12 +91,7 @@ async fn main() {
     let api_client_clone = api_client.clone();
     let module_manager_clone = Arc::clone(&module_manager);
     let handle = tokio::spawn(async move {
-        start_websocket_client(
-            "ws://127.0.0.1:8000/ws-client",
-            api_client_clone,
-            module_manager_clone,
-        )
-        .await
+        start_websocket_client(&websocket_url, api_client_clone, module_manager_clone).await
     });
 
     handle
