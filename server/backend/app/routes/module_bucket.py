@@ -1,15 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_db
 from app.models.module import Module
 from app.models.module_bucket import ModuleBucket
 from app.schemas.general import BasicTaskResponse
-from app.schemas.module_bucket import BucketData, AllBucketsResponse, BucketInfo
-from app.services.authentication import get_current_user, verify_access_token, get_current_client
+from app.schemas.module_bucket import AllBucketsResponse, BucketData, BucketInfo
+from app.services.authentication import (
+    get_current_client,
+    get_current_user,
+    verify_access_token,
+)
 
 router = APIRouter(prefix="/module")
 
@@ -30,26 +34,24 @@ async def get_module(module_name: str, db: AsyncSession) -> Module:
         HTTPException: 400 if the module exists but has no bucket.
     """
     module = await db.execute(
-        select(Module).options(selectinload(Module.bucket)).where(Module.name == module_name)
+        select(Module)
+        .options(selectinload(Module.bucket))
+        .where(Module.name == module_name)
     )
     module = module.scalar_one_or_none()
     if not module:
-        raise HTTPException(
-            status_code=404,
-            detail="Module not found"
-        )
+        raise HTTPException(status_code=404, detail="Module not found")
 
     if not module.bucket:
-        raise HTTPException(
-            status_code=400,
-            detail="No bucket exists for module"
-        )
+        raise HTTPException(status_code=400, detail="No bucket exists for module")
 
     return module
 
 
 @router.post("/new-bucket", response_model=BasicTaskResponse)
-async def module_new_bucket(module_name: str, db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)):
+async def module_new_bucket(
+    module_name: str, db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)
+):
     """
     Create a new, empty bucket for a given module.
 
@@ -70,20 +72,16 @@ async def module_new_bucket(module_name: str, db: AsyncSession = Depends(get_db)
         HTTPException: 500 if the database operation fails.
     """
     module = await db.execute(
-        select(Module).options(selectinload(Module.bucket)).where(Module.name == module_name)
+        select(Module)
+        .options(selectinload(Module.bucket))
+        .where(Module.name == module_name)
     )
     module = module.scalar_one_or_none()
     if not module:
-        raise HTTPException(
-            status_code=404,
-            detail="Module not found"
-        )
+        raise HTTPException(status_code=404, detail="Module not found")
 
     if module.bucket:
-        raise HTTPException(
-            status_code=400,
-            detail="Bucket for module already exists"
-        )
+        raise HTTPException(status_code=400, detail="Bucket for module already exists")
 
     module.bucket = ModuleBucket()
     try:
@@ -93,13 +91,14 @@ async def module_new_bucket(module_name: str, db: AsyncSession = Depends(get_db)
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
-            status_code=500,
-            detail="Failed to add bucket to module in database"
+            status_code=500, detail="Failed to add bucket to module in database"
         )
 
 
 @router.get("/bucket", response_model=BucketData)
-async def module_get_bucket(module_name: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def module_get_bucket(
+    module_name: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)
+):
     """
     Retrieve and mark a module's bucket as consumed.
 
@@ -128,14 +127,16 @@ async def module_get_bucket(module_name: str, db: AsyncSession = Depends(get_db)
         return {"data": module.bucket.data}
     except SQLAlchemyError:
         await db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to consume bucket"
-        )
+        raise HTTPException(status_code=500, detail="Failed to consume bucket")
 
 
 @router.put("/bucket", response_model=BasicTaskResponse)
-async def module_put_bucket(module_name: str, bucket_info: BucketData, db: AsyncSession = Depends(get_db), _=Depends(get_current_client)):
+async def module_put_bucket(
+    module_name: str,
+    bucket_info: BucketData,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_client),
+):
     """
     Append data to a module's bucket, clearing its removal marker if present.
 
@@ -168,14 +169,14 @@ async def module_put_bucket(module_name: str, bucket_info: BucketData, db: Async
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
-            status_code=500,
-            detail="Failed to append to bucket in database"
+            status_code=500, detail="Failed to append to bucket in database"
         )
 
 
-
 @router.delete("/bucket", response_model=BasicTaskResponse)
-async def module_delete_bucket(module_name: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def module_delete_bucket(
+    module_name: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)
+):
     """
     Delete a module's bucket.
 
@@ -205,13 +206,14 @@ async def module_delete_bucket(module_name: str, db: AsyncSession = Depends(get_
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
-            status_code=500,
-            detail="Failed to delete bucket in database"
+            status_code=500, detail="Failed to delete bucket in database"
         )
 
 
 @router.get("/all-buckets", response_model=AllBucketsResponse)
-async def module_all_buckets(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def module_all_buckets(
+    db: AsyncSession = Depends(get_db), _=Depends(get_current_user)
+):
     """
     List all module buckets and their consumption status.
 
@@ -231,9 +233,11 @@ async def module_all_buckets(db: AsyncSession = Depends(get_db), _=Depends(get_c
     buckets = []
 
     for bucket in all_buckets:
-        buckets.append(BucketInfo(
-            name=bucket.module_name,
-            consumed=True if bucket.remove_at else False,
-            created_at=bucket.created_at,
-        ))
+        buckets.append(
+            BucketInfo(
+                name=bucket.module_name,
+                consumed=True if bucket.remove_at else False,
+                created_at=bucket.created_at,
+            )
+        )
     return {"buckets": buckets}

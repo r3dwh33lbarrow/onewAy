@@ -8,6 +8,9 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.dependencies import get_db
+from app.models.client import Client
+from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.general import BasicTaskResponse
 from app.schemas.user_generate_client import GenerateClientRequest
@@ -18,9 +21,6 @@ from app.services.client_generation import (
     move_modules,
 )
 from app.services.password import hash_password
-from app.dependencies import get_db
-from app.models.client import Client
-from app.models.refresh_token import RefreshToken
 from app.settings import settings
 
 router = APIRouter(prefix="/user", tags=["User Client"])
@@ -76,9 +76,7 @@ async def user_generate_client(
 
     try:
         full_path.mkdir()
-        generate_client_config(
-            full_path, client_info.username, client_info.password
-        )
+        generate_client_config(full_path, client_info.username, client_info.password)
         move_modules(full_path, client_info.platform, client_info.packaged_modules)
         generate_client_binary(
             full_path,

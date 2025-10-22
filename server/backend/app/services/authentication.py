@@ -370,14 +370,12 @@ async def any_valid_refresh_tokens(client_uuid: uuid.UUID, db: AsyncSession) -> 
 
         has_valid_tokens = len(valid_tokens) > 0
         logger.debug(
-            "Client %s has %d valid refresh token(s)",
-            client_uuid,
-            len(valid_tokens)
+            "Client %s has %d valid refresh token(s)", client_uuid, len(valid_tokens)
         )
         return has_valid_tokens
 
     except Exception:
-        logger.exception("Error checking valid refresh tokens for client %s", client_uuid)
+        logger.exception(
+            "Error checking valid refresh tokens for client %s", client_uuid
+        )
         return False
-
-

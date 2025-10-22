@@ -7,7 +7,16 @@ from starlette.middleware.cors import CORSMiddleware
 from app.dependencies import cleanup_db, get_db, init_db
 from app.logger import get_logger
 from app.models.client import Client
-from app.routes import client, client_auth, module, user, user_auth, websockets, module_bucket, user_generate_client
+from app.routes import (
+    client,
+    client_auth,
+    module,
+    module_bucket,
+    user,
+    user_auth,
+    user_generate_client,
+    websockets,
+)
 from app.settings import settings
 
 

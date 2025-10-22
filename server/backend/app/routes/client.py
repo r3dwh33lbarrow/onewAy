@@ -16,8 +16,11 @@ from app.models.refresh_token import RefreshToken
 from app.schemas.client import *
 from app.schemas.general import BasicTaskResponse
 from app.services.authentication import (
+    any_valid_refresh_tokens,
     get_current_client,
-    verify_access_token, get_current_user, is_client, any_valid_refresh_tokens,
+    get_current_user,
+    is_client,
+    verify_access_token,
 )
 from app.services.client_websockets import client_websocket_manager
 from app.services.password import hash_password
@@ -75,22 +78,21 @@ async def client_username(
             last_contact=result.last_contact,
             last_known_location=result.last_known_location,
             client_version=result.client_version,
-            any_valid_tokens=await any_valid_refresh_tokens(result.uuid, db)
+            any_valid_tokens=await any_valid_refresh_tokens(result.uuid, db),
         )
     logger.warning("Client lookup failed for username '%s'", username)
     raise HTTPException(status_code=404, detail="Client not found")
 
 
 @router.delete("/action/{username}", response_model=BasicTaskResponse)
-async def client_delete_username(username: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def client_delete_username(
+    username: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)
+):
     client = await db.execute(select(Client).where(Client.username == username))
     client = client.scalar_one_or_none()
 
     if not client:
-        raise HTTPException(
-            status_code=400,
-            detail="Client not found"
-        )
+        raise HTTPException(status_code=400, detail="Client not found")
 
     try:
         await db.delete(client)
@@ -98,10 +100,7 @@ async def client_delete_username(username: str, db: AsyncSession = Depends(get_d
         return {"result": "success"}
     except SQLAlchemyError as e:
         await db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Database error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.delete("/{username}/revoke-tokens", response_model=BasicTaskResponse)
@@ -137,9 +136,7 @@ async def revoke_client_refresh_tokens(
         raise HTTPException(status_code=404, detail="Client not found")
 
     if is_client(request):
-        result = await db.execute(
-            select(Client).where(Client.uuid == uuid.UUID(_))
-        )
+        result = await db.execute(select(Client).where(Client.uuid == uuid.UUID(_)))
         requesting_client = result.scalar_one_or_none()
 
         if not requesting_client or requesting_client.uuid != target_client.uuid:
@@ -150,7 +147,7 @@ async def revoke_client_refresh_tokens(
             )
             raise HTTPException(
                 status_code=403,
-                detail="Clients can only revoke their own refresh tokens"
+                detail="Clients can only revoke their own refresh tokens",
             )
 
     try:
@@ -184,10 +181,7 @@ async def revoke_client_refresh_tokens(
     except SQLAlchemyError as e:
         await db.rollback()
         logger.exception("Failed to revoke tokens for client '%s'", username)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Database error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.get("/get-all", response_model=ClientAllResponse)

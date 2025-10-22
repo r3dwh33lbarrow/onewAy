@@ -27,7 +27,7 @@ async def client_auth_enroll(
     enroll_request: ClientEnrollRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _ = Depends(get_current_user),
+    _=Depends(get_current_user),
 ):
     """
     Register a new client in the system.

@@ -50,7 +50,9 @@ def move_modules(path: Path, platform: str, module_list: list[str]) -> None:
             with config_path.open("r", encoding="utf-8") as config_file:
                 config_data = yaml.safe_load(config_file)
         except yaml.YAMLError as exc:
-            raise RuntimeError(f"Failed to parse config.yaml for module '{module}'") from exc
+            raise RuntimeError(
+                f"Failed to parse config.yaml for module '{module}'"
+            ) from exc
 
         module_destination = modules_dir / module_snake_case
         module_destination.mkdir(parents=True, exist_ok=True)
@@ -122,8 +124,12 @@ def generate_client_binary(path: Path, platform: str, ip: str, port: int) -> Non
             exc.stdout,
             exc.stderr,
         )
-        raise RuntimeError("Failed to compile client binary - check server logs") from exc
+        raise RuntimeError(
+            "Failed to compile client binary - check server logs"
+        ) from exc
 
-    binary_source = Path(settings.paths.client_dir) / "target" / "release" / f"client{extension}"
+    binary_source = (
+        Path(settings.paths.client_dir) / "target" / "release" / f"client{extension}"
+    )
     binary_destination = path / f"client{extension}"
     shutil.copy2(binary_source, binary_destination)

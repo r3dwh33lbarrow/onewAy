@@ -2,6 +2,7 @@ from typing import List, Literal
 
 from pydantic import BaseModel, Field, IPvAnyAddress
 
+
 class GenerateClientRequest(BaseModel):
     platform: Literal["windows", "mac"]
     ip_address: IPvAnyAddress

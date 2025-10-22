@@ -97,12 +97,14 @@ class Settings(BaseSettings):
         self.paths.client_dir = resolve_root(self.paths.client_dir)
         self.paths.module_dir = resolve_root(self.paths.module_dir)
         self.paths.resources_dir = resolve_root(self.paths.resources_dir)
-        
+
         # Only resolve testing paths if testing config exists
         if self.testing is not None and self.testing.paths is not None:
             self.testing.paths.client_dir = resolve_root(self.testing.paths.client_dir)
             self.testing.paths.module_dir = resolve_root(self.testing.paths.module_dir)
-            self.testing.paths.resources_dir = resolve_root(self.testing.paths.resources_dir)
+            self.testing.paths.resources_dir = resolve_root(
+                self.testing.paths.resources_dir
+            )
         return self
 
     @model_validator(mode="after")

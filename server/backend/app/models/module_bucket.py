@@ -1,8 +1,8 @@
-from datetime import datetime, UTC, timedelta
-
-from sqlalchemy import Column, UUID, DateTime, Text, String, ForeignKey
-from sqlalchemy.orm import relationship
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
+
+from sqlalchemy import UUID, Column, DateTime, ForeignKey, String, Text
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 
