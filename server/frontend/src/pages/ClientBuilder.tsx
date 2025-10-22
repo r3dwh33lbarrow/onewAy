@@ -13,6 +13,7 @@ export default function ClientBuilder() {
   const [ip, setIp] = useState("");
   const [port, setPort] = useState("");
   const [username, setUsername] = useState("");
+  const [passwordLength, setPasswordLength] = useState(13);
   const [password, setPassword] = useState(generatePassword(13));
   const [platform, setPlatform] = useState<"windows" | "mac">("windows");
   const [selectedModules, setSelectedModules] = useState<
@@ -22,6 +23,7 @@ export default function ClientBuilder() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { anyErrors, addError } = useErrorStore();
+  const passwordLengthSecure = password.length >= 12;
 
   const onSubmit = useCallback(async () => {
     if (rustInstalled === false) {
@@ -213,8 +215,40 @@ export default function ClientBuilder() {
             type="text"
             className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setPassword(value);
+              const nextLength = value.length === 0 ? 1 : Math.min(100, value.length);
+              setPasswordLength(Math.max(1, nextLength));
+            }}
           />
+
+          <p className="self-center">Password length:</p>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min={1}
+              max={100}
+              value={passwordLength}
+              className="w-1/2"
+              onChange={(event) => {
+                const length = Number(event.target.value);
+                setPasswordLength(length);
+                setPassword(generatePassword(length));
+              }}
+            />
+            <span
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                passwordLengthSecure
+                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                  : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+              }`}
+            >
+              {passwordLengthSecure
+                ? "Secure password length"
+                : "Insecure password length"}
+            </span>
+          </div>
         </div>
       </div>
 
