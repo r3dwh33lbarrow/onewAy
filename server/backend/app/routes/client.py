@@ -1,22 +1,26 @@
 import os.path
 import platform
+import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.logger import get_logger
 from app.models.client import Client
+from app.models.user import User
 from app.schemas.client import *
 from app.schemas.general import BasicTaskResponse
 from app.services.authentication import (
     get_current_client,
-    verify_access_token,
+    verify_access_token, get_current_user, is_client,
 )
 from app.settings import settings
+from app.models.refresh_token import RefreshToken
 
 router = APIRouter(prefix="/client")
 logger = get_logger()
@@ -37,8 +41,8 @@ async def client_me(client: Client = Depends(get_current_client)):
     return ClientMeResponse(username=client.username)
 
 
-@router.get("/get/{username}", response_model=ClientAllInfo)
-async def client_get_username(
+@router.get("/{username}", response_model=ClientAllInfo)
+async def client_username(
     username: str,
     db: AsyncSession = Depends(get_db),
     _=Depends(verify_access_token),
@@ -73,6 +77,108 @@ async def client_get_username(
         )
     logger.warning("Client lookup failed for username '%s'", username)
     raise HTTPException(status_code=404, detail="Client not found")
+
+
+@router.delete("/{username}", response_model=BasicTaskResponse)
+async def client_delete_username(username: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    client = await db.execute(select(Client).where(Client.username == username))
+    client = client.scalar_one_or_none()
+
+    if not client:
+        raise HTTPException(
+            status_code=400,
+            detail="Client not found"
+        )
+
+    try:
+        await db.delete(client)
+        await db.commit()
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database error: {str(e)}"
+        )
+
+
+@router.delete("/{username}/revoke-tokens", response_model=BasicTaskResponse)
+async def revoke_client_refresh_tokens(
+    username: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(verify_access_token),
+):
+    """
+    Revoke all refresh tokens for a specific client.
+
+    Users can revoke tokens for any client.
+    Clients can only revoke their own tokens.
+
+    Args:
+        username: The username of the client whose tokens should be revoked
+        request: The incoming request to determine if requester is user or client
+        db: Database session for executing queries
+        _: Current authenticated user or client
+
+    Returns:
+        Success status of the revocation operation
+
+    Raises:
+        HTTPException: 404 if client not found, 403 if client tries to revoke another client's tokens
+    """
+    result = await db.execute(select(Client).where(Client.username == username))
+    target_client = result.scalar_one_or_none()
+
+    if not target_client:
+        logger.warning("Token revocation failed: client '%s' not found", username)
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    if is_client(request):
+        result = await db.execute(
+            select(Client).where(Client.uuid == uuid.UUID(_))
+        )
+        requesting_client = result.scalar_one_or_none()
+
+        if not requesting_client or requesting_client.uuid != target_client.uuid:
+            logger.warning(
+                "Client '%s' attempted to revoke tokens for another client '%s'",
+                requesting_client.username if requesting_client else "unknown",
+                username,
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Clients can only revoke their own refresh tokens"
+            )
+
+    try:
+        result = await db.execute(
+            select(RefreshToken).where(
+                RefreshToken.client_uuid == target_client.uuid,
+                RefreshToken.revoked == False,
+            )
+        )
+        tokens = result.scalars().all()
+
+        revoked_count = 0
+        for token in tokens:
+            token.revoked = True
+            revoked_count += 1
+
+        await db.commit()
+        logger.info(
+            "Revoked %d refresh token(s) for client '%s'",
+            revoked_count,
+            username,
+        )
+        return {"result": "success"}
+
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.exception("Failed to revoke tokens for client '%s'", username)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database error: {str(e)}"
+        )
 
 
 @router.get("/all", response_model=ClientAllResponse)

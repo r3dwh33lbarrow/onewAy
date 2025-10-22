@@ -28,6 +28,7 @@ class Client(Base):
     last_contact = Column(DateTime(timezone=True))
     last_known_location = Column(String)
     client_version = Column(String, nullable=False)
+    revoked = Column(Boolean, nullable=False, default=False)
 
     client_modules = relationship(
         "ClientModule",
