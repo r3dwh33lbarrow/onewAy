@@ -8,6 +8,7 @@ import {
   Button,
 } from "flowbite-react";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { HiLockClosed, HiOutlineXCircle } from "react-icons/hi2";
 import { MdInstallDesktop } from "react-icons/md";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -31,6 +32,27 @@ export default function ClientPage() {
   >([]);
   const [showInstallModal, setShowInstallModal] = useState(false);
 
+  const onDelete = async () => {
+    const response = await apiClient.delete<BasicTaskResponse>(
+      "/client/" + username,
+    );
+    if (isApiError(response)) {
+      addError(`Failed to delete client: ${response.detail}`);
+      return;
+    }
+    navigate("/");
+  };
+
+  const onRevokeTokens = async () => {
+    const response = await apiClient.delete<BasicTaskResponse>(
+      "/client/" + username + "/revoke-tokens",
+    );
+    if (isApiError(response)) {
+      addError(`Failed to revoke tokens: ${response.detail}`);
+      return;
+    }
+  };
+
   const updateClientAliveStatus = useCallback(
     (clientUsername: string, alive: boolean) => {
       if (clientUsername === username) {
@@ -48,12 +70,24 @@ export default function ClientPage() {
     [username],
   );
 
+  const onMessage = useCallback(
+    (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "alive_update") {
+          updateClientAliveStatus(data.data.username, data.data.alive);
+        }
+      } catch (error) {
+        addError("Error parsing WebSocket message: " + error);
+      }
+    },
+    [updateClientAliveStatus, addError],
+  );
+
   useEffect(() => {
     if (!username) return;
     const fetchClientInfo = async () => {
-      const response = await apiClient.get<ClientInfo>(
-        "/client/get/" + username,
-      );
+      const response = await apiClient.get<ClientInfo>("/client/" + username);
 
       if (isApiError(response)) {
         if (response.statusCode === 404) {
@@ -95,20 +129,6 @@ export default function ClientPage() {
 
     fetchInstalledModules();
   }, [navigate, username, addError]);
-
-  const onMessage = useCallback(
-    (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === "alive_update") {
-          updateClientAliveStatus(data.data.username, data.data.alive);
-        }
-      } catch (error) {
-        addError("Error parsing WebSocket message: " + error);
-      }
-    },
-    [updateClientAliveStatus, addError],
-  );
 
   useEffect(() => {
     apiClient.startWebSocket(socketRef, onMessage);
@@ -334,6 +354,22 @@ export default function ClientPage() {
           onClose={() => setShowInstallModal(false)}
           onInstall={handleInstallModule}
         />
+
+        <div className="flex justify-end mr-6 gap-3">
+          <Button
+            pill
+            color="indigo"
+            className="gap-1"
+            onClick={onRevokeTokens}
+          >
+            <HiLockClosed className="h-5 w-5" />
+            Revoke Client Tokens
+          </Button>
+          <Button pill color="indigo" className="gap-1" onClick={onDelete}>
+            <HiOutlineXCircle className="h-5 w-5" />
+            Delete Client
+          </Button>
+        </div>
       </div>
     </MainSkeleton>
   );
