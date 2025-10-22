@@ -25,6 +25,20 @@ from app.settings import settings
 router = APIRouter(prefix="/user", tags=["User Client"])
 
 
+def _safe_rmtree(path: Path) -> None:
+    shutil.rmtree(path, ignore_errors=True)
+
+
+def _safe_unlink(path: Path) -> None:
+    try:
+        path.unlink(missing_ok=True)
+    except AttributeError:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+
+
 @router.get("/verify-rust", response_model=BasicTaskResponse)
 async def user_verify_rust(_=Depends(get_current_user)):
     for command in (("rustc", "--version"), ("cargo", "--version")):
@@ -39,20 +53,6 @@ async def user_verify_rust(_=Depends(get_current_user)):
             return {"result": "failed"}
 
     return {"result": "success"}
-
-
-def _safe_rmtree(path: Path) -> None:
-    shutil.rmtree(path, ignore_errors=True)
-
-
-def _safe_unlink(path: Path) -> None:
-    try:
-        path.unlink(missing_ok=True)
-    except AttributeError:
-        try:
-            path.unlink()
-        except FileNotFoundError:
-            pass
 
 
 @router.post("/generate-client")
@@ -82,7 +82,7 @@ async def user_generate_client(
         generate_client_config(
             full_path, client_info.username, client_info.password
         )
-        move_modules(full_path, client_info.packaged_modules)
+        move_modules(full_path, client_info.platform, client_info.packaged_modules)
         generate_client_binary(
             full_path,
             client_info.platform,
@@ -96,7 +96,6 @@ async def user_generate_client(
         new_client = Client(
             username=client_info.username,
             hashed_password=hash_password(client_info.password),
-            ip_address="0.0.0.0",
             client_version=settings.app.client_version,
         )
 

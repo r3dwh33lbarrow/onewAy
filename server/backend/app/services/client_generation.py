@@ -1,9 +1,11 @@
+import json
 import os
 import shutil
 import subprocess
 from pathlib import Path
 
 import tomli_w
+import yaml
 
 from app.logger import get_logger
 from app.settings import settings
@@ -29,7 +31,7 @@ def generate_client_config(path: Path, username: str, password: str) -> None:
         tomli_w.dump(data, file)
 
 
-def move_modules(path: Path, module_list: list[str]) -> None:
+def move_modules(path: Path, platform: str, module_list: list[str]) -> None:
     modules_dir = path / "modules"
     modules_dir.mkdir(parents=True, exist_ok=True)
 
@@ -40,12 +42,61 @@ def move_modules(path: Path, module_list: list[str]) -> None:
         if not module_source.is_dir():
             raise RuntimeError("Not a valid module path")
 
-        if not (module_source / "config.yaml").is_file():
+        config_path = module_source / "config.yaml"
+        if not config_path.is_file():
             raise RuntimeError("Module directory does not contain config.yaml")
 
-        shutil.copytree(
-            module_source, modules_dir / module_snake_case, dirs_exist_ok=True
-        )
+        try:
+            with config_path.open("r", encoding="utf-8") as config_file:
+                config_data = yaml.safe_load(config_file)
+        except yaml.YAMLError as exc:
+            raise RuntimeError(f"Failed to parse config.yaml for module '{module}'") from exc
+
+        module_destination = modules_dir / module_snake_case
+        module_destination.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(config_path, module_destination / "config.yaml")
+
+        binaries = config_data.get("binaries", {})
+        if isinstance(binaries, str):
+            try:
+                binaries = json.loads(binaries)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(
+                    f"Module '{module}' contains an invalid binaries definition"
+                ) from exc
+
+        if not isinstance(binaries, dict):
+            raise RuntimeError(
+                f"Module '{module}' binaries must be defined as a mapping"
+            )
+
+        binary_entry = binaries.get(platform)
+        if not binary_entry:
+            raise RuntimeError(
+                f"Module '{module}' does not provide a binary for platform '{platform}'"
+            )
+
+        binary_path = Path(binary_entry)
+        if binary_path.is_absolute():
+            raise RuntimeError(
+                f"Module '{module}' binary path must be relative for packaging"
+            )
+
+        binary_source = (module_source / binary_path).resolve()
+        if not binary_source.exists() or not binary_source.is_file():
+            raise RuntimeError(
+                f"Binary '{binary_entry}' for module '{module}' does not exist"
+            )
+
+        # Prevent escaping the module directory via paths like ../
+        if module_source not in binary_source.parents:
+            raise RuntimeError(
+                f"Binary '{binary_entry}' for module '{module}' must reside within the module directory"
+            )
+
+        binary_destination = module_destination / binary_path
+        binary_destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(binary_source, binary_destination)
 
 
 def generate_client_binary(path: Path, platform: str, ip: str, port: int) -> None:
