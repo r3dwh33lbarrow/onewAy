@@ -101,7 +101,7 @@ jwt_audience = "onewAy-api"
 [paths]
 client_dir = "[ROOT]/client"
 module_dir = "[ROOT]/modules"
-avatar_dir = "[ROOT]/server/backend/app/resources/avatars"
+resources_dir = "[ROOT]/server/backend/app/resources"
 
 [other]
 max_avatar_size_mb = 2

@@ -32,7 +32,7 @@ Sections you will see in this file:
 - **`[paths]`**
   - **`client_dir`**: Location of the Rust client source (used by the backend for some tasks).
   - **`module_dir`**: Where the backend looks for modules (your `modules/` directory).
-  - **`avatar_dir`**: Where user avatars are stored.
+  - **`resources_dir`**: Base directory for backend-managed resources (avatars, generated clients, etc.).
 
 - **`[other]`**
   - **`max_avatar_size_mb`**: Upload size limit for avatars.
@@ -68,11 +68,10 @@ jwt_audience = "onewAy-api"
 [paths]
 client_dir = "[ROOT]/client"
 module_dir = "[ROOT]/modules"
-avatar_dir = "[ROOT]/server/backend/app/resources/avatars"
+resources_dir = "[ROOT]/server/backend/app/resources"
 
 [other]
 max_avatar_size_mb = 2
 ```
 
 See `server/backend/app/settings.py` for the exact shape and validation rules applied at startup.
-

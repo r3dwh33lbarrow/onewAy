@@ -121,12 +121,12 @@ async def user_get_avatar(user: User = Depends(get_current_user)):
         Returns user's custom avatar if set, otherwise returns default avatar
     """
     if user.avatar_path:
-        file_path = Path(settings.paths.avatar_dir) / user.avatar_path
+        file_path = Path(settings.paths.resources_dir) / "avatars" / user.avatar_path
         if os.path.exists(file_path):
             logger.debug("Serving avatar for user '%s'", user.username)
             return FileResponse(file_path, media_type="image/png")
 
-    default_path = Path(settings.paths.avatar_dir) / "default_avatar.png"
+    default_path = Path(settings.paths.resources_dir) / "avatars" / "default_avatar.png"
     if not os.path.exists(default_path):
         logger.error("Default avatar missing at %s", default_path)
         raise HTTPException(
@@ -192,7 +192,7 @@ async def user_put_avatar(
     avatar_path = f"{user.uuid}.png"
     try:
         async with aiofiles.open(
-            Path(settings.paths.avatar_dir) / avatar_path, "wb"
+            Path(settings.paths.resources_dir) / "avatars" / avatar_path, "wb"
         ) as f:
             await f.write(contents)
     except Exception as e:

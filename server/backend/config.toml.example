@@ -37,11 +37,12 @@ refresh_token_expires_days = 7
 [testing.paths]
 client_dir = "[ROOT]/client"
 module_dir = "[ROOT]/server/backend/tests/modules"
-avatar_dir = "[ROOT]/server/backend/tests/resources/avatars"
+resources_dir = "[ROOT]/server/backend/tests/resources"
 
 [paths]
 client_dir = "[ROOT]/client"
 module_dir = "[ROOT]/modules"
+resources_dir = "[ROOT]/server/backend/app/resources"
 
 [other]
 max_avatar_size_mb = 2

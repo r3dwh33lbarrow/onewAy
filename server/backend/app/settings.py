@@ -60,7 +60,7 @@ class TestingSecuritySettings(BaseSettings):
 class TestingPathsSettings(BaseSettings):
     client_dir: str = Field("[ROOT]/client")
     module_dir: str = Field("[ROOT]/server/backend/tests/modules")
-    avatar_dir: str = Field("[ROOT]/server/backend/tests/resources/avatars")
+    resources_dir: str = Field("[ROOT]/server/backend/tests/resources")
 
 
 class TestingSettings(BaseSettings):
@@ -73,7 +73,7 @@ class TestingSettings(BaseSettings):
 class PathSettings(BaseSettings):
     client_dir: str = Field("[ROOT]/client")
     module_dir: str = Field("[ROOT]/modules")
-    avatar_dir: str = Field("[ROOT]/server/backend/app/resources/avatars")
+    resources_dir: str = Field("[ROOT]/server/backend/app/resources")
 
 
 class OtherSettings(BaseSettings):
@@ -96,13 +96,13 @@ class Settings(BaseSettings):
         """Resolve [ROOT] placeholders in path settings to actual paths."""
         self.paths.client_dir = resolve_root(self.paths.client_dir)
         self.paths.module_dir = resolve_root(self.paths.module_dir)
-        self.paths.avatar_dir = resolve_root(self.paths.avatar_dir)
+        self.paths.resources_dir = resolve_root(self.paths.resources_dir)
         
         # Only resolve testing paths if testing config exists
         if self.testing is not None and self.testing.paths is not None:
             self.testing.paths.client_dir = resolve_root(self.testing.paths.client_dir)
             self.testing.paths.module_dir = resolve_root(self.testing.paths.module_dir)
-            self.testing.paths.avatar_dir = resolve_root(self.testing.paths.avatar_dir)
+            self.testing.paths.resources_dir = resolve_root(self.testing.paths.resources_dir)
         return self
 
     @model_validator(mode="after")
@@ -153,7 +153,7 @@ class Settings(BaseSettings):
             if self.testing.paths is not None:
                 self.paths.client_dir = self.testing.paths.client_dir
                 self.paths.module_dir = self.testing.paths.module_dir
-                self.paths.avatar_dir = self.testing.paths.avatar_dir
+                self.paths.resources_dir = self.testing.paths.resources_dir
         return self
 
 

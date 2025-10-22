@@ -115,7 +115,7 @@ def copy_and_restore_module_dir():
 
 @pytest.fixture(scope="session", autouse=True)
 def copy_and_restore_avatar_dir():
-    avatar_dir = Path(settings.paths.avatar_dir)
+    avatar_dir = Path(settings.paths.resources_dir) / "avatars"
     backup_dir = Path(str(avatar_dir) + BACKUP_SUFFIX)
 
     if backup_dir.exists():
