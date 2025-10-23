@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, IPvAnyAddress
 
 
 class GenerateClientRequest(BaseModel):
-    platform: Literal["windows", "mac"]
+    platform: Literal["windows", "mac", "linux"]
     ip_address: IPvAnyAddress
     port: int = Field(..., ge=1, le=65535)
     username: str = Field(..., min_length=1)

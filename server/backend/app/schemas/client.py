@@ -11,6 +11,7 @@ class BasicClientInfo(BaseModel):
     hostname: str | None = None
     alive: bool
     last_contact: datetime | None = None
+    platform: str | None = None
 
 
 class ClientAllResponse(BaseModel):
@@ -21,6 +22,7 @@ class ClientUpdateInfo(BaseModel):
     ip_address: IPvAnyAddress | None = None
     hostname: str | None = None
     client_version: str | None = None
+    platform: str | None = None
 
 
 class ClientAllInfo(BasicClientInfo):

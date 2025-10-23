@@ -95,6 +95,7 @@ async def user_generate_client(
             existing_client.client_version = settings.app.client_version
             existing_client.revoked = False
             existing_client.alive = False
+            existing_client.platform = client_info.platform
             existing_client.ip_address = None
             existing_client.last_contact = None
             existing_client.hostname = None
@@ -109,6 +110,7 @@ async def user_generate_client(
                 username=client_info.username,
                 hashed_password=hashed_password_value,
                 client_version=settings.app.client_version,
+                platform=client_info.platform,
             )
             db.add(new_client)
         await db.commit()

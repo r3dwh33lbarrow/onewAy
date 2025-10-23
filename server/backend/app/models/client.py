@@ -24,6 +24,7 @@ class Client(Base):
     hashed_password = Column(String, nullable=False)
     ip_address = Column(INET, nullable=True)
     hostname = Column(String)
+    platform = Column(String)
     alive = Column(Boolean, nullable=False, default=False)
     last_contact = Column(DateTime(timezone=True))
     last_known_location = Column(String)

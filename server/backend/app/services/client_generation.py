@@ -116,7 +116,7 @@ def move_modules(path: Path, platform: str, module_list: list[str]) -> None:
 def generate_client_binary(path: Path, platform: str, ip: str, port: int) -> None:
     if platform == "windows":
         extension = ".exe"
-    elif platform == "mac":
+    elif platform in {"mac", "linux"}:
         extension = ""
     else:
         raise RuntimeError("Incompatible platform")

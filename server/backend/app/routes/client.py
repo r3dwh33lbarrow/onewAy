@@ -77,6 +77,7 @@ async def client_username(
             alive=result.alive,
             last_contact=result.last_contact,
             client_version=result.client_version,
+             platform=result.platform,
             any_valid_tokens=await any_valid_refresh_tokens(result.uuid, db),
         )
     logger.warning("Client lookup failed for username '%s'", username)
@@ -211,6 +212,7 @@ async def client_all(
             hostname=client.hostname,
             alive=client.alive,
             last_contact=client.last_contact,
+            platform=client.platform,
         )
         client_list.append(client_info)
 
@@ -281,11 +283,21 @@ async def client_update_info(
     """
     client_username = client.username
 
+    update_payload = update_info.model_dump(exclude_unset=True)
     update_data = {
         field: value
-        for field, value in update_info.model_dump(exclude_unset=True).items()
+        for field, value in update_payload.items()
         if value is not None
     }
+
+    if "platform" in update_data:
+        platform_value = str(update_data["platform"]).lower()
+        if platform_value not in {"windows", "mac", "linux"}:
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported platform. Allowed values: windows, mac, linux.",
+            )
+        update_data["platform"] = platform_value
 
     for field, value in update_data.items():
         setattr(client, field, value)
