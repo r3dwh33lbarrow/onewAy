@@ -9,7 +9,7 @@ log() {
 REPO_URL=${REPO_URL:-https://github.com/r3dwh33lbarrow/onewAy.git}
 REPO_REF=${REPO_REF:-main}
 PROJECT_DIR=${PROJECT_DIR:-/workspace/oneway}
-POSTGRES_HOST=${POSTGRES_HOST:-db}
+POSTGRES_HOST=${POSTGRES_HOST:-oneway-db}
 POSTGRES_PORT=${POSTGRES_PORT:-5432}
 POSTGRES_DB=${POSTGRES_DB:-oneway}
 POSTGRES_USER=${POSTGRES_USER:-onewayuser}

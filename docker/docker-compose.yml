@@ -3,10 +3,10 @@ x-default-env: &default-env
   POSTGRES_USER: ${POSTGRES_USER:-onewayuser}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
   POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-  POSTGRES_HOST: db
+  POSTGRES_HOST: oneway-db
 
 services:
-  app:
+  oneway-app:
     build:
       context: ..
       dockerfile: docker/dev.Dockerfile
@@ -23,17 +23,17 @@ services:
       SECURITY_SECRET_KEY: ${SECURITY_SECRET_KEY:-}
       PYTHONPATH: /workspace/oneway/server/backend
     depends_on:
-      db:
+      oneway-db:
         condition: service_healthy
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
-      - app-data:/workspace
+      - oneway-app-data:/workspace
       - ~/.ssh:/root/.ssh:ro
     restart: unless-stopped
 
-  db:
+  oneway-db:
     image: postgres:15
     environment:
       <<: *default-env
@@ -46,12 +46,12 @@ services:
       retries: 10
       start_period: 30s
     volumes:
-      - pg-data:/var/lib/postgresql/data
+      - oneway-pg-data:/var/lib/postgresql/data
     restart: unless-stopped
 
 volumes:
-  app-data:
-  pg-data:
+  oneway-app-data:
+  oneway-pg-data:
 
 networks:
   default:
