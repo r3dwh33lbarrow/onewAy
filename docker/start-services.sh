@@ -13,28 +13,66 @@ POSTGRES_HOST=${POSTGRES_HOST:-db}
 POSTGRES_PORT=${POSTGRES_PORT:-5432}
 POSTGRES_DB=${POSTGRES_DB:-oneway}
 POSTGRES_USER=${POSTGRES_USER:-onewayuser}
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-onewaypass}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
 BACKEND_PORT=${BACKEND_PORT:-8000}
 FRONTEND_PORT=${FRONTEND_PORT:-5173}
 CLIENT_VERSION=${CLIENT_VERSION:-0.1.0}
-SECURITY_SECRET_KEY=${SECURITY_SECRET_KEY:-dev-secret}
+SECURITY_SECRET_KEY=${SECURITY_SECRET_KEY:-}
 
 # --- Prompt interactively for sensitive secrets ---
+generate_secret() {
+    python - <<'PY'
+import secrets, string
+
+alphabet = string.ascii_letters + string.digits + "!@#$%^&*()-_=+[]{}"
+print("".join(secrets.choice(alphabet) for _ in range(32)))
+PY
+}
+
+generate_password() {
+    python - <<'PY'
+import secrets, string
+
+alphabet = string.ascii_letters + string.digits + "!@#$%^&*()-_=+[]{}"
+print("".join(secrets.choice(alphabet) for _ in range(24)))
+PY
+}
+
 if [ -t 0 ]; then
     echo ""
-    read -rp "Enter PostgreSQL password [default: ${POSTGRES_PASSWORD}]: " input_pw
-    if [[ -n "${input_pw}" ]]; then
-        POSTGRES_PASSWORD="${input_pw}"
-    fi
+    while [[ -z "${POSTGRES_PASSWORD}" ]]; do
+        read -rsp "Enter PostgreSQL password (leave blank to auto-generate): " input_pw
+        echo ""
+        if [[ -n "${input_pw}" ]]; then
+            POSTGRES_PASSWORD="${input_pw}"
+        else
+            POSTGRES_PASSWORD="$(generate_password)"
+            echo "Generated PostgreSQL password."
+        fi
+    done
     export POSTGRES_PASSWORD
 
-    read -rp "Enter SECURITY_SECRET_KEY [default: ${SECURITY_SECRET_KEY}]: " input_sk
-    if [[ -n "${input_sk}" ]]; then
-        SECURITY_SECRET_KEY="${input_sk}"
-    fi
+    while [[ -z "${SECURITY_SECRET_KEY}" ]]; do
+        read -rsp "Enter SECURITY_SECRET_KEY (leave blank to auto-generate): " input_sk
+        echo ""
+        if [[ -n "${input_sk}" ]]; then
+            SECURITY_SECRET_KEY="${input_sk}"
+        else
+            SECURITY_SECRET_KEY="$(generate_secret)"
+            echo "Generated SECURITY_SECRET_KEY."
+        fi
+    done
     export SECURITY_SECRET_KEY
 else
-    log "Non-interactive mode detected, using default secrets"
+    if [[ -z "${POSTGRES_PASSWORD}" ]]; then
+        POSTGRES_PASSWORD="$(generate_password)"
+        log "Auto-generated PostgreSQL password for non-interactive session."
+    fi
+    if [[ -z "${SECURITY_SECRET_KEY}" ]]; then
+        SECURITY_SECRET_KEY="$(generate_secret)"
+        log "Auto-generated SECURITY_SECRET_KEY for non-interactive session."
+    fi
+    export POSTGRES_PASSWORD SECURITY_SECRET_KEY
 fi
 
 mkdir -p "${PROJECT_DIR}"

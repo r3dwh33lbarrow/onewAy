@@ -1,7 +1,7 @@
 x-default-env: &default-env
   POSTGRES_DB: ${POSTGRES_DB:-oneway}
   POSTGRES_USER: ${POSTGRES_USER:-onewayuser}
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onewaypass}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
   POSTGRES_PORT: ${POSTGRES_PORT:-5432}
   POSTGRES_HOST: db
 
@@ -10,6 +10,8 @@ services:
     build:
       context: ../..
       dockerfile: ops/docker/dev.Dockerfile
+    stdin_open: true
+    tty: true
     environment:
       <<: *default-env
       REPO_URL: ${REPO_URL:-https://github.com/r3dwh33lbarrow/onewAy.git}
@@ -18,7 +20,7 @@ services:
       BACKEND_PORT: ${BACKEND_PORT:-8000}
       FRONTEND_PORT: ${FRONTEND_PORT:-5173}
       CLIENT_VERSION: ${CLIENT_VERSION:-0.1.0}
-      SECURITY_SECRET_KEY: ${SECURITY_SECRET_KEY:-dev-secret}
+      SECURITY_SECRET_KEY: ${SECURITY_SECRET_KEY:-}
       PYTHONPATH: /workspace/oneway/server/backend
     depends_on:
       db:

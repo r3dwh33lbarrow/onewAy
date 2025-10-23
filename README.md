@@ -44,6 +44,17 @@ git clone https://github.com/r3dwh33lbarrow/onewAy.git
 cd onewAy
 ```
 
+### Docker one-step environment
+
+Launch the full stack (PostgreSQL, backend, frontend) with Docker Compose:
+
+```bash
+cd ops/docker
+docker compose up --build
+```
+
+During startup the container prompts you for the PostgreSQL password and the JWT `SECURITY_SECRET_KEY`. Press Enter to auto-generate strong random values or provide your own secrets. In non-interactive environments you can pre-set `POSTGRES_PASSWORD` and `SECURITY_SECRET_KEY` in your shell.
+
 ### Backend (FastAPI)
 
 ```bash
