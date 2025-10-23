@@ -76,3 +76,4 @@ docker-compose.override.yml
 **/SECRET
 **/config.toml
 client/config.toml
+server/backend/app/resources
