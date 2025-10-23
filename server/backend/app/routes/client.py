@@ -175,6 +175,9 @@ async def revoke_client_refresh_tokens(
         )
 
         await client_websocket_manager.disconnect_all(str(target_client.uuid))
+        await client_websocket_manager.broadcast_client_alive_status(
+            target_client.username, alive=False
+        )
         return {"result": "success"}
 
     except SQLAlchemyError as e:
@@ -276,6 +279,8 @@ async def client_update_info(
     Raises:
         HTTPException: 500 if database update fails
     """
+    client_username = client.username
+
     update_data = {
         field: value
         for field, value in update_info.model_dump(exclude_unset=True).items()
@@ -288,12 +293,12 @@ async def client_update_info(
     try:
         await db.commit()
         await db.refresh(client)
-        logger.info("Client '%s' updated info", client.username)
-        logger.debug("Client '%s' update payload: %s", client.username, update_data)
+        logger.info("Client '%s' updated info", client_username)
+        logger.debug("Client '%s' update payload: %s", client_username, update_data)
         return {"result": "success"}
     except Exception:
         await db.rollback()
-        logger.exception("Failed to persist update for client '%s'", client.username)
+        logger.exception("Failed to persist update for client '%s'", client_username)
         raise HTTPException(
             status_code=500, detail="Failed to add updated information to the database"
         )

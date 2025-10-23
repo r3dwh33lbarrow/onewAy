@@ -1,4 +1,6 @@
+import asyncio
 import json
+from datetime import UTC, datetime
 
 from fastapi import (
     APIRouter,
@@ -26,8 +28,25 @@ from app.services.authentication import (
 from app.services.client_websockets import client_websocket_manager
 from app.services.user_websockets import user_websocket_manager
 
+CLIENT_WEBSOCKET_HEARTBEAT_SECONDS = 60
+CLIENT_WEBSOCKET_PONG_TIMEOUT_SECONDS = 10
+
 router = APIRouter()
 logger = get_logger()
+
+
+async def _update_client_alive_status(
+    db: AsyncSession, client: Client, *, alive: bool
+) -> None:
+    client.alive = alive
+    client.last_contact = datetime.now(UTC)
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception(
+            "Failed to update alive status for client '%s'", client.username
+        )
 
 
 @router.websocket("/ws-user")
@@ -236,13 +255,47 @@ async def websocket_client(
             return
 
         await client_websocket_manager.connect(websocket, client_uuid)
+        await _update_client_alive_status(db, client, alive=True)
         await client_websocket_manager.broadcast_client_alive_status(
             client.username, alive=True
         )
 
         try:
             while True:
-                data = await websocket.receive_text()
+                try:
+                    data = await asyncio.wait_for(
+                        websocket.receive_text(),
+                        timeout=CLIENT_WEBSOCKET_HEARTBEAT_SECONDS,
+                    )
+                except asyncio.TimeoutError:
+                    logger.debug(
+                        "Heartbeat timeout waiting for activity; sending ping to %s",
+                        client_uuid,
+                    )
+                    try:
+                        await websocket.send_text(json.dumps({"type": "ping"}))
+                    except Exception:
+                        logger.warning(
+                            "Failed to send heartbeat ping to client %s",
+                            client_uuid,
+                        )
+                        await _update_client_alive_status(db, client, alive=False)
+                        await websocket.close(code=1011, reason="Heartbeat timeout")
+                        break
+
+                    try:
+                        data = await asyncio.wait_for(
+                            websocket.receive_text(),
+                            timeout=CLIENT_WEBSOCKET_PONG_TIMEOUT_SECONDS,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            "Client websocket timeout waiting for pong: %s",
+                            client_uuid,
+                        )
+                        await _update_client_alive_status(db, client, alive=False)
+                        await websocket.close(code=1011, reason="Heartbeat timeout")
+                        break
                 message = json.loads(data)
                 if message.get("type") == "ping":
                     await websocket.send_text(json.dumps({"type": "pong"}))
@@ -250,6 +303,9 @@ async def websocket_client(
 
                 # Expect new message schema from clients
                 msg_type = message.get("type")
+                if msg_type == "pong":
+                    logger.debug("Received pong from client %s", client_uuid)
+                    continue
                 if msg_type == "console_output":
                     logger.debug(
                         "Module output from client '%s' for module '%s'",
@@ -347,6 +403,8 @@ async def websocket_client(
         finally:
             await client_websocket_manager.disconnect(websocket, client_uuid)
             if client:
+                if client.alive:
+                    await _update_client_alive_status(db, client, alive=False)
                 await client_websocket_manager.broadcast_client_alive_status(
                     client.username, alive=False
                 )
