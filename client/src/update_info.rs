@@ -1,6 +1,6 @@
-use crate::schemas::update_info::ClientUpdateInfo;
 use crate::schemas::BasicTaskResponse;
-use crate::{error, ApiClient};
+use crate::schemas::update_info::ClientUpdateInfo;
+use crate::{ApiClient, error};
 use hostname::get;
 use std::sync::Arc;
 use tokio::sync::Mutex;
