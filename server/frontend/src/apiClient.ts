@@ -101,6 +101,29 @@ class ApiClient {
     useAuthStore.getState().clearUser();
   }
 
+  private async refreshAccessToken(): Promise<boolean> {
+    if (!this.apiUrl) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${this.apiUrl}/user/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      // Successful refresh returns 200 with no payload.
+      return true;
+    } catch (error) {
+      console.error("Refresh token request failed:", error);
+      return false;
+    }
+  }
+
   private async handleErrorResponse(response: Response): Promise<ApiError> {
     if (response.status === 401) {
       this.handleUnauthorized();
@@ -140,14 +163,24 @@ class ApiClient {
     try {
       const url = `${this.apiUrl}${endpoint}`;
 
-      const response = await fetch(url, {
-        headers: {
-          ...(options.body && { "Content-Type": "application/json" }),
-          ...options.headers,
-        },
-        credentials: "include",
-        ...options,
-      });
+      const performFetch = () =>
+        fetch(url, {
+          headers: {
+            ...(options.body && { "Content-Type": "application/json" }),
+            ...options.headers,
+          },
+          credentials: "include",
+          ...options,
+        });
+
+      let response = await performFetch();
+
+      if (response.status === 401) {
+        const refreshed = await this.refreshAccessToken();
+        if (refreshed) {
+          response = await performFetch();
+        }
+      }
 
       if (!response.ok) {
         return await this.handleErrorResponse(response);
@@ -204,13 +237,23 @@ class ApiClient {
 
     try {
       const url = `${this.apiUrl}${endpoint}`;
-      const response = await fetch(url, {
-        headers: {
-          ...options.headers,
-        },
-        credentials: "include",
-        ...options,
-      });
+      const performFetch = () =>
+        fetch(url, {
+          headers: {
+            ...options.headers,
+          },
+          credentials: "include",
+          ...options,
+        });
+
+      let response = await performFetch();
+
+      if (response.status === 401) {
+        const refreshed = await this.refreshAccessToken();
+        if (refreshed) {
+          response = await performFetch();
+        }
+      }
 
       if (!response.ok) {
         return await this.handleErrorResponse(response);
