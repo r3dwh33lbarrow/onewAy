@@ -1,6 +1,8 @@
 import type { RefObject } from "react";
 
 import type { TokenResponse } from "./schemas/authentication.ts";
+import { useAuthStore } from "./stores/authStore.ts";
+import { useRedirectReasonStore } from "./stores/redirectReasonStore.ts";
 
 export interface ApiError {
   statusCode: number;
@@ -80,15 +82,59 @@ class ApiClient {
     return this.apiUrl;
   }
 
+  private handleApiUrlNotConfigured(): ApiError {
+    useRedirectReasonStore
+      .getState()
+      .setReason("API URL not configured. Please configure your API URL.");
+    useAuthStore.getState().clearUser();
+
+    return {
+      statusCode: -1,
+      message: "API URL not configured. Please set a valid API URL first.",
+    };
+  }
+
+  private handleUnauthorized(): void {
+    useRedirectReasonStore
+      .getState()
+      .setReason("Your session has expired. Please log in again.");
+    useAuthStore.getState().clearUser();
+  }
+
+  private async handleErrorResponse(response: Response): Promise<ApiError> {
+    if (response.status === 401) {
+      this.handleUnauthorized();
+    }
+
+    try {
+      const errorData = await response.json();
+      return {
+        statusCode: response.status,
+        message: response.statusText || `HTTP ${response.status} error`,
+        detail: errorData.detail || undefined,
+      };
+    } catch {
+      return {
+        statusCode: response.status,
+        message: response.statusText || `HTTP ${response.status} error`,
+      };
+    }
+  }
+
+  private createErrorFromException(error: unknown): ApiError {
+    return {
+      statusCode: -1,
+      message:
+        error instanceof Error ? error.message : "Unknown error occurred",
+    };
+  }
+
   protected async request<T>(
     endpoint: string,
     options: RequestInit = {},
   ): Promise<T | ApiError> {
     if (!this.apiUrl) {
-      return {
-        statusCode: -1,
-        message: "API URL not configured. Please set a valid API URL first.",
-      };
+      return this.handleApiUrlNotConfigured();
     }
 
     try {
@@ -104,19 +150,7 @@ class ApiClient {
       });
 
       if (!response.ok) {
-        try {
-          const errorData = await response.json();
-          return {
-            statusCode: response.status,
-            message: response.statusText || `HTTP ${response.status} error`,
-            detail: errorData.detail || undefined,
-          };
-        } catch {
-          return {
-            statusCode: response.status,
-            message: response.statusText || `HTTP ${response.status} error`,
-          };
-        }
+        return await this.handleErrorResponse(response);
       }
 
       const contentLength = response.headers.get("content-length");
@@ -128,11 +162,7 @@ class ApiClient {
 
       return (await response.json()) as T;
     } catch (error) {
-      return {
-        statusCode: -1,
-        message:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return this.createErrorFromException(error);
     }
   }
 
@@ -169,10 +199,7 @@ class ApiClient {
     options: RequestInit = {},
   ): Promise<ArrayBuffer | ApiError> {
     if (!this.apiUrl) {
-      return {
-        statusCode: -1,
-        message: "API URL not configured. Please set a valid API URL first.",
-      };
+      return this.handleApiUrlNotConfigured();
     }
 
     try {
@@ -186,28 +213,12 @@ class ApiClient {
       });
 
       if (!response.ok) {
-        try {
-          const errorData = await response.json();
-          return {
-            statusCode: response.status,
-            message: response.statusText || `HTTP ${response.status} error`,
-            detail: errorData.detail || undefined,
-          };
-        } catch {
-          return {
-            statusCode: response.status,
-            message: response.statusText || `HTTP ${response.status} error`,
-          };
-        }
+        return await this.handleErrorResponse(response);
       }
 
       return await response.arrayBuffer();
     } catch (error) {
-      return {
-        statusCode: -1,
-        message:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return this.createErrorFromException(error);
     }
   }
 
@@ -228,11 +239,7 @@ class ApiClient {
         credentials: "include",
       });
     } catch (error) {
-      return {
-        statusCode: -1,
-        message:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return this.createErrorFromException(error);
     }
   }
 
@@ -241,11 +248,7 @@ class ApiClient {
       try {
         listener(event);
       } catch (error) {
-        return {
-          statusCode: -1,
-          message:
-            error instanceof Error ? error.message : "Unknown error occurred",
-        };
+        return this.createErrorFromException(error);
       }
     });
   }
@@ -327,11 +330,7 @@ class ApiClient {
       });
     } catch (error) {
       this.userSocketConnecting = false;
-      onError?.({
-        statusCode: -1,
-        message:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      });
+      onError?.(this.createErrorFromException(error));
     }
   }
 

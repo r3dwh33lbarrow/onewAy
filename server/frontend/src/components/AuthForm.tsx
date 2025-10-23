@@ -1,6 +1,6 @@
 import { Alert, Button, Label, TextInput } from "flowbite-react";
-import React, { useState } from "react";
-import { HiMiniExclamationCircle } from "react-icons/hi2";
+import React, { useState, useEffect } from "react";
+import { HiMiniExclamationCircle, HiInformationCircle } from "react-icons/hi2";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { apiClient, type ApiError, isApiError } from "../apiClient";
@@ -8,6 +8,7 @@ import ApiUrlInput from "./ApiUrlInput";
 import type { AuthRequest } from "../schemas/authentication.ts";
 import type { BasicTaskResponse } from "../schemas/general.ts";
 import { useAuthStore } from "../stores/authStore";
+import { useRedirectReasonStore } from "../stores/redirectReasonStore";
 
 interface AuthFormProps {
   title: string;
@@ -34,7 +35,6 @@ export default function AuthForm({
   const [apiUrl, setApiUrl] = useState(
     apiClient.getApiUrl() ?? "http://localhost:8000/",
   );
-  // Still use legacy error handling for auth pages
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: "",
@@ -42,6 +42,22 @@ export default function AuthForm({
   });
 
   const setUser = useAuthStore((state) => state.setUser);
+  const redirectReason = useRedirectReasonStore((state) => state.reason);
+  const clearRedirectReason = useRedirectReasonStore(
+    (state) => state.clearReason,
+  );
+
+  // Display redirect reason and clear it
+  useEffect(() => {
+    if (redirectReason) {
+      // Clear the reason after a delay to allow user to see it
+      const timer = setTimeout(() => {
+        clearRedirectReason();
+      }, 10000); // Clear after 10 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [redirectReason, clearRedirectReason]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -76,6 +92,16 @@ export default function AuthForm({
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
       <div className="fixed top-4 left-1/2 transform -translate-x-1/2 w-3/4 px-4 z-50">
+        {redirectReason && (
+          <Alert
+            icon={HiInformationCircle}
+            color="warning"
+            className="mb-4 w-full"
+            onDismiss={clearRedirectReason}
+          >
+            <span>{redirectReason}</span>
+          </Alert>
+        )}
         {error && (
           <Alert
             icon={HiMiniExclamationCircle}
