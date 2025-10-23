@@ -1,93 +1,93 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="logos/onewAy_logo_dark.png">
   <source media="(prefers-color-scheme: light)" srcset="logos/onewAy_logo_light.png">
-  <img alt="onewAy logo" src="logos/onewAy_logo_light.png" height=100>
+  <img alt="onewAy logo" src="logos/onewAy_logo_light.png" height="100">
 </picture>
 
-onewAy
-========
+# onewAy
 
-onewAy is designed as a modern, red team module manager inspired by Armitage. In this context a module can be any executable that can be run on a target machine. Just by running the client on a target machine you can create an upload any of your own modules (executables). This project is heavily a **work in progress**! The end goal for this project is to have most of the same functionality of Armitage more specifically the integration with Metasploit. Currently this project only supports custom modules and does not integrate at all with Metasploit.
+> ⚠️ This project is still a work in progress
 
-Other docs:
-- [docs/BACKEND_SETTINGS.md](docs/BACKEND_SETTINGS.md) — Backend config (config.toml)
-- [docs/MODULES.md](docs/MODULES.md) — Modules directory and workflows
-- [docs/MODULE_CONFIG.md](docs/MODULE_CONFIG.md) — Module config.yaml schema and examples
+onewAy is a modern red-team module orchestration for Windows, macOS, and Linux targets. onewAy delivers a FastAPI backend, a Rust agent, and a React/Vite frontend for building, deploying, and operating offensive tooling. Inspired by Armitage, the project focuses on custom executable modules that can be packaged and distributed to remote clients. The codebase is actively developed—APIs and UI flows may change as the platform evolves.
 
-Architecture
-------------
-- Python FastAPI backend (HTTP + WebSockets)
-- Rust client (executes modules, streams stdout/stderr, receives commands)
-- TypeScript React frontend (console view, module management)
-- Backend exposes REST endpoints for auth, modules, and client/user WebSockets.
-- Client authenticates, receives run/cancel/stdin commands over WS, runs binaries, and streams output and events back.
-- Frontend connects as a user WebSocket client, renders console output and module events, and can send stdin.
+## Key Features
 
-Quickstart
-----------
-Prerequisites: Python 3.11+, Node 20+, Rust, PostgreSQL, and libmagic
+- **Client Builder**: Generate per-target bundles that embed credentials, selected modules, and platform-specific builds (Windows, macOS, Linux).
+- **Module Runtime**: The Rust client authenticates, pulls module instructions over WebSockets, executes binaries, and streams stdout/stderr/events back to operators.
+- **Web Console**: Operators can trigger modules, send stdin, revoke credentials, and observe output in real time from the React dashboard.
+- **Security Controls**:
+  - Access/refresh token rotation with one-click revocation.
+  - Automatic WebSocket heartbeats (ping/pong) and cleanup of non-responsive clients.
+  - Forced credential resets when regenerating clients.
+- **Resource Packaging**: Client bundles only contain the referenced module binaries and configuration, reducing distribution size.
 
-### Docker one-step environment
+Documentation for specific topics lives in `docs/`:
 
-You can spin up a full development environment (PostgreSQL, backend, and Vite frontend) with Docker:
+- [`docs/BACKEND_SETTINGS.md`](docs/BACKEND_SETTINGS.md) – `config.toml` reference.
+- [`docs/MODULES.md`](docs/MODULES.md) – module directory layout and workflows.
+- [`docs/MODULE_CONFIG.md`](docs/MODULE_CONFIG.md) – `config.yaml` schema (now includes Linux guidance).
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 20+
+- Rust toolchain (stable)
+- PostgreSQL 14+
+- `libmagic` (required by the backend)
+
+### Clone the repository
 
 ```bash
 git clone https://github.com/r3dwh33lbarrow/onewAy.git
-cd onewAy/ops/docker
-docker compose up --build
+cd onewAy
 ```
 
-The backend ships with a development `server/backend/config.toml` that points at the PostgreSQL service exposed by the Docker Compose stack. When you launch the Docker environment, the config is regenerated with the container values so PostgreSQL, JWT secrets, and the CORS origins always match the ports you expose.
+### Backend (FastAPI)
 
-Backend (FastAPI)
------------------
-- Configure `server/backend/config.toml` (database, security, paths). See docs/BACKEND_SETTINGS.md.
-- Create DB and run migrations (if applicable):
-  - From `server/backend/`: `alembic upgrade head`
-- Install and run:
-  - From `server/backend/`: `python -m venv .venv && source .venv/bin/activate`
-  - `pip install -r requirements.txt`
-  - Dev server: `uvicorn app.main:app`
+```bash
+cd server/backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
-Frontend (React + Vite)
------------------------
-- From `server/frontend/`: `npm install`
-- Dev server: `npm run dev` (typically http://127.0.0.1:5173)
+# Configure PostgreSQL and other settings
+cp config.toml.example config.toml
+# edit config.toml as needed – see docs/BACKEND_SETTINGS.md
 
-Rust Client
------------
-- Configure `client/config.toml`:
-  - `[module]` `modules_directory` (defaults to `[CURRENT_DIR]/../modules`)
-  - `[auth]` `username`, `password`
-- The client connects to `http://127.0.0.1:8000` and `ws://127.0.0.1:8000/ws-client` by default (see `client/src/main.rs`).
-- From `client/`: `cargo run`
+# Run migrations (if needed)
+alembic upgrade head
 
-Modules
--------
-- Place modules under `modules/`, each module in its own folder with a `config.yaml`.
-- See docs/MODULE_CONFIG.md for the schema and examples.
-- Manage modules via backend endpoints:
-  - `PUT /module/upload` — upload module folder
-  - `PUT /module/add` — add by local path on backend host
-  - `PUT /module/update/{module_name}` — replace module files + config
-  - `DELETE /module/delete/{module_name}` — remove module
+# Start the API (http://127.0.0.1:8000)
+uvicorn app.main:app --reload
+```
 
-WebSockets
-----------
-- Users: `ws://<api>/ws-user` (token via `/ws-user-token`)
-- Clients: `ws://<api>/ws-client` (token via `/ws-client-token`)
+### Frontend (React + Vite)
 
-Naming Conventions
-----------------
-- Names are normalized across layers:
-  - Backend/DB: `snake_case` (e.g., `test_module`)
-  - Routes: `kebab-case` (e.g., `/test-module`)
-  - Frontend TS: `camelCase` (e.g., `testModule`)
-  - Display: free-form (e.g., `Test Module`)
+```bash
+cd server/frontend
+npm install
+npm run dev
+```
 
-Testing
--------
-- Backend tests live under `server/backend/tests/`.
-- You can run them with the configured test environment; see `server/backend/pytest.ini`.
-- Frontend tests using jest `server/frontend/src/__tests__`.
-- Client tests in `client/tests`. Should be run live with backend running with `testing = true` in config.toml.
+The development server typically runs at [http://127.0.0.1:5173](http://127.0.0.1:5173).
+
+### Rust Client
+Should be generated automatically by the frontend but can be compiled directly to the desired supported platform.
+
+## Usage Highlights
+
+- **Module Packaging**: Place each module under `modules/<module_name>/` with a `config.yaml`. Only binaries referenced under `binaries.<platform>` are copied into generated client bundles. See [`docs/MODULE_CONFIG.md`](docs/MODULE_CONFIG.md) for details.
+- **Client Builder**: From the UI, pre-select modules, credentials, and desired platform. The backend compiles the Rust client with tailored environment variables and ships a zip containing the client binary, config, and selected modules.
+- **Token Revocation**: Revoking a client invalidates all refresh tokens, forces a password reset, and disconnects WebSockets immediately.
+
+## Testing & Tooling
+
+- Backend tests live under `server/backend/tests/`; run with `pytest` (ensure `testing = true` in `config.toml`).
+- Client integration tests under `client/tests/` expect the backend in testing mode.
+- Frontend tests can be added under `server/frontend/src/__tests__/`.
+
+## License
+
+This project is released under the MIT License. See [`LICENSE`](LICENSE) for details.

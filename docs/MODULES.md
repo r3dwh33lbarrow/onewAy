@@ -8,6 +8,10 @@ modules/
   test_module/
     config.yaml
     test_module (or test_module.exe)
+  telemetry/
+    config.yaml
+    bin/
+      telemetry   # mac/linux build
 ```
 
 Uploads via `/module/upload` expect a folder containing at least `config.yaml`.
@@ -23,6 +27,11 @@ Different parts of the system use different naming conventions for the same modu
 - Display name: free-form (e.g., `Test Module`), converted to `snake_case` internally
 
 The backend will normalize names from `config.yaml` to `snake_case` automatically.
+
+## Platform Targets
+
+- Define binaries for each platform you intend to support. The client builder currently produces bundles for `windows`, `mac`, and `linux`.
+- Only the `config.yaml` and the binary referenced for the selected platform are copied when a client bundle is generated. Keep binaries inside the module directory and reference them using relative paths.
 
 ## Adding Modules
 Modules can be added via:

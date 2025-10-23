@@ -9,19 +9,19 @@ Each module folder must contain a `config.yaml` that describes how to run the mo
 - **`start`**: Startup mode.
   - `manual` — only runs when requested via the UI/API.
   - `on_start` — starts automatically when the client starts.
+- **`binaries`**: Paths to the module's executable per platform. Typically the binary lives next to `config.yaml` inside the module folder.
+  - As a map:
+    - `windows`: Relative or absolute path to the Windows binary.
+    - `mac`: Relative or absolute path to the macOS binary.
+    - `linux`: Relative path to the Linux binary.
 
 ### Optional fields
 
 - **`description`**: A short description.
-- **`binaries`**: Paths to the module's executable per platform. Typically the binary lives next to `config.yaml` inside the module folder.
-  - As a map (preferred):
-    - `windows`: Relative or absolute path to the Windows binary (e.g., `mytool.exe`).
-    - `mac`: Relative or absolute path to the macOS binary (e.g., `mytool`).
-  - The backend also accepts `binaries` as a JSON-encoded string, but a YAML map is recommended.
 
 Notes:
-- The client currently supports `windows` and `mac` keys. On unsupported platforms, the module will fail to start.
-- Relative paths are resolved from the module’s folder under `modules/`.
+- The client currently supports `windows`, `mac`, and `linux` keys. On unsupported platforms, the module will fail to start.
+- Paths should be **relative** to the module folder. When packaging a client, only the referenced binary and the `config.yaml` file are copied; keep binaries colocated with their config.
 
 ### Minimal example (manual start)
 
@@ -61,4 +61,3 @@ binaries:
 - On `module_run`, the Rust client spawns the configured binary with stdin/stdout/stderr piped.
 - Stdout/stderr lines are streamed to the server and broadcast to the UI as WebSocket `console_output` messages.
 - Exit status is forwarded in a `module_exit` event (`code` numeric, may be 0).
-
