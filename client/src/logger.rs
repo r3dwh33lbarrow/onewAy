@@ -84,10 +84,20 @@ fn ensure_init() {
 }
 
 pub fn log(level: LogLevel, message: impl Into<String>) {
-    if matches!(level, LogLevel::Debug) && !crate::config::CONFIG.debug {
+    // In release mode, disable logging unless output_override is enabled
+    #[cfg(not(debug_assertions))]
+    {
+        if !crate::config::CONFIG.output_override.unwrap_or(false) {
+            return;
+        }
+    }
+
+    // Filter DEBUG level messages if debug is false (applies to both debug and release modes)
+    if matches!(level, LogLevel::Debug) && !crate::config::CONFIG.debug.unwrap_or(false) {
         return;
     }
 
+    // Perform the actual logging (works in both debug and release if we get here)
     ensure_init();
     if let Some(logger) = LOGGER.get() {
         let ts = Local::now().format("%d/%m/%Y %H:%M:%S").to_string();
