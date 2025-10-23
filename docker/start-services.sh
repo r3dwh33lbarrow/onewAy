@@ -13,11 +13,12 @@ POSTGRES_HOST=${POSTGRES_HOST:-oneway-db}
 POSTGRES_PORT=${POSTGRES_PORT:-5432}
 POSTGRES_DB=${POSTGRES_DB:-oneway}
 POSTGRES_USER=${POSTGRES_USER:-onewayuser}
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
 BACKEND_PORT=${BACKEND_PORT:-8000}
 FRONTEND_PORT=${FRONTEND_PORT:-5173}
 CLIENT_VERSION=${CLIENT_VERSION:-0.1.0}
 SECURITY_SECRET_KEY=${SECURITY_SECRET_KEY:-}
+ORIGINAL_POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
 
 # --- Prompt interactively for sensitive secrets ---
 generate_secret() {
@@ -40,7 +41,7 @@ PY
 
 if [ -t 0 ]; then
     echo ""
-    while [[ -z "${POSTGRES_PASSWORD}" ]]; do
+    while [[ -z "${POSTGRES_PASSWORD}" || "${POSTGRES_PASSWORD}" == "changeme" ]]; do
         read -rsp "Enter PostgreSQL password (leave blank to auto-generate): " input_pw
         echo ""
         if [[ -n "${input_pw}" ]]; then
@@ -64,7 +65,7 @@ if [ -t 0 ]; then
     done
     export SECURITY_SECRET_KEY
 else
-    if [[ -z "${POSTGRES_PASSWORD}" ]]; then
+    if [[ -z "${POSTGRES_PASSWORD}" || "${POSTGRES_PASSWORD}" == "changeme" ]]; then
         POSTGRES_PASSWORD="$(generate_password)"
         log "Auto-generated PostgreSQL password for non-interactive session."
     fi
@@ -163,7 +164,7 @@ else
 fi
 
 log "Waiting for PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}"
-export PGPASSWORD="${POSTGRES_PASSWORD}"
+export PGPASSWORD="${ORIGINAL_POSTGRES_PASSWORD}"
 max_attempts=60
 attempt=0
 
@@ -191,6 +192,18 @@ until test_postgres; do
     log "PostgreSQL is not ready yet... (attempt ${attempt}/${max_attempts})"
 done
 log "PostgreSQL is ready!"
+
+if [[ "${POSTGRES_PASSWORD}" != "${ORIGINAL_POSTGRES_PASSWORD}" ]]; then
+    log "Updating PostgreSQL password for user '${POSTGRES_USER}'"
+    if PGPASSWORD="${ORIGINAL_POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d postgres -c "ALTER ROLE \"${POSTGRES_USER}\" WITH PASSWORD '${POSTGRES_PASSWORD}';" >/dev/null 2>&1; then
+        log "Database password updated successfully."
+    else
+        log "Failed to update PostgreSQL password; continuing with original password."
+        POSTGRES_PASSWORD="${ORIGINAL_POSTGRES_PASSWORD}"
+    fi
+fi
+
+export PGPASSWORD="${POSTGRES_PASSWORD}"
 
 log "Running Alembic migrations"
 if [[ -d "server/backend" ]]; then
