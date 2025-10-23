@@ -175,5 +175,9 @@ async fn handle_websocket_message(
                 );
             }
         }
+        websockets::Message::Ping => {
+            debug!("Received ping payload, replying with pong");
+            let _ = tx.send(serde_json::json!({"type": "pong"}).to_string());
+        }
     }
 }

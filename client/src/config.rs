@@ -23,7 +23,7 @@ pub struct AuthConfig {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub debug: Option<bool>,
-    pub output_override: Option<bool>,  // Output override will enable logging in release mode
+    pub output_override: Option<bool>, // Output override will enable logging in release mode
     pub module: ModuleConfig,
     pub auth: AuthConfig,
 }

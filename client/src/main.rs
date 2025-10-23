@@ -1,10 +1,10 @@
+use client::update_info::update_info;
 use client::{
     ApiClient, CONFIG, ModuleManager, ModuleStart, debug, error, info, login,
     start_websocket_client, warn,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use client::update_info::update_info;
 
 #[tokio::main]
 async fn main() {
@@ -17,7 +17,7 @@ async fn main() {
     let api_client = Arc::new(Mutex::new(
         ApiClient::new(&base_url).expect("failed to initialize ApiClient"),
     ));
-    
+
     if !login(
         Arc::clone(&api_client),
         config.auth.username.as_str(),

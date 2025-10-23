@@ -1,9 +1,9 @@
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use hostname::get;
-use crate::{error, ApiClient};
 use crate::schemas::BasicTaskResponse;
 use crate::schemas::update_info::ClientUpdateInfo;
+use crate::{ApiClient, error};
+use hostname::get;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 fn get_hostname() -> Option<String> {
     match get() {
@@ -20,7 +20,9 @@ pub async fn update_info(api_client: Arc<Mutex<ApiClient>>) {
         hostname: Some(hostname),
         client_version: None,
     };
-    let result = api_client.post::<ClientUpdateInfo, BasicTaskResponse>("/client/update-info", &client_info).await;
+    let result = api_client
+        .post::<ClientUpdateInfo, BasicTaskResponse>("/client/update-info", &client_info)
+        .await;
     if let Err(e) = result {
         error!("Failed to update client info: {}", e);
     }
