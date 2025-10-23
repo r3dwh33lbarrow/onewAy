@@ -1,6 +1,7 @@
-import { Button, Spinner } from "flowbite-react";
+import { Alert, Button, Spinner } from "flowbite-react";
 import { useCallback, useEffect, useState } from "react";
 import { HiOutlineDownload } from "react-icons/hi";
+import { HiInformationCircle } from "react-icons/hi";
 
 import { apiClient, isApiError } from "../apiClient.ts";
 import MainSkeleton from "../components/MainSkeleton.tsx";
@@ -21,6 +22,8 @@ export default function ClientBuilder() {
   >({});
   const [rustInstalled, setRustInstalled] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [outputOverride, setOutputOverride] = useState(false);
+  const [debug, setDebug] = useState(false);
 
   const { anyErrors, addError } = useErrorStore();
   const passwordLengthSecure = password.length >= 12;
@@ -62,6 +65,8 @@ export default function ClientBuilder() {
           username: trimmedUsername,
           password: trimmedPassword,
           packaged_modules: modules,
+          output_override: outputOverride,
+          debug: debug,
         }),
       });
 
@@ -100,6 +105,8 @@ export default function ClientBuilder() {
     rustInstalled,
     selectedModules,
     username,
+    outputOverride,
+    debug,
   ]);
 
   useEffect(() => {
@@ -149,6 +156,14 @@ export default function ClientBuilder() {
 
   return (
     <MainSkeleton baseName="Client Builder">
+      {outputOverride && (
+        <Alert color="warning" icon={HiInformationCircle} className="mb-4">
+          <span className="font-medium">Output override enabled!</span> Output
+          override will make the client output to stdout for logging purposes.
+          If you want a silent client do not click this option.
+        </Alert>
+      )}
+
       <div className="flex justify-between items-center mb-1">
         <p className="font-bold dark:text-gray-400 px-2">Configuration</p>
         {rustInstalled === null ? (
@@ -247,6 +262,45 @@ export default function ClientBuilder() {
                 ? "Secure password length"
                 : "Insecure password length"}
             </span>
+          </div>
+
+          <p>Options:</p>
+          <div className="flex items-center gap-6">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={outputOverride}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setOutputOverride(checked);
+                  if (!checked) {
+                    setDebug(false);
+                  }
+                }}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <span className="text-sm text-gray-900 dark:text-gray-300">
+                Output override
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={debug}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setDebug(checked);
+                  // If checking debug, also check output override
+                  if (checked) {
+                    setOutputOverride(true);
+                  }
+                }}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <span className="text-sm text-gray-900 dark:text-gray-300">
+                Debug
+              </span>
+            </label>
           </div>
         </div>
       </div>

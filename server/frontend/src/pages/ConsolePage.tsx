@@ -112,7 +112,7 @@ export default function ConsolePage() {
         return;
       }
       const response = await apiClient.get<ClientAllInfo>(
-        `/client/${username}`,
+        `/client/action/${username}`,
       );
       if (isApiError(response)) {
         addError(`Failed to fetch client information: ${response.detail}`);
