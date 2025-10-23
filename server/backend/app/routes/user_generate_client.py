@@ -76,7 +76,7 @@ async def user_generate_client(
 
     try:
         full_path.mkdir()
-        generate_client_config(full_path, client_info.username, client_info.password)
+        generate_client_config(full_path, client_info.username, client_info.password, client_info.debug, client_info.output_override)
         move_modules(full_path, client_info.platform, client_info.packaged_modules)
         generate_client_binary(
             full_path,
