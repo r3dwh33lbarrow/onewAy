@@ -1,4 +1,4 @@
-import { Alert, Button, Spinner } from "flowbite-react";
+import { Alert, Badge, Button, Spinner } from "flowbite-react";
 import { useCallback, useEffect, useState } from "react";
 import { HiOutlineDownload } from "react-icons/hi";
 import { HiInformationCircle } from "react-icons/hi";
@@ -6,9 +6,9 @@ import { HiInformationCircle } from "react-icons/hi";
 import { apiClient, isApiError } from "../apiClient.ts";
 import MainSkeleton from "../components/MainSkeleton.tsx";
 import ModuleTable from "../components/ModuleTable.tsx";
-import type { BasicTaskResponse } from "../schemas/general.ts";
 import { useErrorStore } from "../stores/errorStore.ts";
 import { generatePassword } from "../utils.ts";
+import type { VerifyRustResponse } from "../schemas/userGenerateClient.ts";
 
 export default function ClientBuilder() {
   const [ip, setIp] = useState("");
@@ -22,17 +22,36 @@ export default function ClientBuilder() {
   const [selectedModules, setSelectedModules] = useState<
     Record<string, boolean>
   >({});
-  const [rustInstalled, setRustInstalled] = useState<boolean | null>(null);
+  const [rustTargets, setRustTargets] = useState<VerifyRustResponse | null>(
+    null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [outputOverride, setOutputOverride] = useState(false);
   const [debug, setDebug] = useState(false);
 
   const { anyErrors, addError } = useErrorStore();
   const passwordLengthSecure = password.length >= 12;
+  const rustInstalled = rustTargets?.rust_installed ?? null;
+  const windowsTargetInstalled = rustTargets?.windows_target_installed ?? false;
+  const macTargetInstalled = rustTargets?.mac_target_installed ?? false;
+  const linuxTargetInstalled = rustTargets?.linux_target_installed ?? false;
 
   const onSubmit = useCallback(async () => {
     if (rustInstalled === false) {
       addError("Rust is not installed on the server. Cannot generate client.");
+      return;
+    }
+
+    if (platform === "windows" && !windowsTargetInstalled) {
+      addError("Windows Rust target is not installed on the server.");
+      return;
+    }
+    if (platform === "mac" && !macTargetInstalled) {
+      addError("macOS Rust target is not installed on the server.");
+      return;
+    }
+    if (platform === "linux" && !linuxTargetInstalled) {
+      addError("Linux Rust target is not installed on the server.");
       return;
     }
 
@@ -105,6 +124,9 @@ export default function ClientBuilder() {
     platform,
     port,
     rustInstalled,
+    windowsTargetInstalled,
+    macTargetInstalled,
+    linuxTargetInstalled,
     selectedModules,
     username,
     outputOverride,
@@ -137,23 +159,20 @@ export default function ClientBuilder() {
 
   useEffect(() => {
     const checkRustInstalled = async () => {
-      setRustInstalled(null);
-      const response =
-        await apiClient.get<BasicTaskResponse>("/user/verify-rust");
+      setRustTargets(null);
+      const response = await apiClient.get<VerifyRustResponse>(
+        "/user/verify-rust",
+      );
       if (isApiError(response)) {
         addError(
           `Failed to verify Rust installation (${response.statusCode}): ${response.detail || response.message}`,
         );
       } else {
-        if (response.result !== "success") {
-          setRustInstalled(false);
-        } else {
-          setRustInstalled(true);
-        }
+        setRustTargets(response);
       }
     };
 
-    checkRustInstalled();
+    void checkRustInstalled();
   }, [addError]);
 
   return (
@@ -168,19 +187,24 @@ export default function ClientBuilder() {
 
       <div className="flex justify-between items-center mb-1">
         <p className="font-bold dark:text-gray-400 px-2">Configuration</p>
-        {rustInstalled === null ? (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-            Loading...
-          </span>
-        ) : rustInstalled ? (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-300 text-green-800 dark:bg-green-900 dark:text-green-200">
-            Rust installed on server
-          </span>
-        ) : (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-300 text-red-800 dark:bg-red-900 dark:text-red-200">
-            Rust not installed on server
-          </span>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {rustInstalled === null ? (
+            <Badge color="info">Detecting toolchain…</Badge>
+          ) : rustInstalled ? (
+            <Badge color="success">Rust toolchain available</Badge>
+          ) : (
+            <Badge color="failure">Rust toolchain missing</Badge>
+          )}
+          <Badge color={windowsTargetInstalled ? "success" : "failure"}>
+            Windows target
+          </Badge>
+          <Badge color={macTargetInstalled ? "success" : "failure"}>
+            macOS target
+          </Badge>
+          <Badge color={linuxTargetInstalled ? "success" : "failure"}>
+            Linux target
+          </Badge>
+        </div>
       </div>
 
       <div className="h-full rounded-2xl shadow-xl bg-white dark:bg-gray-800 p-4">
