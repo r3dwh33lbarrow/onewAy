@@ -158,7 +158,7 @@ def validate_config_structure(config: Dict) -> None:
             detail="config.yaml must contain a valid configuration object",
         )
 
-    required_fields = ["name", "version", "start"]
+    required_fields = ["name", "version", "start", "binaries"]
     missing_fields = [field for field in required_fields if field not in config]
     if missing_fields:
         logger.warning("config.yaml missing fields: %s", ", ".join(missing_fields))
@@ -171,7 +171,10 @@ def validate_config_structure(config: Dict) -> None:
 def process_binaries_field(binaries_raw) -> Dict:
     """Process and validate the binaries field from config."""
     if binaries_raw is None:
-        return {}
+        raise HTTPException(
+            status_code=400,
+            detail="config.yaml must define a 'binaries' mapping",
+        )
 
     if isinstance(binaries_raw, str):
         try:
@@ -182,9 +185,17 @@ def process_binaries_field(binaries_raw) -> Dict:
                 status_code=400, detail="Invalid JSON in binaries field"
             )
     elif isinstance(binaries_raw, dict):
+        if not binaries_raw:
+            raise HTTPException(
+                status_code=400,
+                detail="config.yaml 'binaries' section must not be empty",
+            )
         return binaries_raw
     else:
-        return {}
+        raise HTTPException(
+            status_code=400,
+            detail="config.yaml 'binaries' must be an object with platform keys",
+        )
 
 
 def create_module_from_config(config: Dict) -> Module:
