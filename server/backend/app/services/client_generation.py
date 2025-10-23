@@ -114,16 +114,25 @@ def move_modules(path: Path, platform: str, module_list: list[str]) -> None:
 
 
 def generate_client_binary(path: Path, platform: str, ip: str, port: int) -> None:
+    build_command = ["cargo", "build", "--release"]
+
     if platform == "windows":
         extension = ".exe"
-    elif platform in {"mac", "linux"}:
+        target_triple = "x86_64-pc-windows-gnu"
+    elif platform == "mac":
         extension = ""
+        target_triple = "x86_64-apple-darwin"
+    elif platform == "linux":
+        extension = ""
+        target_triple = "x86_64-unknown-linux-gnu"
     else:
         raise RuntimeError("Incompatible platform")
 
+    build_command.extend(["--target", target_triple])
+
     try:
         subprocess.run(
-            ["cargo", "build", "--release"],
+            build_command,
             check=True,
             text=True,
             capture_output=True,
@@ -141,7 +150,11 @@ def generate_client_binary(path: Path, platform: str, ip: str, port: int) -> Non
         ) from exc
 
     binary_source = (
-        Path(settings.paths.client_dir) / "target" / "release" / f"client{extension}"
+        Path(settings.paths.client_dir)
+        / "target"
+        / target_triple
+        / "release"
+        / f"client{extension}"
     )
     binary_destination = path / f"client{extension}"
     shutil.copy2(binary_source, binary_destination)

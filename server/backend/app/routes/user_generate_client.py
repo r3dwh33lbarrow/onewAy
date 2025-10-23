@@ -13,7 +13,7 @@ from app.models.client import Client
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.general import BasicTaskResponse
-from app.schemas.user_generate_client import GenerateClientRequest
+from app.schemas.user_generate_client import GenerateClientRequest, VerifyRustResponse
 from app.services.authentication import get_current_user
 from app.services.client_generation import (
     generate_client_binary,
@@ -40,20 +40,88 @@ def _safe_unlink(path: Path) -> None:
             pass
 
 
-@router.get("/verify-rust", response_model=BasicTaskResponse)
+@router.get("/verify-rust", response_model=VerifyRustResponse)
 async def user_verify_rust(_=Depends(get_current_user)):
-    for command in (("rustc", "--version"), ("cargo", "--version")):
-        try:
-            subprocess.run(
-                command,
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            return {"result": "failed"}
+    try:
+        result = subprocess.run(
+            ["rustc", "--version"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
-    return {"result": "success"}
+        if result.returncode != 0:
+            return VerifyRustResponse(
+                rust_installed=False,
+                cargo_installed=False,
+                windows_target_installed=False,
+                mac_target_installed=False,
+                linux_target_installed=False,
+            )
+
+        result = subprocess.run(
+            ["cargo", "--version"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        if result.returncode != 0:
+            return VerifyRustResponse(
+                rust_installed=True,
+                cargo_installed=False,
+                windows_target_installed=False,
+                mac_target_installed=False,
+                linux_target_installed=False,
+            )
+
+        # Check installed targets
+        result = subprocess.run(
+            ["rustup", "target", "list", "--installed"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            return VerifyRustResponse(
+                rust_installed=True,
+                cargo_installed=True,
+                windows_target_installed=False,
+                mac_target_installed=False,
+                linux_target_installed=False,
+            )
+
+        installed_targets = result.stdout.strip().split('\n')
+
+        windows_target_installed = any(
+            'pc-windows-msvc' in target or 'pc-windows-gnu' in target
+            for target in installed_targets
+        )
+        mac_target_installed = any(
+            'apple-darwin' in target for target in installed_targets
+        )
+        linux_target_installed = any(
+            'unknown-linux-gnu' in target for target in installed_targets
+        )
+
+        return VerifyRustResponse(
+            rust_installed=True,
+            cargo_installed=True,
+            windows_target_installed=windows_target_installed,
+            mac_target_installed=mac_target_installed,
+            linux_target_installed=linux_target_installed,
+        )
+
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return VerifyRustResponse(
+            rust_installed=False,
+            cargo_installed=False,
+            windows_target_installed=False,
+            mac_target_installed=False,
+            linux_target_installed=False,
+        )
+
 
 
 @router.post("/generate-client")

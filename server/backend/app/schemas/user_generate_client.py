@@ -12,3 +12,11 @@ class GenerateClientRequest(BaseModel):
     packaged_modules: List[str] = Field(default_factory=list)
     output_override: Optional[bool]
     debug: Optional[bool]
+
+
+class VerifyRustResponse(BaseModel):
+    rust_installed: bool
+    cargo_installed: bool
+    windows_target_installed: bool
+    mac_target_installed: bool
+    linux_target_installed: bool

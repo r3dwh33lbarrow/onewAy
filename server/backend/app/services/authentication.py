@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from enum import Enum
 from uuid import uuid4
 
+import jose.exceptions
 from fastapi import Depends, HTTPException, Request, Response
 from fastapi.security import HTTPBearer
 from jose import JWTError, jwt
