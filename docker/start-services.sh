@@ -251,3 +251,4 @@ log "A service exited with code ${EXIT_CODE}. Shutting down."
 kill "${BACKEND_PID}" "${FRONTEND_PID}" >/dev/null 2>&1 || true
 wait || true
 exit "${EXIT_CODE}"
+export PATH="/root/.cargo/bin:${PATH}"

@@ -29,11 +29,19 @@ ENV \
     FRONTEND_PORT="5173" \
     CLIENT_VERSION="0.1.0" \
     SECURITY_SECRET_KEY="dev-secret" \
-    PYTHONPATH="/workspace/oneway/server/backend"
+    PYTHONPATH="/workspace/oneway/server/backend" \
+    PATH="/root/.cargo/bin:${PATH}"
 
 RUN python -m pip install --upgrade pip setuptools wheel
 
-COPY ops/docker/start-services.sh /usr/local/bin/start-services.sh
+COPY docker/start-services.sh /usr/local/bin/start-services.sh
 RUN chmod +x /usr/local/bin/start-services.sh
+
+# Install Rust toolchain and cross targets
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable && \
+    /root/.cargo/bin/rustup target add \
+        x86_64-unknown-linux-gnu \
+        x86_64-apple-darwin \
+        x86_64-pc-windows-gnu
 
 ENTRYPOINT ["/usr/local/bin/start-services.sh"]
