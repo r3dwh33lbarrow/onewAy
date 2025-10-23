@@ -24,13 +24,15 @@ ENV \
     POSTGRES_PORT="5432" \
     POSTGRES_DB="oneway" \
     POSTGRES_USER="onewayuser" \
-    POSTGRES_PASSWORD="" \
     BACKEND_PORT="8000" \
     FRONTEND_PORT="5173" \
     CLIENT_VERSION="0.1.0" \
-    SECURITY_SECRET_KEY="" \
     PYTHONPATH="/workspace/oneway/server/backend" \
-    PATH="/root/.cargo/bin:${PATH}"
+    PATH="/root/.cargo/bin:${PATH}" \
+    SECRETS_DIR="/workspace/.secrets"
+
+# Create secrets directory with restrictive permissions
+RUN mkdir -p "${SECRETS_DIR}" && chmod 700 "${SECRETS_DIR}"
 
 RUN python -m pip install --upgrade pip setuptools wheel
 
