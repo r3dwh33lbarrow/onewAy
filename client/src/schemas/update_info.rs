@@ -5,4 +5,5 @@ pub struct ClientUpdateInfo {
     pub ip_address: Option<String>,
     pub hostname: Option<String>,
     pub client_version: Option<String>,
+    pub platform: Option<String>,
 }
