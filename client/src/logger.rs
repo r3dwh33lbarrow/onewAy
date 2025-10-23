@@ -1,4 +1,5 @@
 use chrono::Local;
+use colored::Colorize;
 use crossbeam_channel::{Sender, unbounded};
 use once_cell::sync::OnceCell;
 use std::{fmt, thread};
@@ -49,12 +50,24 @@ pub fn init_logger() {
         .name("logger-writer".into())
         .spawn(move || {
             for rec in rx.iter() {
+                let level_str = match rec.level {
+                    LogLevel::Debug => format!("{}", rec.level).bright_black(),
+                    LogLevel::Info => format!("{}", rec.level).bright_blue(),
+                    LogLevel::Warn => format!("{}", rec.level).yellow(),
+                    LogLevel::Error => format!("{}", rec.level).bright_red(),
+                    LogLevel::Fatal => format!("{}", rec.level).on_red().white().bold(),
+                };
+
+                let timestamp = rec.timestamp.dimmed();
+
+                let output = format!("[{}] [{}] - {}", level_str, timestamp, rec.message);
+
                 match rec.level {
                     LogLevel::Error | LogLevel::Fatal => {
-                        eprintln!("[{}] [{}] - {}", rec.level, rec.timestamp, rec.message);
+                        eprintln!("{}", output);
                     }
                     _ => {
-                        println!("[{}] [{}] - {}", rec.level, rec.timestamp, rec.message);
+                        println!("{}", output);
                     }
                 }
             }
@@ -71,6 +84,10 @@ fn ensure_init() {
 }
 
 pub fn log(level: LogLevel, message: impl Into<String>) {
+    if matches!(level, LogLevel::Debug) && !crate::config::CONFIG.debug {
+        return;
+    }
+
     ensure_init();
     if let Some(logger) = LOGGER.get() {
         let ts = Local::now().format("%d/%m/%Y %H:%M:%S").to_string();

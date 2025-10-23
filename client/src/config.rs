@@ -22,6 +22,7 @@ pub struct AuthConfig {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
+    pub debug: bool,
     pub module: ModuleConfig,
     pub auth: AuthConfig,
 }
