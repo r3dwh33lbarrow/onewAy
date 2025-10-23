@@ -16,7 +16,9 @@ export default function ClientBuilder() {
   const [username, setUsername] = useState("");
   const [passwordLength, setPasswordLength] = useState(15);
   const [password, setPassword] = useState(generatePassword(15));
-  const [platform, setPlatform] = useState<"windows" | "mac">("windows");
+  const [platform, setPlatform] = useState<"windows" | "mac" | "linux">(
+    "windows",
+  );
   const [selectedModules, setSelectedModules] = useState<
     Record<string, boolean>
   >({});
@@ -205,10 +207,13 @@ export default function ClientBuilder() {
           <select
             className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
             value={platform}
-            onChange={(e) => setPlatform(e.target.value as "windows" | "mac")}
+            onChange={(e) =>
+              setPlatform(e.target.value as "windows" | "mac" | "linux")
+            }
           >
             <option value="windows">Windows</option>
             <option value="mac">macOS</option>
+            <option value="linux">Linux</option>
           </select>
 
           <p>Username:</p>

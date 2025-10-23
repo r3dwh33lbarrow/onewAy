@@ -178,6 +178,18 @@ export default function ClientPage() {
     }
   };
 
+  const logoSrc = (() => {
+    switch (clientInfo?.platform) {
+      case "mac":
+        return "/mac_default_logo.png";
+      case "linux":
+        return "/linux_default_logo.png";
+      case "windows":
+      default:
+        return "/windows_default_logo.png";
+    }
+  })();
+
   return (
     <MainSkeleton baseName={"Client " + (username ?? "")}>
       <div>
@@ -189,11 +201,17 @@ export default function ClientPage() {
         {username && clientInfo && !anyErrors() ? (
           <>
             <div className="flex gap-6 p-6 items-start">
-              {/* First column - Windows logo with overlay button */}
+              {/* First column - Platform-specific logo with overlay button */}
               <div className="relative flex-shrink-0">
                 <img
-                  src="/windows_default_logo.png"
-                  alt="Windows Logo"
+                  src={logoSrc}
+                  alt={
+                    clientInfo?.platform === "mac"
+                      ? "macOS"
+                      : clientInfo?.platform === "linux"
+                        ? "Linux"
+                        : "Windows"
+                  }
                   className="object-contain max-w-none"
                   style={{
                     height: "calc(2.5rem + 7 * 1.75rem + 6 * 0.75rem + 3rem)",

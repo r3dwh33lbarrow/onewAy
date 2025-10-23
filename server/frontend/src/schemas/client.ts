@@ -4,6 +4,7 @@ export interface BasicClientInfo {
   hostname: string;
   alive: boolean;
   last_contact: string;
+  platform?: string | null;
 }
 
 export interface ClientAllResponse {
