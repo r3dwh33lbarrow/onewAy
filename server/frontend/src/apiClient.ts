@@ -24,6 +24,8 @@ class ApiClient {
   private userSocket: WebSocket | null = null;
   private userSocketConnecting = false;
   private messageListeners = new Set<(event: MessageEvent) => void>();
+  private inflightJsonRequests = new Map<string, Promise<unknown>>();
+  private inflightByteRequests = new Map<string, Promise<unknown>>();
 
   public constructor() {
     const apiUrl = localStorage.getItem("apiUrl");
@@ -162,38 +164,37 @@ class ApiClient {
 
     try {
       const url = `${this.apiUrl}${endpoint}`;
+      const method = (options.method ?? "GET").toUpperCase();
+      const headers = {
+        ...(options.body && { "Content-Type": "application/json" }),
+        ...(options.headers ?? {}),
+      } as Record<string, string>;
 
-      const performFetch = () =>
-        fetch(url, {
-          headers: {
-            ...(options.body && { "Content-Type": "application/json" }),
-            ...options.headers,
-          },
-          credentials: "include",
-          ...options,
+      const init: RequestInit = {
+        ...options,
+        method,
+        headers,
+        credentials: "include",
+      };
+
+      const cacheKey =
+        method === "GET" && !init.body ? `${method}:${url}` : null;
+
+      if (cacheKey && this.inflightJsonRequests.has(cacheKey)) {
+        return (await this.inflightJsonRequests.get(cacheKey)!) as T | ApiError;
+      }
+
+      const requestPromise = this.executeJsonRequest<T>(url, init);
+
+      if (cacheKey) {
+        const wrapped = requestPromise.finally(() => {
+          this.inflightJsonRequests.delete(cacheKey);
         });
-
-      let response = await performFetch();
-
-      if (response.status === 401) {
-        const refreshed = await this.refreshAccessToken();
-        if (refreshed) {
-          response = await performFetch();
-        }
+        this.inflightJsonRequests.set(cacheKey, wrapped);
+        return (await wrapped) as T | ApiError;
       }
 
-      if (!response.ok) {
-        return await this.handleErrorResponse(response);
-      }
-
-      const contentLength = response.headers.get("content-length");
-      const contentType = response.headers.get("content-type");
-
-      if (contentLength === "0" || !contentType?.includes("application/json")) {
-        return {} as T;
-      }
-
-      return (await response.json()) as T;
+      return await requestPromise;
     } catch (error) {
       return this.createErrorFromException(error);
     }
@@ -237,32 +238,95 @@ class ApiClient {
 
     try {
       const url = `${this.apiUrl}${endpoint}`;
-      const performFetch = () =>
-        fetch(url, {
-          headers: {
-            ...options.headers,
-          },
-          credentials: "include",
-          ...options,
+      const method = (options.method ?? "GET").toUpperCase();
+      const init: RequestInit = {
+        ...options,
+        method,
+        credentials: "include",
+      };
+
+      const cacheKey =
+        method === "GET" && !init.body ? `${method}:${url}:bytes` : null;
+
+      if (cacheKey && this.inflightByteRequests.has(cacheKey)) {
+        return (await this.inflightByteRequests.get(cacheKey)!) as
+          | ArrayBuffer
+          | ApiError;
+      }
+
+      const requestPromise = this.executeBytesRequest(url, init);
+
+      if (cacheKey) {
+        const wrapped = requestPromise.finally(() => {
+          this.inflightByteRequests.delete(cacheKey);
         });
-
-      let response = await performFetch();
-
-      if (response.status === 401) {
-        const refreshed = await this.refreshAccessToken();
-        if (refreshed) {
-          response = await performFetch();
-        }
+        this.inflightByteRequests.set(cacheKey, wrapped);
+        return (await wrapped) as ArrayBuffer | ApiError;
       }
 
-      if (!response.ok) {
-        return await this.handleErrorResponse(response);
-      }
-
-      return await response.arrayBuffer();
+      return await requestPromise;
     } catch (error) {
       return this.createErrorFromException(error);
     }
+  }
+
+  private async executeJsonRequest<T>(
+    url: string,
+    init: RequestInit,
+  ): Promise<T | ApiError> {
+    const performFetch = () => fetch(url, init);
+
+    let response = await performFetch();
+
+    if (response.status === 401) {
+      const refreshed = await this.refreshAccessToken();
+      if (refreshed) {
+        response = await performFetch();
+      }
+    }
+
+    if (response.status === 401) {
+      return await this.handleErrorResponse(response);
+    }
+
+    if (!response.ok) {
+      return await this.handleErrorResponse(response);
+    }
+
+    const contentLength = response.headers.get("content-length");
+    const contentType = response.headers.get("content-type");
+
+    if (contentLength === "0" || !contentType?.includes("application/json")) {
+      return {} as T;
+    }
+
+    return (await response.json()) as T;
+  }
+
+  private async executeBytesRequest(
+    url: string,
+    init: RequestInit,
+  ): Promise<ArrayBuffer | ApiError> {
+    const performFetch = () => fetch(url, init);
+
+    let response = await performFetch();
+
+    if (response.status === 401) {
+      const refreshed = await this.refreshAccessToken();
+      if (refreshed) {
+        response = await performFetch();
+      }
+    }
+
+    if (response.status === 401) {
+      return await this.handleErrorResponse(response);
+    }
+
+    if (!response.ok) {
+      return await this.handleErrorResponse(response);
+    }
+
+    return await response.arrayBuffer();
   }
 
   public async uploadFolder<T>(
