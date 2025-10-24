@@ -22,6 +22,7 @@ services:
       CLIENT_VERSION: ${CLIENT_VERSION:-0.1.0}
       SECURITY_SECRET_KEY: ${SECURITY_SECRET_KEY:-}
       PYTHONPATH: /workspace/oneway/server/backend
+      SECRETS_DIR: /workspace/.secrets
     depends_on:
       oneway-db:
         condition: service_healthy
@@ -30,6 +31,7 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - oneway-app-data:/workspace
+      - oneway-secrets:/workspace/.secrets
       - ~/.ssh:/root/.ssh:ro
     restart: unless-stopped
 
@@ -52,6 +54,7 @@ services:
 volumes:
   oneway-app-data:
   oneway-pg-data:
+  oneway-secrets:
 
 networks:
   default:

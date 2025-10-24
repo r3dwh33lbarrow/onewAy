@@ -16,6 +16,13 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /workspace
 
+# Install Rust toolchain and cross targets early in build
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable && \
+    /root/.cargo/bin/rustup target add \
+        x86_64-unknown-linux-gnu \
+        x86_64-apple-darwin \
+        x86_64-pc-windows-gnu
+
 ENV \
     REPO_URL="https://github.com/r3dwh33lbarrow/onewAy.git" \
     REPO_REF="main" \
@@ -43,12 +50,5 @@ LABEL org.opencontainers.image.title="onewAy" \
       org.opencontainers.image.description="Docker image that boots the onewAy backend, frontend, and supporting services" \
       org.opencontainers.image.source="https://github.com/r3dwh33lbarrow/onewAy" \
       org.opencontainers.image.authors="onewAy Maintainers"
-
-# Install Rust toolchain and cross targets
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable && \
-    /root/.cargo/bin/rustup target add \
-        x86_64-unknown-linux-gnu \
-        x86_64-apple-darwin \
-        x86_64-pc-windows-gnu
 
 ENTRYPOINT ["/usr/local/bin/start-services.sh"]

@@ -18,7 +18,23 @@ BACKEND_PORT=${BACKEND_PORT:-8000}
 FRONTEND_PORT=${FRONTEND_PORT:-5173}
 CLIENT_VERSION=${CLIENT_VERSION:-0.1.0}
 SECURITY_SECRET_KEY=${SECURITY_SECRET_KEY:-}
+SECRETS_DIR=${SECRETS_DIR:-/workspace/.secrets}
 ORIGINAL_POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
+
+# --- Secret persistence functions ---
+save_secret() {
+    local secret_name=$1
+    local secret_value=$2
+    echo -n "${secret_value}" > "${SECRETS_DIR}/${secret_name}"
+    chmod 600 "${SECRETS_DIR}/${secret_name}"
+}
+
+load_secret() {
+    local secret_name=$1
+    if [[ -f "${SECRETS_DIR}/${secret_name}" ]]; then
+        cat "${SECRETS_DIR}/${secret_name}"
+    fi
+}
 
 # --- Prompt interactively for sensitive secrets ---
 generate_secret() {
@@ -39,9 +55,17 @@ print("".join(secrets.choice(alphabet) for _ in range(24)))
 PY
 }
 
+# Load persisted secrets if they exist
+PERSISTED_PASSWORD=$(load_secret "postgres_password")
+PERSISTED_SECRET_KEY=$(load_secret "security_secret_key")
+
 if [ -t 0 ]; then
     echo ""
-    while [[ -z "${POSTGRES_PASSWORD}" || "${POSTGRES_PASSWORD}" == "changeme" ]]; do
+    # Use persisted password if available and not overridden
+    if [[ -n "${PERSISTED_PASSWORD}" ]] && [[ "${POSTGRES_PASSWORD}" == "changeme" ]]; then
+        POSTGRES_PASSWORD="${PERSISTED_PASSWORD}"
+        log "Using persisted PostgreSQL password."
+    elif [[ -z "${POSTGRES_PASSWORD}" || "${POSTGRES_PASSWORD}" == "changeme" ]]; then
         read -rsp "Enter PostgreSQL password (leave blank to auto-generate): " input_pw
         echo ""
         if [[ -n "${input_pw}" ]]; then
@@ -50,10 +74,14 @@ if [ -t 0 ]; then
             POSTGRES_PASSWORD="$(generate_password)"
             echo "Generated PostgreSQL password."
         fi
-    done
+    fi
     export POSTGRES_PASSWORD
 
-    while [[ -z "${SECURITY_SECRET_KEY}" ]]; do
+    # Use persisted secret key if available
+    if [[ -n "${PERSISTED_SECRET_KEY}" ]] && [[ -z "${SECURITY_SECRET_KEY}" ]]; then
+        SECURITY_SECRET_KEY="${PERSISTED_SECRET_KEY}"
+        log "Using persisted SECURITY_SECRET_KEY."
+    elif [[ -z "${SECURITY_SECRET_KEY}" ]]; then
         read -rsp "Enter SECURITY_SECRET_KEY (leave blank to auto-generate): " input_sk
         echo ""
         if [[ -n "${input_sk}" ]]; then
@@ -62,14 +90,22 @@ if [ -t 0 ]; then
             SECURITY_SECRET_KEY="$(generate_secret)"
             echo "Generated SECURITY_SECRET_KEY."
         fi
-    done
+    fi
     export SECURITY_SECRET_KEY
 else
-    if [[ -z "${POSTGRES_PASSWORD}" || "${POSTGRES_PASSWORD}" == "changeme" ]]; then
+    # Non-interactive mode: use persisted or generate
+    if [[ -n "${PERSISTED_PASSWORD}" ]] && [[ "${POSTGRES_PASSWORD}" == "changeme" || -z "${POSTGRES_PASSWORD}" ]]; then
+        POSTGRES_PASSWORD="${PERSISTED_PASSWORD}"
+        log "Using persisted PostgreSQL password for non-interactive session."
+    elif [[ -z "${POSTGRES_PASSWORD}" || "${POSTGRES_PASSWORD}" == "changeme" ]]; then
         POSTGRES_PASSWORD="$(generate_password)"
         log "Auto-generated PostgreSQL password for non-interactive session."
     fi
-    if [[ -z "${SECURITY_SECRET_KEY}" ]]; then
+    
+    if [[ -n "${PERSISTED_SECRET_KEY}" ]] && [[ -z "${SECURITY_SECRET_KEY}" ]]; then
+        SECURITY_SECRET_KEY="${PERSISTED_SECRET_KEY}"
+        log "Using persisted SECURITY_SECRET_KEY for non-interactive session."
+    elif [[ -z "${SECURITY_SECRET_KEY}" ]]; then
         SECURITY_SECRET_KEY="$(generate_secret)"
         log "Auto-generated SECURITY_SECRET_KEY for non-interactive session."
     fi
@@ -112,6 +148,69 @@ fi
 
 cd "${PROJECT_DIR}"
 
+log "Installing backend dependencies"
+if [[ -f "server/backend/requirements.txt" ]]; then
+    python -m pip install --upgrade pip
+    python -m pip install -r server/backend/requirements.txt
+else
+    log "Warning: server/backend/requirements.txt not found, skipping Python package installation"
+fi
+
+log "Installing frontend dependencies"
+if [[ -d "server/frontend" ]]; then
+    cd server/frontend
+    npm install
+    cd "${PROJECT_DIR}"
+else
+    log "Warning: server/frontend directory not found, skipping npm install"
+fi
+
+log "Waiting for PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}"
+export PGPASSWORD="${ORIGINAL_POSTGRES_PASSWORD}"
+max_attempts=30
+attempt=0
+
+# Function to test PostgreSQL connection
+test_postgres() {
+    # Try pg_isready first
+    if command -v pg_isready >/dev/null 2>&1; then
+        pg_isready -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" >/dev/null 2>&1
+    else
+        # Fallback to psql if pg_isready is not available
+        psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -c "SELECT 1;" >/dev/null 2>&1
+    fi
+}
+
+until test_postgres; do
+    attempt=$((attempt + 1))
+    if [ $attempt -ge $max_attempts ]; then
+        log "PostgreSQL connection timed out after ${max_attempts} attempts"
+        # Try to show what's available for debugging
+        log "Network connectivity test:"
+        nc -z "${POSTGRES_HOST}" "${POSTGRES_PORT}" || log "Cannot connect to ${POSTGRES_HOST}:${POSTGRES_PORT}"
+        exit 1
+    fi
+    sleep 2
+    log "PostgreSQL is not ready yet... (attempt ${attempt}/${max_attempts})"
+done
+log "PostgreSQL is ready!"
+
+# Update database password if needed
+if [[ "${POSTGRES_PASSWORD}" != "${ORIGINAL_POSTGRES_PASSWORD}" ]]; then
+    log "Updating PostgreSQL password for user '${POSTGRES_USER}'"
+    if PGPASSWORD="${ORIGINAL_POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d postgres -c "ALTER ROLE \"${POSTGRES_USER}\" WITH PASSWORD '${POSTGRES_PASSWORD}';" >/dev/null 2>&1; then
+        log "Database password updated successfully."
+        export PGPASSWORD="${POSTGRES_PASSWORD}"
+    else
+        log "Failed to update PostgreSQL password; using original password."
+        POSTGRES_PASSWORD="${ORIGINAL_POSTGRES_PASSWORD}"
+        export PGPASSWORD="${POSTGRES_PASSWORD}"
+    fi
+else
+    export PGPASSWORD="${POSTGRES_PASSWORD}"
+fi
+
+# Now write the config file with the final confirmed password
 CONFIG_FILE="server/backend/config.toml"
 log "Writing backend config to ${CONFIG_FILE}"
 mkdir -p "$(dirname "${CONFIG_FILE}")"
@@ -146,64 +245,10 @@ resources_dir = "[ROOT]/server/backend/app/resources"
 max_avatar_size_mb = 2
 CONFIG
 
-log "Installing backend dependencies"
-if [[ -f "server/backend/requirements.txt" ]]; then
-    python -m pip install --upgrade pip
-    python -m pip install -r server/backend/requirements.txt
-else
-    log "Warning: server/backend/requirements.txt not found, skipping Python package installation"
-fi
-
-log "Installing frontend dependencies"
-if [[ -d "server/frontend" ]]; then
-    cd server/frontend
-    npm install
-    cd "${PROJECT_DIR}"
-else
-    log "Warning: server/frontend directory not found, skipping npm install"
-fi
-
-log "Waiting for PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}"
-export PGPASSWORD="${ORIGINAL_POSTGRES_PASSWORD}"
-max_attempts=60
-attempt=0
-
-# Function to test PostgreSQL connection
-test_postgres() {
-    # Try pg_isready first
-    if command -v pg_isready >/dev/null 2>&1; then
-        pg_isready -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" >/dev/null 2>&1
-    else
-        # Fallback to psql if pg_isready is not available
-        psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -c "SELECT 1;" >/dev/null 2>&1
-    fi
-}
-
-until test_postgres; do
-    attempt=$((attempt + 1))
-    if [ $attempt -ge $max_attempts ]; then
-        log "PostgreSQL connection timed out after ${max_attempts} attempts"
-        # Try to show what's available for debugging
-        log "Network connectivity test:"
-        nc -z "${POSTGRES_HOST}" "${POSTGRES_PORT}" || log "Cannot connect to ${POSTGRES_HOST}:${POSTGRES_PORT}"
-        exit 1
-    fi
-    sleep 2
-    log "PostgreSQL is not ready yet... (attempt ${attempt}/${max_attempts})"
-done
-log "PostgreSQL is ready!"
-
-if [[ "${POSTGRES_PASSWORD}" != "${ORIGINAL_POSTGRES_PASSWORD}" ]]; then
-    log "Updating PostgreSQL password for user '${POSTGRES_USER}'"
-    if PGPASSWORD="${ORIGINAL_POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d postgres -c "ALTER ROLE \"${POSTGRES_USER}\" WITH PASSWORD '${POSTGRES_PASSWORD}';" >/dev/null 2>&1; then
-        log "Database password updated successfully."
-    else
-        log "Failed to update PostgreSQL password; continuing with original password."
-        POSTGRES_PASSWORD="${ORIGINAL_POSTGRES_PASSWORD}"
-    fi
-fi
-
-export PGPASSWORD="${POSTGRES_PASSWORD}"
+# Persist secrets for future container restarts
+save_secret "postgres_password" "${POSTGRES_PASSWORD}"
+save_secret "security_secret_key" "${SECURITY_SECRET_KEY}"
+log "Secrets persisted to ${SECRETS_DIR}"
 
 log "Running Alembic migrations"
 if [[ -d "server/backend" ]]; then
@@ -264,4 +309,3 @@ log "A service exited with code ${EXIT_CODE}. Shutting down."
 kill "${BACKEND_PID}" "${FRONTEND_PID}" >/dev/null 2>&1 || true
 wait || true
 exit "${EXIT_CODE}"
-export PATH="/root/.cargo/bin:${PATH}"
