@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.db.base import Base
-from app.db.session import AsyncSessionLocal
+from app.db.session import AsyncSessionLocal, engine
 from app.logger import get_logger
 from app.settings import settings
 
@@ -27,6 +27,8 @@ async def get_db():
 
 
 async def _get_db() -> AsyncGenerator:
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     async with AsyncSessionLocal() as session:
         yield session
 

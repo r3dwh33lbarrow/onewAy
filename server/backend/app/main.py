@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from sqlalchemy import update, text
+from sqlalchemy import update
 from starlette.middleware.cors import CORSMiddleware
 
 from app.dependencies import cleanup_db, get_db, init_db
@@ -30,18 +30,9 @@ async def lifespan(_: FastAPI):
     else:
         try:
             async for db in get_db():
-                result = await db.execute(
-                    text("""
-                         SELECT EXISTS (SELECT
-                                        FROM information_schema.tables
-                                        WHERE table_name = 'clients');
-                         """)
-                )
-                exists = result.scalar()
-                if exists:
-                    await db.execute(update(Client).values(alive=False))
-                    await db.commit()
-                    log.info("All clients marked not alive")
+                await db.execute(update(Client).values(alive=False))
+                await db.commit()
+                log.info("All clients marked not alive")
         except Exception as e:
             log.exception("Failed to mark all clients as not alive: %s", e)
             raise e
