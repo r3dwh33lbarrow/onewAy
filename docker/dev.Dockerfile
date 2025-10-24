@@ -33,6 +33,7 @@ RUN set -eux; \
         ninja-build \
         unzip \
         zip \
+        file \
         xz-utils \
         cpio \
         procps \
@@ -79,7 +80,10 @@ ARG OSX_SDK_DOWNLOAD=https://github.com/phracker/MacOSX-SDKs/releases/download/$
 ENV MACOSX_DEPLOYMENT_TARGET=10.13
 RUN set -eux; \
     git clone --depth 1 https://github.com/tpoechtrager/osxcross.git /opt/osxcross; \
-    curl -L -o /tmp/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz "${OSX_SDK_DOWNLOAD}"; \
+    curl --proto '=https' --tlsv1.2 --fail --retry 3 --retry-delay 5 --location \
+        --output /tmp/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz "${OSX_SDK_DOWNLOAD}"; \
+    file --brief --mime-type /tmp/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz | grep -E 'application/(x-xz|octet-stream)' >/dev/null; \
+    xz -t /tmp/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz; \
     mv /tmp/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz /opt/osxcross/tarballs/; \
     UNATTENDED=1 OSX_VERSION_MIN=${MACOSX_DEPLOYMENT_TARGET} /opt/osxcross/build.sh; \
     rm -rf /opt/osxcross/build /opt/osxcross/.git /opt/osxcross/tarballs/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz
