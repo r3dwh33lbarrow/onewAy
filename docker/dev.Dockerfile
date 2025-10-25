@@ -72,6 +72,10 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable && \
         x86_64-unknown-linux-gnu \
         x86_64-pc-windows-gnu
 
+RUN mkdir -p /root/.cargo && \
+    echo '[target.x86_64-pc-windows-gnu]' > /root/.cargo/config.toml && \
+    echo 'linker = "x86_64-w64-mingw32-gcc"' >> /root/.cargo/config.toml
+
 ENV \
     REPO_URL="https://github.com/r3dwh33lbarrow/onewAy.git" \
     REPO_REF="main" \
@@ -103,7 +107,7 @@ ENV \
     CXX_x86_64_pc_windows_gnu=x86_64-w64-mingw32-g++ \
     AR_x86_64_pc_windows_gnu=x86_64-w64-mingw32-ar \
     RANLIB_x86_64_pc_windows_gnu=x86_64-w64-mingw32-ranlib \
-    CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc;
+    CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
 
 # Create secrets directory with restrictive permissions
 RUN mkdir -p "${SECRETS_DIR}" && chmod 700 "${SECRETS_DIR}"
