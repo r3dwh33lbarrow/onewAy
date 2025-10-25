@@ -4,4 +4,7 @@ version: 0.1.0
 start: manual
 
 binaries:
-  mac: target/debug/shell
+  mac: binaries/mac/shell
+  linux: binaries/linux/shell
+  windows: binaries/windows/shell.exe
+
