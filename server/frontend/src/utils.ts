@@ -36,3 +36,7 @@ export function generatePassword(length: number): string {
 
   return password;
 }
+
+export function titleCaseToDashCase(str: string): string {
+  return str.toLowerCase().replace(/ /g, "-");
+}

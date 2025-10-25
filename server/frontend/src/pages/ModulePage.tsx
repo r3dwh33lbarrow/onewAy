@@ -7,7 +7,11 @@ import { apiClient, isApiError } from "../apiClient";
 import MainSkeleton from "../components/MainSkeleton";
 import type { ModuleInfo } from "../schemas/module.ts";
 import { useErrorStore } from "../stores/errorStore.ts";
-import { snakeCaseToDashCase, snakeCaseToTitle } from "../utils";
+import {
+  snakeCaseToDashCase,
+  snakeCaseToTitle,
+  titleCaseToDashCase,
+} from "../utils";
 
 export default function ModulePage() {
   const { name } = useParams<{ name: string }>();
@@ -55,7 +59,7 @@ export default function ModulePage() {
 
       try {
         const response = await apiClient.uploadFolder(
-          "/module/upload/",
+          "/module/update/" + titleCaseToDashCase(name),
           Array.from(files),
           "PUT",
         );

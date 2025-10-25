@@ -166,9 +166,16 @@ class ApiClient {
       const url = `${this.apiUrl}${endpoint}`;
       const method = (options.method ?? "GET").toUpperCase();
       const headers = {
-        ...(options.body && { "Content-Type": "application/json" }),
         ...(options.headers ?? {}),
       } as Record<string, string>;
+
+      const hasContentTypeHeader = Object.keys(headers).some(
+        (key) => key.toLowerCase() === "content-type",
+      );
+
+      if (typeof options.body === "string" && !hasContentTypeHeader) {
+        headers["Content-Type"] = "application/json";
+      }
 
       const init: RequestInit = {
         ...options,
