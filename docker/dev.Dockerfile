@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1.6
 FROM python:3.11-slim AS base
 
-# --- System setup ---
 ENV DEBIAN_FRONTEND=noninteractive
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \
@@ -68,25 +67,10 @@ RUN set -eux; \
 
 WORKDIR /workspace
 
-# Install Rust toolchain and cross targets early in build
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable && \
     /root/.cargo/bin/rustup target add \
         x86_64-unknown-linux-gnu \
-        x86_64-apple-darwin \
         x86_64-pc-windows-gnu
-
-ARG OSX_SDK_VERSION=12.3
-ARG OSX_SDK_DOWNLOAD=https://github.com/phracker/MacOSX-SDKs/releases/download/${OSX_SDK_VERSION}/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz
-ENV MACOSX_DEPLOYMENT_TARGET=10.13
-RUN set -eux; \
-    git clone --depth 1 https://github.com/tpoechtrager/osxcross.git /opt/osxcross; \
-    curl --proto '=https' --tlsv1.2 --fail --retry 3 --retry-delay 5 --location \
-        --output /tmp/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz "${OSX_SDK_DOWNLOAD}"; \
-    file --brief --mime-type /tmp/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz | grep -E 'application/(x-xz|octet-stream)' >/dev/null; \
-    xz -t /tmp/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz; \
-    mv /tmp/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz /opt/osxcross/tarballs/; \
-    UNATTENDED=1 OSX_VERSION_MIN=${MACOSX_DEPLOYMENT_TARGET} /opt/osxcross/build.sh; \
-    rm -rf /opt/osxcross/build /opt/osxcross/.git /opt/osxcross/tarballs/MacOSX${OSX_SDK_VERSION}.sdk.tar.xz
 
 ENV \
     REPO_URL="https://github.com/r3dwh33lbarrow/onewAy.git" \
@@ -103,7 +87,6 @@ ENV \
     PATH="/opt/osxcross/target/bin:/root/.cargo/bin:${PATH}" \
     SECRETS_DIR="/workspace/.secrets"
 
-ENV OSX_SDK_VERSION=${OSX_SDK_VERSION}
 ENV \
     PKG_CONFIG_ALLOW_CROSS=1 \
     PKG_CONFIG_x86_64_unknown_linux_gnu=/usr/bin/pkg-config \
@@ -120,14 +103,7 @@ ENV \
     CXX_x86_64_pc_windows_gnu=x86_64-w64-mingw32-g++ \
     AR_x86_64_pc_windows_gnu=x86_64-w64-mingw32-ar \
     RANLIB_x86_64_pc_windows_gnu=x86_64-w64-mingw32-ranlib \
-    CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc \
-    CC_x86_64_apple_darwin=o64-clang \
-    CXX_x86_64_apple_darwin=o64-clang++ \
-    AR_x86_64_apple_darwin=x86_64-apple-darwin-ar \
-    RANLIB_x86_64_apple_darwin=x86_64-apple-darwin-ranlib \
-    CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=o64-clang \
-    CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin-ar \
-    SDKROOT=/opt/osxcross/target/SDK/MacOSX${OSX_SDK_VERSION}.sdk
+    CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc;
 
 # Create secrets directory with restrictive permissions
 RUN mkdir -p "${SECRETS_DIR}" && chmod 700 "${SECRETS_DIR}"

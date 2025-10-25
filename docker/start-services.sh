@@ -265,7 +265,7 @@ fi
 start_backend() {
     log "Starting backend on port ${BACKEND_PORT}"
     cd "${PROJECT_DIR}/server/backend"
-    uvicorn app.main:app --host 0.0.0.0 --port "${BACKEND_PORT}" --reload
+    uvicorn app.main:app --host 0.0.0.0 --port "${BACKEND_PORT}"
 }
 
 start_frontend() {
