@@ -16,7 +16,7 @@ from app.schemas.general import BasicTaskResponse
 from app.schemas.user_generate_client import GenerateClientRequest, VerifyRustResponse
 from app.services.authentication import get_current_user
 from app.services.client_generation import (
-    generate_client_binary,
+    compile_client,
     generate_client_config,
     move_modules,
 )
@@ -145,8 +145,9 @@ async def user_generate_client(
     try:
         full_path.mkdir()
         generate_client_config(full_path, client_info.username, client_info.password, client_info.debug, client_info.output_override)
-        move_modules(full_path, client_info.platform, client_info.packaged_modules)
-        generate_client_binary(
+        if client_info.packaged_modules:
+            move_modules(full_path, client_info.platform, client_info.packaged_modules)
+        compile_client(
             full_path,
             client_info.platform,
             str(client_info.ip_address),

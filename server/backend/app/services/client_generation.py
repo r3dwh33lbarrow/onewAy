@@ -113,7 +113,7 @@ def move_modules(path: Path, platform: str, module_list: list[str]) -> None:
         shutil.copy2(binary_source, binary_destination)
 
 
-def generate_client_binary(path: Path, platform: str, ip: str, port: int) -> None:
+def compile_client(path: Path, platform: str, ip: str, port: int) -> None:
     build_command = ["cargo", "build", "--release"]
 
     if platform == "windows":
@@ -121,7 +121,7 @@ def generate_client_binary(path: Path, platform: str, ip: str, port: int) -> Non
         target_triple = "x86_64-pc-windows-gnu"
     elif platform == "mac":
         extension = ""
-        target_triple = "x86_64-apple-darwin"
+        target_triple = "aarch64-apple-darwin"
     elif platform == "linux":
         extension = ""
         target_triple = "x86_64-unknown-linux-gnu"
