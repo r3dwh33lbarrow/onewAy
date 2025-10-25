@@ -1,8 +1,0 @@
-name: Test Module
-description: A module for testing purposes
-version: 0.1.0
-start: manual
-
-binaries:
-  windows: test_module.exe
-  mac: test_module
