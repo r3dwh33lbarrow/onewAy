@@ -1,5 +1,6 @@
 import json
 import os
+import platform
 import shutil
 import subprocess
 from pathlib import Path
@@ -113,18 +114,21 @@ def move_modules(path: Path, platform: str, module_list: list[str]) -> None:
         shutil.copy2(binary_source, binary_destination)
 
 
-def compile_client(path: Path, platform: str, ip: str, port: int) -> None:
+def compile_client(path: Path, platform_target: str, ip: str, port: int) -> None:
     build_command = ["cargo", "build", "--release"]
 
-    if platform == "windows":
+    if platform_target == "windows":
         extension = ".exe"
         target_triple = "x86_64-pc-windows-gnu"
-    elif platform == "mac":
+    elif platform_target == "mac":
         extension = ""
         target_triple = "aarch64-apple-darwin"
-    elif platform == "linux":
+    elif platform_target == "linux":
         extension = ""
-        target_triple = "x86_64-unknown-linux-gnu"
+        if "macos" in platform.platform().lower():
+            target_triple = "x86_64-unknown-linux-musl"
+        else:
+            target_triple = "x86_64-unknown-linux-gnu"
     else:
         raise RuntimeError("Incompatible platform")
 
