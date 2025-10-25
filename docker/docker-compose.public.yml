@@ -1,0 +1,23 @@
+# Override file for public IP hosting
+# Use: docker-compose -f docker-compose.yml -f docker-compose.public.yml up
+# Note: On macOS, this exposes ports on all network interfaces (0.0.0.0)
+# making them accessible to VMs and other machines on your network
+
+services:
+  oneway-app:
+    ports:
+      - "0.0.0.0:${FRONTEND_PORT:-5173}:5173"
+      - "0.0.0.0:${BACKEND_PORT:-8000}:8000"
+    networks:
+      default:
+      oneway-public:
+        ipv4_address: 172.20.0.10
+
+networks:
+  oneway-public:
+    name: oneway-public
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1

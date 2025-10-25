@@ -33,6 +33,7 @@ services:
       - oneway-app-data:/workspace
       - oneway-secrets:/workspace/.secrets
       - ~/.ssh:/root/.ssh:ro
+
     restart: unless-stopped
 
   oneway-db:
