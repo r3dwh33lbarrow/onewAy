@@ -102,7 +102,7 @@ async def user_verify_rust(_=Depends(get_current_user)):
             'apple-darwin' in target for target in installed_targets
         )
         linux_target_installed = any(
-            'unknown-linux-gnu' in target for target in installed_targets
+            'unknown-linux-gnu' or 'unknown-linux-musl' in target for target in installed_targets
         )
 
         return VerifyRustResponse(
