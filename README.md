@@ -26,7 +26,7 @@ Documentation for specific topics lives in `docs/`:
 - [`docs/BACKEND_SETTINGS.md`](docs/BACKEND_SETTINGS.md) – `config.toml` reference.
 - [`docs/MODULES.md`](docs/MODULES.md) – module directory layout and workflows.
 - [`docs/MODULE_CONFIG.md`](docs/MODULE_CONFIG.md) – `config.yaml` schema.
-- [`docs/DOCKER.md`](docs/DOCKER.md) - Specific information on docker configuration and setting up docker on the network.
+- [`docs/DOCKER.md`](docs/DOCKER.md) - specific information on docker configuration and setting up docker on the network.
 
 ## Getting Started
 
