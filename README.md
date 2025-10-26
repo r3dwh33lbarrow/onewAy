@@ -26,7 +26,7 @@ Documentation for specific topics lives in `docs/`:
 - [`docs/BACKEND_SETTINGS.md`](docs/BACKEND_SETTINGS.md) – `config.toml` reference.
 - [`docs/MODULES.md`](docs/MODULES.md) – module directory layout and workflows.
 - [`docs/MODULE_CONFIG.md`](docs/MODULE_CONFIG.md) – `config.yaml` schema.
-- [`docs/DOCKER.md`](docs/DOCKER.md) - Specific information on docker configuration and setting up docker on the network.
+- [`docs/DOCKER.md`](docs/DOCKER.md) - specific information on docker configuration and setting up docker on the network.
 
 ## Getting Started
 
@@ -56,7 +56,7 @@ docker compose up --build
 
 During startup the container prompts you for the PostgreSQL password and the JWT `SECURITY_SECRET_KEY`. Press Enter to auto-generate strong random values or provide your own secrets. In non-interactive environments you can pre-set `POSTGRES_PASSWORD` and `SECURITY_SECRET_KEY` in your shell. The database boots with a temporary password (`changeme`) and the start script will rotate it to whatever you provide.
 
-The container installs the Rust toolchain with cross-compilation targets for Windows (`x86_64-pc-windows-gnu`), macOS (`x86_64-apple-darwin`), and Linux (`x86_64-unknown-linux-gnu`) so client bundles can be generated for every supported platform out of the box.
+The container installs the Rust toolchain with cross-compilation targets for Windows (`x86_64-pc-windows-gnu`) and Linux (`x86_64-unknown-linux-gnu`).
 
 ### Backend (FastAPI)
 
