@@ -51,6 +51,7 @@ pub enum ModuleStart {
 pub(crate) struct Binaries {
     pub windows: Option<String>,
     pub mac: Option<String>,
+    pub linux: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -84,7 +85,11 @@ impl ModuleConfig {
         {
             return self.binaries.mac.as_deref();
         }
-        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        #[cfg(target_os = "linux")]
+        {
+            return self.binaires.linux.as_deref();
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
         {
             return None;
         }
