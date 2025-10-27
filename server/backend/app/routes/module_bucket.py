@@ -158,7 +158,7 @@ async def module_put_bucket(
         HTTPException: 500 if the database operation fails.
     """
     module = await get_module(module_name, db)
-    module.bucket.data = module.bucket.data + bucket_info.data
+    module.bucket.data = module.bucket.data + bucket_info.data + "\n"
     if module.bucket.remove_at:
         module.bucket.remove_at = None
 

@@ -6,6 +6,5 @@ fn get_current_date_time() -> String {
 }
 
 fn main() {
-    // Track network activity
     println!("{}", get_current_date_time());
 }
