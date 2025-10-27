@@ -185,6 +185,22 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
+                <div className="flex items-center mt-4 gap-4">
+                  <Button
+                    color="blue"
+                    size="lg"
+                    onClick={saveSettings}
+                    className=""
+                    disabled={loading || !dirty}
+                  >
+                    {loading ? "Saving..." : "Save changes"}
+                  </Button>
+                  {dirty && !loading && (
+                    <span className="text-sm text-gray-500 dark:text-gray-400 justify-self-center">
+                      Unsaved changes
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="md:col-span-2">
@@ -260,21 +276,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-start gap-3">
-              <Button
-                color="blue"
-                size="lg"
-                onClick={saveSettings}
-                disabled={loading || !dirty}
-              >
-                {loading ? "Saving..." : "Save changes"}
-              </Button>
-              {dirty && !loading && (
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  Unsaved changes
-                </span>
-              )}
-            </div>
+            <div className="flex items-center justify-start gap-3 md:col-span-1"></div>
           </div>
         </div>
       )}
