@@ -62,7 +62,7 @@ export function BucketPage() {
       }
     >
       <div className="flex flex-col h-[65vh] bg-black rounded-lg overflow-hidden">
-        <div className="flex-1 overflow-auto p-3 font-mono text-sm text-white">
+        <div className="flex-1 overflow-auto p-3 font-mono text-sm text-white whitespace-pre-wrap">
           {bucketData}
         </div>
       </div>
