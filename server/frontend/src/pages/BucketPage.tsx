@@ -1,12 +1,15 @@
 import { Button } from "flowbite-react";
-import { type JSX, useEffect, useState } from "react";
+import { type JSX, useEffect, useMemo, useState } from "react";
 import { HiOutlineTrash } from "react-icons/hi";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { apiClient, isApiError } from "../apiClient.ts";
 import MainSkeleton from "../components/MainSkeleton.tsx";
 import type { BasicTaskResponse } from "../schemas/general.ts";
-import type { BucketData } from "../schemas/module_bucket.ts";
+import type {
+  BucketEntry,
+  ModuleBucketResponse,
+} from "../schemas/module_bucket.ts";
 import { parseBucketData, type ParsedBlock } from "../services/bucket.ts";
 import { useErrorStore } from "../stores/errorStore.ts";
 import { useNotificationStore } from "../stores/notificationStore.ts";
@@ -18,11 +21,11 @@ export function BucketPage() {
   const { addError } = useErrorStore();
   const { markAsConsumed } = useNotificationStore();
 
-  const [bucketData, setBucketData] = useState<string | null>(null);
-  const [parsedContent, setParsedContent] = useState<{
-    lines: string[];
-    blocks: ParsedBlock[];
-  } | null>(null);
+  const [entries, setEntries] = useState<BucketEntry[]>([]);
+  const [parsedEntries, setParsedEntries] = useState<
+    Record<string, { lines: string[]; blocks: ParsedBlock[] } | null>
+  >({});
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
 
   const deleteBucket = async () => {
     if (!module.module) return;
@@ -41,13 +44,17 @@ export function BucketPage() {
 
   useEffect(() => {
     if (!module.module) return;
+
+    setEntries([]);
+    setParsedEntries({});
+    setActiveEntryId(null);
     markAsConsumed(module.module);
 
     const getBucket = async () => {
-      const response = await apiClient.get<BucketData>(
+      const response = await apiClient.get<ModuleBucketResponse>(
         `/module/bucket?module_name=${module.module}`,
       );
-      console.log(response);
+
       if (isApiError(response)) {
         addError(
           `Failed to fetch bucket (${response.statusCode}): ${response.detail || response.message}`,
@@ -55,20 +62,47 @@ export function BucketPage() {
         return;
       }
 
-      setBucketData(response.data);
+      const nextEntries = Array.isArray(response.entries)
+        ? response.entries
+        : [];
+      setEntries(nextEntries);
 
-      try {
-        const result = parseBucketData(response.data);
-        setParsedContent({
-          lines: result.cleanText.split("\n"),
-          blocks: result.blocks,
-        });
-      } catch (error) {
-        addError(
-          `Failed to parse bucket data: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-        setParsedContent(null);
-      }
+      const parsed: Record<
+        string,
+        { lines: string[]; blocks: ParsedBlock[] } | null
+      > = {};
+
+      nextEntries.forEach((entry) => {
+        if (!entry.data) {
+          parsed[entry.uuid] = null;
+          return;
+        }
+
+        try {
+          const result = parseBucketData(entry.data);
+          parsed[entry.uuid] = {
+            lines: result.cleanText.split("\n"),
+            blocks: result.blocks,
+          };
+        } catch (error) {
+          const clientLabel = entry.client_username ?? "Unknown client";
+          addError(
+            `Failed to parse bucket data for ${clientLabel}: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+          );
+          parsed[entry.uuid] = null;
+        }
+      });
+
+      setParsedEntries(parsed);
+      setActiveEntryId((prev) => {
+        if (prev && nextEntries.some((entry) => entry.uuid === prev)) {
+          return prev;
+        }
+
+        return nextEntries.length > 0 ? nextEntries[0].uuid : null;
+      });
     };
 
     getBucket();
@@ -77,11 +111,6 @@ export function BucketPage() {
   const renderBlock = (block: ParsedBlock) => {
     switch (block.type.toLowerCase()) {
       case "image":
-      case "png":
-      case "jpg":
-      case "jpeg":
-      case "gif":
-      case "webp":
         return (
           <div className="my-4">
             <img
@@ -109,12 +138,17 @@ export function BucketPage() {
     }
   };
 
-  const renderContent = () => {
-    if (!parsedContent) {
-      return <div className="whitespace-pre-wrap">{bucketData}</div>;
+  const renderParsedContent = (entry: BucketEntry) => {
+    const parsed = parsedEntries[entry.uuid];
+    if (!parsed) {
+      return (
+        <div className="whitespace-pre-wrap">
+          {entry.data || "No data for this client yet."}
+        </div>
+      );
     }
 
-    const { lines, blocks } = parsedContent;
+    const { lines, blocks } = parsed;
     const elements: JSX.Element[] = [];
     let currentLine = 0;
 
@@ -151,15 +185,70 @@ export function BucketPage() {
     return <>{elements}</>;
   };
 
+  const renderEntryContent = (entry: BucketEntry) => {
+    const hasData = entry.data.trim().length > 0;
+
+    return (
+      <>
+        {hasData ? (
+          renderParsedContent(entry)
+        ) : (
+          <div className="text-sm text-gray-500">Awaiting bucket data.</div>
+        )}
+      </>
+    );
+  };
+
+  const activeEntry = useMemo(
+    () => entries.find((entry) => entry.uuid === activeEntryId) ?? null,
+    [entries, activeEntryId],
+  );
+
   return (
     <MainSkeleton
       baseName={
         module?.module ? "Bucket for " + snakeCaseToTitle(module.module) : "N/A"
       }
     >
-      <div className="flex flex-col h-[77vh] bg-black rounded-lg overflow-hidden">
-        <div className="flex-1 overflow-auto p-3 font-mono text-sm text-white">
-          {renderContent()}
+      <div className="flex flex-col h-[77vh] bg-black rounded-lg overflow-hidden border border-gray-800">
+        <div className="bg-gray-200 border-b dark:bg-gray-700 border-gray-300">
+          {entries.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-gray-400">
+              No clients have provided bucket data yet.
+            </div>
+          ) : (
+            <div className="flex overflow-x-auto">
+              {entries.map((entry) => {
+                const isActive = entry.uuid === activeEntryId;
+                const label = entry.client_username ?? "Unassigned client";
+
+                return (
+                  <button
+                    key={entry.uuid}
+                    type="button"
+                    onClick={() => setActiveEntryId(entry.uuid)}
+                    className={`px-4 py-2 text-sm border-b-2 transition-colors ${
+                      isActive
+                        ? "border-purple-500 text-black dark:text-white"
+                        : "border-transparent text-gray-600 dark:text-gray-300 hover:text-gray-500 hover:border-gray-600"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-auto p-4 font-mono text-sm text-white bg-black">
+          {activeEntry ? (
+            renderEntryContent(activeEntry)
+          ) : (
+            <div className="text-sm text-gray-500">
+              Select a client tab to view bucket data.
+            </div>
+          )}
         </div>
       </div>
       <div className="flex justify-between mt-4">

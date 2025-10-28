@@ -105,9 +105,11 @@ export default function TopIcons() {
                       )
                         ? bucket_info.created_at
                         : createdAtDate.toLocaleString();
+                      const clientLabel =
+                        bucket_info.client_username ?? "Unassigned client";
                       return (
                         <div
-                          key={bucket_info.name}
+                          key={`${bucket_info.name}-${bucket_info.entry_uuid ?? "none"}`}
                           className="p-3 border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer"
                           onClick={() => {
                             navigate(`/bucket/${bucket_info.name}`);
@@ -119,7 +121,7 @@ export default function TopIcons() {
                               <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
                             )}
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
-                              {bucket_info.name}
+                              {bucket_info.name + " - " + clientLabel}
                             </div>
                           </div>
                           <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
