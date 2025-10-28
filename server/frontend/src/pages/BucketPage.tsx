@@ -157,7 +157,7 @@ export function BucketPage() {
         module?.module ? "Bucket for " + snakeCaseToTitle(module.module) : "N/A"
       }
     >
-      <div className="flex flex-col h-[65vh] bg-black rounded-lg overflow-hidden">
+      <div className="flex flex-col h-[77vh] bg-black rounded-lg overflow-hidden">
         <div className="flex-1 overflow-auto p-3 font-mono text-sm text-white">
           {renderContent()}
         </div>
