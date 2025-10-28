@@ -6,9 +6,14 @@ from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_db
 from app.models.module import Module
-from app.models.module_bucket import ModuleBucket
+from app.models.module_bucket import ModuleBucket, ModuleBucketEntry
 from app.schemas.general import BasicTaskResponse
-from app.schemas.module_bucket import AllBucketsResponse, BucketData, BucketInfo
+from app.schemas.module_bucket import (
+    AllBucketsResponse,
+    BucketData,
+    BucketInfo,
+    ModuleBucketResponse,
+)
 from app.services.authentication import (
     get_current_client,
     get_current_user,
@@ -35,7 +40,11 @@ async def get_module(module_name: str, db: AsyncSession) -> Module:
     """
     module = await db.execute(
         select(Module)
-        .options(selectinload(Module.bucket))
+        .options(
+            selectinload(Module.bucket)
+            .selectinload(ModuleBucket.entries)
+            .selectinload(ModuleBucketEntry.client)
+        )
         .where(Module.name == module_name)
     )
     module = module.scalar_one_or_none()
@@ -95,15 +104,12 @@ async def module_new_bucket(
         )
 
 
-@router.get("/bucket", response_model=BucketData)
+@router.get("/bucket", response_model=ModuleBucketResponse)
 async def module_get_bucket(
     module_name: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)
 ):
     """
-    Retrieve and mark a module's bucket as consumed.
-
-    Returns the current bucket data and sets a removal timestamp (consume) so the
-    bucket is marked as consumed for future reference.
+    Retrieve all client-specific entries for a module's bucket and mark them as consumed.
 
     Args:
         module_name: The name of the module whose bucket data is requested.
@@ -111,7 +117,7 @@ async def module_get_bucket(
         _: Current user authentication dependency.
 
     Returns:
-        BucketData: The bucket data payload.
+        ModuleBucketResponse: The bucket data grouped by client.
 
     Raises:
         HTTPException: 404 if the module is not found.
@@ -119,12 +125,34 @@ async def module_get_bucket(
         HTTPException: 500 if the consume/database operation fails.
     """
     module = await get_module(module_name, db)
-    module.bucket.consume()
+    bucket = module.bucket
+    response_entries = []
+    sorted_entries = sorted(
+        bucket.entries,
+        key=lambda entry: (
+            entry.client.username if entry.client else "",
+            entry.created_at,
+        ),
+    )
+
+    for entry in sorted_entries:
+        if entry.data and entry.remove_at is None:
+            entry.consume()
+
+        response_entries.append(
+            {
+                "uuid": entry.uuid,
+                "client_username": entry.client.username if entry.client else None,
+                "data": entry.data,
+                "consumed": entry.remove_at is not None,
+                "created_at": entry.created_at,
+                "remove_at": entry.remove_at,
+            }
+        )
 
     try:
         await db.commit()
-        await db.refresh(module)
-        return {"data": module.bucket.data}
+        return {"module_name": module.bucket.module_name, "entries": response_entries}
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(status_code=500, detail="Failed to consume bucket")
@@ -135,7 +163,7 @@ async def module_put_bucket(
     module_name: str,
     bucket_info: BucketData,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_client),
+    current_client=Depends(get_current_client),
 ):
     """
     Append data to a module's bucket, clearing its removal marker if present.
@@ -147,7 +175,7 @@ async def module_put_bucket(
         module_name: The name of the module whose bucket will be updated.
         bucket_info: Payload containing data to append to the bucket.
         db: Async SQLAlchemy session dependency.
-        _: Current client authentication dependency.
+        current_client: Current client authentication dependency.
 
     Returns:
         BasicTaskResponse: Result indicating success.
@@ -158,9 +186,20 @@ async def module_put_bucket(
         HTTPException: 500 if the database operation fails.
     """
     module = await get_module(module_name, db)
-    module.bucket.data = module.bucket.data + bucket_info.data + "\n"
-    if module.bucket.remove_at:
-        module.bucket.remove_at = None
+    bucket = module.bucket
+    entry = next(
+        (item for item in bucket.entries if item.client_uuid == current_client.uuid),
+        None,
+    )
+
+    if not entry:
+        entry = ModuleBucketEntry(bucket=bucket, client=current_client, data="")
+        bucket.entries.append(entry)
+
+    entry.data = entry.data + bucket_info.data + "\n"
+    entry.client = current_client
+    if entry.remove_at:
+        entry.remove_at = None
 
     try:
         await db.commit()
@@ -228,16 +267,28 @@ async def module_all_buckets(
     Returns:
         AllBucketsResponse: Mapping of module_name -> consumption status.
     """
-    all_buckets = await db.execute(select(ModuleBucket))
-    all_buckets = all_buckets.scalars().all()
+    all_entries = await db.execute(
+        select(ModuleBucketEntry).options(
+            selectinload(ModuleBucketEntry.bucket),
+            selectinload(ModuleBucketEntry.client),
+        )
+    )
+    all_entries = all_entries.scalars().all()
     buckets = []
 
-    for bucket in all_buckets:
+    for entry in all_entries:
+        bucket = entry.bucket
+        if not bucket:
+            continue
+        if not entry.data or not entry.data.strip():
+            continue
         buckets.append(
             BucketInfo(
                 name=bucket.module_name,
-                consumed=True if bucket.remove_at else False,
-                created_at=bucket.created_at,
+                consumed=True if entry.remove_at else False,
+                created_at=entry.created_at,
+                client_username=entry.client.username if entry.client else None,
+                entry_uuid=entry.uuid,
             )
         )
     return {"buckets": buckets}

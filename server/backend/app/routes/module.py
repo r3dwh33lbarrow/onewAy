@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.dependencies import get_db
 from app.logger import get_logger
 from app.models.client_module import ClientModule
+from app.models.module_bucket import ModuleBucket, ModuleBucketEntry
 from app.models.user import User
 from app.schemas.general import BasicTaskResponse
 from app.schemas.module import *
@@ -500,6 +501,27 @@ async def module_set_installed_client_username(
 
     client.client_modules.append(client_module)
     db.add(client_module)
+
+    bucket = await db.execute(
+        select(ModuleBucket)
+        .options(selectinload(ModuleBucket.entries))
+        .where(ModuleBucket.module_name == module.name)
+    )
+    bucket = bucket.scalar_one_or_none()
+    if not bucket:
+        bucket = ModuleBucket(module=module)
+        db.add(bucket)
+
+    existing_entry = None
+    if bucket.entries:
+        existing_entry = next(
+            (entry for entry in bucket.entries if entry.client_uuid == client.uuid),
+            None,
+        )
+
+    if existing_entry is None:
+        bucket.entries.append(ModuleBucketEntry(bucket=bucket, client=client, data=""))
+
     try:
         await db.commit()
         logger.info(
