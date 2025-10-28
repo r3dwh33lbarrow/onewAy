@@ -7,8 +7,8 @@ use std::time::Duration;
 use sysinfo::System;
 
 const PROC_WAIT_TIME: u64 = 60 * 5;
-const DATA_START: &str = "[ONEWAY DATA START]";
-const DATA_END: &str = "[ONEWAY DATA END]";
+const DATA_START: &str = "[ONEWAY DATA START] [IMAGE]";
+const DATA_END: &str = "[ONEWAY DATA END] [IMAGE]";
 
 
 fn get_current_date_time() -> String {
