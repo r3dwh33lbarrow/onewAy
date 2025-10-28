@@ -44,11 +44,10 @@ fn compare_processes(old_proc: Arc<Mutex<Vec<String>>>, new_proc: Arc<Mutex<Vec<
 
 fn proc_list_contains_key_proc(proc_list: Arc<Mutex<Vec<String>>>) -> bool {
     let proc_list = proc_list.lock().unwrap();
-    let keywords = vec!["chrome", "firefox", "safari"];
+    let keywords = vec!["Google Chrome", "firefox", "Safari"];
 
     proc_list.iter().any(|proc| {
-        let proc_lower = proc.to_ascii_lowercase();
-        keywords.iter().any(|key| proc_lower.contains(&key.to_ascii_lowercase()))
+        keywords.iter().any(|key| proc == key)
     })
 }
 
