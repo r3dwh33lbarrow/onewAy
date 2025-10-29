@@ -10,7 +10,7 @@ interface NotificationStore {
   notifications: BucketInfo[];
   last_updated: Date;
   error: ApiError | null;
-  query: () => Promise<void>;
+  query: (options?: { force?: boolean }) => Promise<void>;
   markAsConsumed: (moduleName: string) => void;
   hasUnread: boolean;
 }
@@ -21,14 +21,14 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   error: null,
   hasUnread: false,
 
-  query: async () => {
+  query: async (options) => {
     const now = new Date();
     const lastUpdated = get().last_updated;
 
     const timeDiff = now.getTime() - lastUpdated.getTime();
     const oneMinute = 60 * 1000;
 
-    if (timeDiff < oneMinute) {
+    if (!options?.force && timeDiff < oneMinute) {
       return;
     }
 
