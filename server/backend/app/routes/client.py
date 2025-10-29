@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.logger import get_logger
 from app.models.client import Client
+from app.models.module_bucket import ModuleBucketEntry
 from app.models.refresh_token import RefreshToken
 from app.schemas.client import *
 from app.schemas.general import BasicTaskResponse
@@ -77,7 +78,7 @@ async def client_username(
             alive=result.alive,
             last_contact=result.last_contact,
             client_version=result.client_version,
-             platform=result.platform,
+            platform=result.platform,
             any_valid_tokens=await any_valid_refresh_tokens(result.uuid, db),
         )
     logger.warning("Client lookup failed for username '%s'", username)
@@ -94,7 +95,15 @@ async def client_delete_username(
     if not client:
         raise HTTPException(status_code=400, detail="Client not found")
 
+    bucket_entries_result = await db.execute(
+        select(ModuleBucketEntry).where(ModuleBucketEntry.client_uuid == client.uuid)
+    )
+    bucket_entries = bucket_entries_result.scalars().all()
+
     try:
+        for entry in bucket_entries:
+            await db.delete(entry)
+
         await db.delete(client)
         await db.commit()
         return {"result": "success"}

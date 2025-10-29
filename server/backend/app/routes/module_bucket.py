@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -246,6 +248,33 @@ async def module_delete_bucket(
         await db.rollback()
         raise HTTPException(
             status_code=500, detail="Failed to delete bucket in database"
+        )
+
+
+@router.delete("/bucket-entry", response_model=BasicTaskResponse)
+async def module_delete_bucket_entry(
+    module_name: str,
+    entry_uuid: UUID,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """Delete a single entry within a module bucket."""
+
+    module = await get_module(module_name, db)
+    bucket = module.bucket
+
+    entry = next((item for item in bucket.entries if item.uuid == entry_uuid), None)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Bucket entry not found")
+
+    try:
+        await db.delete(entry)
+        await db.commit()
+        return {"result": "success"}
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500, detail="Failed to delete bucket entry in database"
         )
 
 
