@@ -19,12 +19,14 @@ import type { ClientInfo } from "../schemas/client";
 import type { BasicTaskResponse } from "../schemas/general";
 import type { InstalledModuleInfo } from "../schemas/module.ts";
 import { useErrorStore } from "../stores/errorStore.ts";
+import { useNotificationStore } from "../stores/notificationStore.ts";
 
 export default function ClientPage() {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
   const socketRef = useRef<WebSocket | null>(null);
   const { addError, anyErrors } = useErrorStore();
+  const refreshNotifications = useNotificationStore((state) => state.query);
 
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [installedModules, setInstalledModules] = useState<
@@ -40,6 +42,8 @@ export default function ClientPage() {
       addError(`Failed to delete client: ${response.detail}`);
       return;
     }
+
+    await refreshNotifications({ force: true });
     navigate("/");
   };
 

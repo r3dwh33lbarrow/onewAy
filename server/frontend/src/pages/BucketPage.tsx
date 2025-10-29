@@ -1,7 +1,14 @@
 import { Button } from "flowbite-react";
-import { type JSX, useEffect, useMemo, useState } from "react";
+import {
+  type JSX,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { HiOutlineTrash } from "react-icons/hi";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { apiClient, isApiError } from "../apiClient.ts";
 import MainSkeleton from "../components/MainSkeleton.tsx";
@@ -16,30 +23,80 @@ import { useNotificationStore } from "../stores/notificationStore.ts";
 import { snakeCaseToTitle } from "../utils.ts";
 
 export function BucketPage() {
-  const navigate = useNavigate();
   const module = useParams<{ module: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { addError } = useErrorStore();
-  const { markAsConsumed } = useNotificationStore();
+  const { markAsConsumed, query: refreshNotifications } =
+    useNotificationStore();
 
   const [entries, setEntries] = useState<BucketEntry[]>([]);
   const [parsedEntries, setParsedEntries] = useState<
     Record<string, { lines: string[]; blocks: ParsedBlock[] } | null>
   >({});
-  const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
+  const requestedEntryId = searchParams.get("entry");
+  const requestedEntryIdRef = useRef<string | null>(requestedEntryId);
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(
+    requestedEntryId,
+  );
 
-  const deleteBucket = async () => {
-    if (!module.module) return;
+  useEffect(() => {
+    requestedEntryIdRef.current = requestedEntryId;
+  }, [requestedEntryId]);
+
+  const setActiveEntry = useCallback(
+    (entryId: string | null, options?: { updateUrl?: boolean }) => {
+      setActiveEntryId(entryId);
+      if (options?.updateUrl === false) return;
+
+      if (entryId) {
+        setSearchParams({ entry: entryId }, { replace: true });
+        return;
+      }
+
+      setSearchParams({}, { replace: true });
+    },
+    [setSearchParams],
+  );
+
+  const deleteBucketEntry = async () => {
+    if (!module.module || !activeEntryId) return;
+
     const response = await apiClient.delete<BasicTaskResponse>(
-      `/module/bucket?module_name=${module.module}`,
+      `/module/bucket-entry?module_name=${encodeURIComponent(module.module)}&entry_uuid=${activeEntryId}`,
     );
     if (isApiError(response)) {
       addError(
-        `Failed to delete bucket (${response.statusCode}): ${response.detail || response.message}`,
+        `Failed to delete bucket entry (${response.statusCode}): ${response.detail || response.message}`,
       );
       return;
     }
 
-    navigate("/dashboard");
+    const remainingEntries = entries.filter(
+      (entry) => entry.uuid !== activeEntryId,
+    );
+
+    setEntries(remainingEntries);
+    setParsedEntries((prev) => {
+      const next = { ...prev };
+      delete next[activeEntryId];
+      return next;
+    });
+
+    const currentIndex = entries.findIndex(
+      (entry) => entry.uuid === activeEntryId,
+    );
+    let nextActive: string | null = null;
+
+    if (remainingEntries.length > 0) {
+      if (currentIndex >= 0 && currentIndex < remainingEntries.length) {
+        nextActive = remainingEntries[currentIndex].uuid;
+      } else {
+        nextActive = remainingEntries[remainingEntries.length - 1].uuid;
+      }
+    }
+
+    setActiveEntry(nextActive);
+    await refreshNotifications({ force: true });
   };
 
   useEffect(() => {
@@ -47,7 +104,7 @@ export function BucketPage() {
 
     setEntries([]);
     setParsedEntries({});
-    setActiveEntryId(null);
+    setActiveEntry(requestedEntryIdRef.current, { updateUrl: false });
     markAsConsumed(module.module);
 
     const getBucket = async () => {
@@ -96,17 +153,62 @@ export function BucketPage() {
       });
 
       setParsedEntries(parsed);
-      setActiveEntryId((prev) => {
-        if (prev && nextEntries.some((entry) => entry.uuid === prev)) {
-          return prev;
-        }
+      const targetEntryId =
+        requestedEntryIdRef.current &&
+        nextEntries.some((entry) => entry.uuid === requestedEntryIdRef.current)
+          ? requestedEntryIdRef.current
+          : nextEntries.length > 0
+            ? nextEntries[0].uuid
+            : null;
 
-        return nextEntries.length > 0 ? nextEntries[0].uuid : null;
-      });
+      setActiveEntry(
+        targetEntryId,
+        targetEntryId === requestedEntryIdRef.current
+          ? { updateUrl: false }
+          : undefined,
+      );
     };
 
     getBucket();
-  }, [module, addError, markAsConsumed]);
+  }, [module, addError, markAsConsumed, setActiveEntry]);
+
+  useEffect(() => {
+    if (!entries.length) {
+      return;
+    }
+
+    if (requestedEntryId) {
+      const hasRequested = entries.some(
+        (entry) => entry.uuid === requestedEntryId,
+      );
+      if (!hasRequested || activeEntryId === requestedEntryId) {
+        return;
+      }
+      setActiveEntry(requestedEntryId, { updateUrl: false });
+      return;
+    }
+
+    if (
+      activeEntryId &&
+      entries.some((entry) => entry.uuid === activeEntryId)
+    ) {
+      return;
+    }
+
+    const fallbackEntryId =
+      entries.length > 0 ? entries[0].uuid : (activeEntryId ?? null);
+    if (fallbackEntryId !== activeEntryId) {
+      setActiveEntry(fallbackEntryId);
+    }
+  }, [requestedEntryId, entries, activeEntryId, setActiveEntry]);
+
+  const handleEntryClick = useCallback(
+    (entryId: string) => {
+      if (entryId === activeEntryId) return;
+      setActiveEntry(entryId);
+    },
+    [activeEntryId, setActiveEntry],
+  );
 
   const renderBlock = (block: ParsedBlock) => {
     switch (block.type.toLowerCase()) {
@@ -226,7 +328,7 @@ export function BucketPage() {
                   <button
                     key={entry.uuid}
                     type="button"
-                    onClick={() => setActiveEntryId(entry.uuid)}
+                    onClick={() => handleEntryClick(entry.uuid)}
                     className={`px-4 py-2 text-sm border-b-2 transition-colors ${
                       isActive
                         ? "border-purple-500 text-black dark:text-white"
@@ -260,10 +362,11 @@ export function BucketPage() {
           pill
           color="purple"
           className=" px-6 gap-1"
-          onClick={deleteBucket}
+          onClick={deleteBucketEntry}
+          disabled={!activeEntry}
         >
           <HiOutlineTrash className="h-5 w-5" />
-          Delete
+          Delete Tab
         </Button>
       </div>
     </MainSkeleton>

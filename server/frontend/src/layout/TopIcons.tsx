@@ -29,7 +29,7 @@ export default function TopIcons() {
 
   useEffect(() => {
     query();
-  }, []);
+  }, [query]);
 
   const handleLogout = async () => {
     await apiClient.post<object, { result: string }>("/user/auth/logout", {});
@@ -112,7 +112,10 @@ export default function TopIcons() {
                           key={`${bucket_info.name}-${bucket_info.entry_uuid ?? "none"}`}
                           className="p-3 border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer"
                           onClick={() => {
-                            navigate(`/bucket/${bucket_info.name}`);
+                            const targetPath = bucket_info.entry_uuid
+                              ? `/bucket/${bucket_info.name}?entry=${encodeURIComponent(bucket_info.entry_uuid)}`
+                              : `/bucket/${bucket_info.name}`;
+                            navigate(targetPath);
                             setNotificationsOpen(false);
                           }}
                         >
