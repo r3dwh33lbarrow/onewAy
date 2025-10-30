@@ -6,9 +6,9 @@ import { HiInformationCircle } from "react-icons/hi";
 import { apiClient, isApiError } from "../apiClient.ts";
 import MainSkeleton from "../components/MainSkeleton.tsx";
 import ModuleTable from "../components/ModuleTable.tsx";
+import type { VerifyRustResponse } from "../schemas/userGenerateClient.ts";
 import { useErrorStore } from "../stores/errorStore.ts";
 import { generatePassword } from "../utils.ts";
-import type { VerifyRustResponse } from "../schemas/userGenerateClient.ts";
 
 export default function ClientBuilder() {
   const [ip, setIp] = useState("");
@@ -160,9 +160,8 @@ export default function ClientBuilder() {
   useEffect(() => {
     const checkRustInstalled = async () => {
       setRustTargets(null);
-      const response = await apiClient.get<VerifyRustResponse>(
-        "/user/verify-rust",
-      );
+      const response =
+        await apiClient.get<VerifyRustResponse>("/user/verify-rust");
       if (isApiError(response)) {
         addError(
           `Failed to verify Rust installation (${response.statusCode}): ${response.detail || response.message}`,
