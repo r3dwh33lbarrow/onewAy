@@ -5,16 +5,17 @@ Revises: 7eee33c80d0a
 Create Date: 2025-10-28 14:39:57.946715
 
 """
+
 from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "ea3268ba52eb"
@@ -106,7 +107,9 @@ def downgrade() -> None:
     """Downgrade schema."""
     op.add_column(
         "module_bucket",
-        sa.Column("data", sa.TEXT(), autoincrement=False, nullable=False, server_default=""),
+        sa.Column(
+            "data", sa.TEXT(), autoincrement=False, nullable=False, server_default=""
+        ),
     )
     op.alter_column("module_bucket", "data", server_default=None)
     op.add_column(

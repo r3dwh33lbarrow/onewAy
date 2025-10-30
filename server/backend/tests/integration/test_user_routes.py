@@ -80,7 +80,9 @@ async def ensure_conflicting_username(client: AsyncClient, username: str):
 
 async def ensure_avatar_size_limit(client: AsyncClient):
     await register_and_login(client, "limit_user")
-    oversized = b"\x89PNG" + b"\x00" * (settings.other.max_avatar_size_mb * 1024 * 1024 + 1)
+    oversized = b"\x89PNG" + b"\x00" * (
+        settings.other.max_avatar_size_mb * 1024 * 1024 + 1
+    )
     response = await upload_avatar(client, "avatar.png", oversized, "image/png")
     assert response.status_code == 413
     assert "File too large" in response.json()["detail"]
@@ -89,9 +91,7 @@ async def ensure_avatar_size_limit(client: AsyncClient):
 async def ensure_avatar_validation_errors(client: AsyncClient):
     await register_and_login(client, "validation_user")
 
-    wrong_type = await upload_avatar(
-        client, "avatar.txt", b"text", "text/plain"
-    )
+    wrong_type = await upload_avatar(client, "avatar.txt", b"text", "text/plain")
     assert wrong_type.status_code == 400
     assert wrong_type.json()["detail"] == "Avatar must be a PNG file"
 
@@ -99,9 +99,7 @@ async def ensure_avatar_validation_errors(client: AsyncClient):
     assert empty_file.status_code == 400
     assert empty_file.json()["detail"] == "Empty file"
 
-    wrong_magic = await upload_avatar(
-        client, "avatar.png", b"GIF89a", "image/png"
-    )
+    wrong_magic = await upload_avatar(client, "avatar.png", b"GIF89a", "image/png")
     assert wrong_magic.status_code == 400
     assert wrong_magic.json()["detail"] == "Avatar must be a PNG file"
 

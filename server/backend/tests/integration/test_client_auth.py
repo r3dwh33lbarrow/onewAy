@@ -4,7 +4,9 @@ from httpx import AsyncClient
 pytestmark = pytest.mark.asyncio
 
 
-async def register_user(client: AsyncClient, username: str = "admin", password: str = "pw"):
+async def register_user(
+    client: AsyncClient, username: str = "admin", password: str = "pw"
+):
     response = await client.post(
         "/user/auth/register", json={"username": username, "password": password}
     )
@@ -32,9 +34,7 @@ async def enroll_client(
     return response
 
 
-async def login_client(
-    client: AsyncClient, username: str, password: str = "pw"
-):
+async def login_client(client: AsyncClient, username: str, password: str = "pw"):
     response = await client.post(
         "/client/auth/login", json={"username": username, "password": password}
     )

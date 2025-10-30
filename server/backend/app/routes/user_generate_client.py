@@ -92,17 +92,18 @@ async def user_verify_rust(_=Depends(get_current_user)):
                 linux_target_installed=False,
             )
 
-        installed_targets = result.stdout.strip().split('\n')
+        installed_targets = result.stdout.strip().split("\n")
 
         windows_target_installed = any(
-            'pc-windows-msvc' in target or 'pc-windows-gnu' in target
+            "pc-windows-msvc" in target or "pc-windows-gnu" in target
             for target in installed_targets
         )
         mac_target_installed = any(
-            'apple-darwin' in target for target in installed_targets
+            "apple-darwin" in target for target in installed_targets
         )
         linux_target_installed = any(
-            'unknown-linux-gnu' or 'unknown-linux-musl' in target for target in installed_targets
+            "unknown-linux-gnu" or "unknown-linux-musl" in target
+            for target in installed_targets
         )
 
         return VerifyRustResponse(
@@ -121,7 +122,6 @@ async def user_verify_rust(_=Depends(get_current_user)):
             mac_target_installed=False,
             linux_target_installed=False,
         )
-
 
 
 @router.post("/generate-client")
@@ -144,7 +144,13 @@ async def user_generate_client(
 
     try:
         full_path.mkdir()
-        generate_client_config(full_path, client_info.username, client_info.password, client_info.debug, client_info.output_override)
+        generate_client_config(
+            full_path,
+            client_info.username,
+            client_info.password,
+            client_info.debug,
+            client_info.output_override,
+        )
         if client_info.packaged_modules:
             move_modules(full_path, client_info.platform, client_info.packaged_modules)
         compile_client(

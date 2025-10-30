@@ -215,9 +215,7 @@ async def test_module_add_nonexistent_path_returns_400(client: AsyncClient):
     client.cookies.clear()
     await ensure_user_logged_in(client, "modadder2")
 
-    r = await client.put(
-        "/module/add", json={"module_path": "does_not_exist_dir"}
-    )
+    r = await client.put("/module/add", json={"module_path": "does_not_exist_dir"})
     assert r.status_code == 400
     assert "Module path does not exist" in r.json()["detail"]
 
@@ -229,9 +227,7 @@ async def test_module_update_not_found_returns_404(client: AsyncClient):
     files = {
         "files": ("config.yaml", io.BytesIO(b"name: x\nversion: 0.1\nstart: manual\n"))
     }
-    r = await client.put(
-        "/module/update/no_such_module", files=files
-    )
+    r = await client.put("/module/update/no_such_module", files=files)
     assert r.status_code == 404
     assert r.json()["detail"] == "Module not found"
 
@@ -249,7 +245,9 @@ async def test_module_installed_list_includes_set_item(
     await db_session.commit()
 
     user_username, user_password = await ensure_user_logged_in(client, "install_admin")
-    client_username, client_headers = await enroll_and_login_client(client, "instclient")
+    client_username, client_headers = await enroll_and_login_client(
+        client, "instclient"
+    )
 
     await ensure_user_logged_in(client, user_username, user_password)
     r = await client.post(

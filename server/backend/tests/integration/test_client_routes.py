@@ -102,7 +102,9 @@ async def seed_client_environment(
     return headers, (admin_username, admin_password)
 
 
-async def assert_client_list_contains(client: AsyncClient, headers: dict, username: str):
+async def assert_client_list_contains(
+    client: AsyncClient, headers: dict, username: str
+):
     overview = await get_client_overview(client, headers)
     usernames = {entry["username"] for entry in overview["clients"]}
     assert username in usernames
@@ -180,17 +182,13 @@ async def test_client_update_missing_binary_returns_error(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_client_delete_removes_bucket_entries(client: AsyncClient):
-    headers, admin_credentials = await seed_client_environment(
-        client, "delete-client"
-    )
+    headers, admin_credentials = await seed_client_environment(client, "delete-client")
     await ensure_client_deleted(client, "delete-client", headers, admin_credentials)
 
 
 @pytest.mark.asyncio
 async def test_client_get_unknown_returns_404(client: AsyncClient):
     headers, _ = await seed_client_environment(client, "known-client")
-    response = await client.get(
-        "/client/action/unknown-client", headers=headers
-    )
+    response = await client.get("/client/action/unknown-client", headers=headers)
     assert response.status_code == 404
     assert response.json()["detail"] == "Client not found"

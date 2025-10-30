@@ -16,7 +16,13 @@ from app.version import __version__
 log = get_logger()
 
 
-def generate_client_config(path: Path, username: str, password: str, debug: bool | None = None, output_override: bool | None = None) -> None:
+def generate_client_config(
+    path: Path,
+    username: str,
+    password: str,
+    debug: bool | None = None,
+    output_override: bool | None = None,
+) -> None:
     data = {
         "module": {
             "version": __version__,
@@ -28,17 +34,10 @@ def generate_client_config(path: Path, username: str, password: str, debug: bool
         },
     }
     if output_override and debug is not None:
-        data = {
-            "debug": debug,
-            "output_override": True,
-            **data
-        }
+        data = {"debug": debug, "output_override": True, **data}
 
     if output_override and debug is None:
-        data = {
-            "output_override": True,
-            **data
-        }
+        data = {"output_override": True, **data}
 
     with open(path / "config.toml", "wb+") as file:
         tomli_w.dump(data, file)

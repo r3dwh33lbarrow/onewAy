@@ -294,9 +294,7 @@ async def client_update_info(
 
     update_payload = update_info.model_dump(exclude_unset=True)
     update_data = {
-        field: value
-        for field, value in update_payload.items()
-        if value is not None
+        field: value for field, value in update_payload.items() if value is not None
     }
 
     if "platform" in update_data:

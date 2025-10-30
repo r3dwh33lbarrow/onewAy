@@ -69,16 +69,12 @@ async def test_module_bucket_lifecycle(client: AsyncClient, db_session: AsyncSes
     user_username, _ = await ensure_user_logged_in(client)
 
     # Create new bucket
-    r = await client.post(
-        "/module/new-bucket", params={"module_name": "bucket_mod"}
-    )
+    r = await client.post("/module/new-bucket", params={"module_name": "bucket_mod"})
     assert r.status_code == 200
     assert r.json() == {"result": "success"}
 
     # Initially empty data
-    r = await client.get(
-        "/module/bucket", params={"module_name": "bucket_mod"}
-    )
+    r = await client.get("/module/bucket", params={"module_name": "bucket_mod"})
     assert r.status_code == 200
     payload = r.json()
     assert payload["module_name"] == "bucket_mod"
@@ -96,9 +92,7 @@ async def test_module_bucket_lifecycle(client: AsyncClient, db_session: AsyncSes
     assert r.status_code == 200
     assert r.json() == {"result": "success"}
 
-    r = await client.get(
-        "/module/bucket", params={"module_name": "bucket_mod"}
-    )
+    r = await client.get("/module/bucket", params={"module_name": "bucket_mod"})
     assert r.status_code == 200
     data = r.json()
     assert data["module_name"] == "bucket_mod"
@@ -117,9 +111,7 @@ async def test_module_bucket_lifecycle(client: AsyncClient, db_session: AsyncSes
     )
     assert r.status_code == 200
 
-    r = await client.get(
-        "/module/bucket", params={"module_name": "bucket_mod"}
-    )
+    r = await client.get("/module/bucket", params={"module_name": "bucket_mod"})
     assert r.status_code == 200
     data = r.json()
     assert len(data["entries"]) == 1
@@ -129,16 +121,12 @@ async def test_module_bucket_lifecycle(client: AsyncClient, db_session: AsyncSes
 
     # Delete the bucket
     await ensure_user_logged_in(client, user_username)
-    r = await client.delete(
-        "/module/bucket", params={"module_name": "bucket_mod"}
-    )
+    r = await client.delete("/module/bucket", params={"module_name": "bucket_mod"})
     assert r.status_code == 200
     assert r.json() == {"result": "success"}
 
     # Access after deletion should fail with no bucket
-    r = await client.get(
-        "/module/bucket", params={"module_name": "bucket_mod"}
-    )
+    r = await client.get("/module/bucket", params={"module_name": "bucket_mod"})
     assert r.status_code == 400
     assert r.json()["detail"] == "No bucket exists for module"
 
@@ -163,29 +151,21 @@ async def test_module_bucket_conflicts_and_errors(
     await ensure_user_logged_in(client, "user2", "pw")
 
     # Creating bucket the first time succeeds
-    r = await client.post(
-        "/module/new-bucket", params={"module_name": "conflict_mod"}
-    )
+    r = await client.post("/module/new-bucket", params={"module_name": "conflict_mod"})
     assert r.status_code == 200
 
     # Creating it again returns 400 conflict
-    r = await client.post(
-        "/module/new-bucket", params={"module_name": "conflict_mod"}
-    )
+    r = await client.post("/module/new-bucket", params={"module_name": "conflict_mod"})
     assert r.status_code == 400
     assert r.json()["detail"] == "Bucket for module already exists"
 
     # Unknown module returns 404 for new-bucket
-    r = await client.post(
-        "/module/new-bucket", params={"module_name": "no_such"}
-    )
+    r = await client.post("/module/new-bucket", params={"module_name": "no_such"})
     assert r.status_code == 404
     assert r.json()["detail"] == "Module not found"
 
     # Unknown module returns 404 for get
-    r = await client.get(
-        "/module/bucket", params={"module_name": "no_such"}
-    )
+    r = await client.get("/module/bucket", params={"module_name": "no_such"})
     assert r.status_code == 404
     assert r.json()["detail"] == "Module not found"
 
@@ -209,9 +189,7 @@ async def test_module_bucket_get_without_existing_bucket(
 
     await ensure_user_logged_in(client, "user3", "pw")
 
-    r = await client.get(
-        "/module/bucket", params={"module_name": "nobucket_mod"}
-    )
+    r = await client.get("/module/bucket", params={"module_name": "nobucket_mod"})
     assert r.status_code == 400
     assert r.json()["detail"] == "No bucket exists for module"
 
