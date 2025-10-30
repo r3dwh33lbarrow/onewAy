@@ -1,4 +1,5 @@
 import json
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -9,6 +10,49 @@ from app.models.client import Client
 from app.models.user import User
 from app.services.authentication import TokenType, create_access_token
 from app.services.password import hash_password
+
+
+async def ensure_user_logged_in(
+    client: AsyncClient, username: str | None = None, password: str = "pw"
+) -> tuple[str, str]:
+    if username is None:
+        username = f"ws_user_{uuid4().hex[:8]}"
+
+    register_response = await client.post(
+        "/user/auth/register", json={"username": username, "password": password}
+    )
+    assert register_response.status_code in (200, 409)
+
+    login_response = await client.post(
+        "/user/auth/login", json={"username": username, "password": password}
+    )
+    assert login_response.status_code == 200
+    assert login_response.json() == {"result": "success"}
+    return username, password
+
+
+async def enroll_and_login_client(
+    client: AsyncClient,
+    username: str | None = None,
+    password: str = "pw",
+    version: str = "1.0.0",
+) -> tuple[str, dict[str, str]]:
+    if username is None:
+        username = f"ws_client_{uuid4().hex[:8]}"
+
+    enroll_response = await client.post(
+        "/client/auth/enroll",
+        json={"username": username, "password": password, "client_version": version},
+    )
+    assert enroll_response.status_code == 200
+
+    login_response = await client.post(
+        "/client/auth/login", json={"username": username, "password": password}
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}", "user-agent": "oneway-client"}
+    return username, headers
 
 
 @pytest.mark.asyncio
@@ -32,6 +76,7 @@ async def test_user_websocket_connect(ws_client, db_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_ws_user_token(client: AsyncClient):
+    client.cookies.clear()
     await client.post(
         "/user/auth/register", json={"username": "wsuser", "password": "pw"}
     )
@@ -74,16 +119,9 @@ async def test_client_websocket_connect(ws_client, db_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_ws_client_token(client: AsyncClient):
-    await client.post(
-        "/client/auth/enroll",
-        json={"username": "wsclient", "password": "pw", "client_version": "1.0.0"},
-    )
-    r = await client.post(
-        "/client/auth/login", json={"username": "wsclient", "password": "pw"}
-    )
-    assert r.status_code == 200
-    token = r.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}", "user-agent": "oneway-client"}
+    client.cookies.clear()
+    await ensure_user_logged_in(client, "wsclient_admin")
+    _, headers = await enroll_and_login_client(client, "wsclient")
     r = await client.post("/ws-client-token", headers=headers)
     assert r.status_code == 200
     data = r.json()
