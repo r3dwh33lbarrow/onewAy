@@ -7,7 +7,9 @@ fn main() {
         io::stdout().flush().unwrap();
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).expect("Failed to read line");
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
 
         let input = input.trim();
 
@@ -22,9 +24,7 @@ fn main() {
         let cmd = parts.next().unwrap();
         let args: Vec<&str> = parts.collect();
 
-        let output = Command::new(cmd)
-            .args(args)
-            .output();
+        let output = Command::new(cmd).args(args).output();
 
         match output {
             Ok(output) => {
