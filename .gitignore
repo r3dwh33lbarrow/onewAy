@@ -77,3 +77,4 @@ docker-compose.override.yml
 **/config.toml
 client/config.toml
 server/backend/app/resources
+server/backend/tests/resources
