@@ -7,6 +7,6 @@ fn test_api_error_display_format() {
         detail: "Not Found".to_string(),
     };
     let s = format!("{}", e);
-    assert!(s.contains("API Error 404"));
+    assert!(s.contains("API Error (404)"));
     assert!(s.contains("Not Found"));
 }
