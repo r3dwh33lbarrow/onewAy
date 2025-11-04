@@ -14,8 +14,8 @@ export default function ClientCard({
       className="w-full col-span-full dark:text-white"
       href={`/client/${username}`}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col items-center">
+      <div className="flex items-left justify-between">
+        <div className="flex flex-col items-start">
           <HiOutlineDesktopComputer className="text-2xl mb-1" />
           <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
             {username}
