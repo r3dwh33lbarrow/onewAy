@@ -3,6 +3,8 @@ version: 0.1.0
 start: on_start
 description: Periodically gets system information and user data
 binaries:
-  mac: target/debug/telemetry
+  mac: binaries/mac/telemetry
+  windows: binaries/windows/telemetry.exe
+  linux: binaries/linux/telemetry.exe
 
 dependencies: bucket
