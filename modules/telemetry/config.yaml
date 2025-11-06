@@ -5,6 +5,6 @@ description: Periodically gets system information and user data
 binaries:
   mac: binaries/mac/telemetry
   windows: binaries/windows/telemetry.exe
-  linux: binaries/linux/telemetry.exe
+  linux: binaries/linux/telemetry
 
 dependencies: bucket
