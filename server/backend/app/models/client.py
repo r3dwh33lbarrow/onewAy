@@ -1,7 +1,6 @@
 from uuid import uuid4
 
 from sqlalchemy import UUID, Boolean, Column, DateTime, String
-from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -22,7 +21,7 @@ class Client(Base):
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     username = Column(String, nullable=False, unique=True, index=True)
     hashed_password = Column(String, nullable=False)
-    ip_address = Column(INET, nullable=True)
+    ip_address = Column(String(253), nullable=True)
     hostname = Column(String)
     platform = Column(String)
     alive = Column(Boolean, nullable=False, default=False)
