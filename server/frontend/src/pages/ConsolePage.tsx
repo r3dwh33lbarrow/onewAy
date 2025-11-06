@@ -7,7 +7,7 @@ import {
   TableHeadCell,
   TableRow,
 } from "flowbite-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { apiClient, isApiError } from "../apiClient";
@@ -23,6 +23,15 @@ import type { Message } from "../schemas/websockets.ts";
 import { useErrorStore } from "../stores/errorStore.ts";
 import { apiErrorToString, snakeCaseToTitle } from "../utils";
 
+type ConsoleStream = "stdout" | "stderr" | "event" | "command";
+
+const streamClassMap: Record<ConsoleStream, string> = {
+  stdout: "text-gray-100",
+  stderr: "text-red-400",
+  event: "text-yellow-300",
+  command: "text-blue-400",
+};
+
 export default function ConsolePage() {
   const { username } = useParams<{ username: string }>();
   const { addError, anyErrors } = useErrorStore();
@@ -31,9 +40,9 @@ export default function ConsolePage() {
   const [loading, setLoading] = useState(true);
   const [modules, setModules] = useState<ModuleBasicInfo[]>([]);
   const [installed, setInstalled] = useState<InstalledModuleInfo[]>([]);
-  const [lines, setLines] = useState<
-    { stream: "stdout" | "stderr" | "event"; text: string }[]
-  >([]);
+  const [lines, setLines] = useState<{ stream: ConsoleStream; text: string }[]>(
+    [],
+  );
   const [inputValue, setInputValue] = useState("");
   const [activeModule, setActiveModule] = useState<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -169,6 +178,54 @@ export default function ConsolePage() {
     }
   }, [lines]);
 
+  const renderedConsole = useMemo(() => {
+    const result: React.ReactNode[] = [];
+    let currentOutputs: { text: string; stream: ConsoleStream }[] = [];
+    let outputIndex = 0;
+
+    const flushOutputs = () => {
+      if (currentOutputs.length > 0) {
+        result.push(
+          <div
+            key={`output-${outputIndex++}`}
+            className="mb-3 rounded border border-white/40 bg-white/5 px-3 py-2 space-y-1"
+          >
+            {currentOutputs.map((output, idx) => (
+              <div key={idx} className={streamClassMap[output.stream]}>
+                {output.text}
+              </div>
+            ))}
+          </div>,
+        );
+        currentOutputs = [];
+      }
+    };
+
+    lines.forEach((line, idx) => {
+      if (line.stream === "command") {
+        flushOutputs();
+        result.push(
+          <div key={`command-${idx}`} className="text-blue-400 mb-1">
+            $ {line.text}
+          </div>,
+        );
+      } else if (line.stream === "stdout" || line.stream === "stderr") {
+        currentOutputs.push(line);
+      } else {
+        // event or other streams
+        flushOutputs();
+        result.push(
+          <div key={`line-${idx}`} className={streamClassMap[line.stream]}>
+            {line.text}
+          </div>,
+        );
+      }
+    });
+
+    flushOutputs();
+    return result;
+  }, [lines]);
+
   const isInstalled = (name: string) => installed.some((m) => m.name === name);
 
   const onRun = async (name: string) => {
@@ -225,6 +282,14 @@ export default function ConsolePage() {
     } as const;
     try {
       socket.send(JSON.stringify(payload));
+      setLines((prev) => {
+        const next: typeof prev = [
+          ...prev,
+          { stream: "command", text: inputValue },
+        ];
+        if (next.length > 2000) next.shift();
+        return next;
+      });
     } catch (e) {
       addError(
         e instanceof Error ? e.message : "Failed to send stdin over WebSocket",
@@ -250,20 +315,7 @@ export default function ConsolePage() {
               ref={consoleRef}
               className="flex-1 overflow-auto p-3 font-mono text-sm"
             >
-              {lines.map((l, idx) => (
-                <div
-                  key={idx}
-                  className={
-                    l.stream === "stderr"
-                      ? "text-red-400"
-                      : l.stream === "event"
-                        ? "text-yellow-300"
-                        : "text-gray-100"
-                  }
-                >
-                  {l.text}
-                </div>
-              ))}
+              {renderedConsole}
             </div>
             <div className="border-t border-gray-700 p-2">
               <span className="text-green-400">$ </span>

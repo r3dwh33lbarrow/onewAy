@@ -125,14 +125,22 @@ export default function ModuleTable({
               <TableCell>{module.start}</TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">
-                  {module.binaries_platform.map((platform, platformIndex) => (
-                    <span
-                      key={platformIndex}
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                    >
-                      {platform}
-                    </span>
-                  ))}
+                  {[...module.binaries_platform]
+                    .sort((a, b) => {
+                      const order = { windows: 0, mac: 1, linux: 2 };
+                      return (
+                        (order[a.toLowerCase() as keyof typeof order] ?? 99) -
+                        (order[b.toLowerCase() as keyof typeof order] ?? 99)
+                      );
+                    })
+                    .map((platform, platformIndex) => (
+                      <span
+                        key={platformIndex}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                      >
+                        {platform}
+                      </span>
+                    ))}
                 </div>
               </TableCell>
               {onModuleTick && (
