@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Bytes;
-use tungstenite::Message;
+use tokio_tungstenite::tungstenite::Message;
 
 pub enum OutgoingMessage {
     Text(String),

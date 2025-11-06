@@ -87,7 +87,7 @@ impl ModuleConfig {
         }
         #[cfg(target_os = "linux")]
         {
-            return self.binaires.linux.as_deref();
+            return self.binaries.linux.as_deref();
         }
         #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
         {
