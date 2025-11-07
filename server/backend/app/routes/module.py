@@ -390,7 +390,7 @@ async def module_query_module_dir(_=Depends(get_current_user)):
 async def module_installed_client_username(
     client_username: str,
     db: AsyncSession = Depends(get_db),
-    _=Depends(verify_access_token),
+    user: User = Depends(get_current_user),
 ):
     """
     Get all modules installed on a specific client.
@@ -401,19 +401,22 @@ async def module_installed_client_username(
     Args:
         client_username: Username of the client to query
         db: Database session dependency
-        _: Access token verification dependency
+        user: Current authenticated user
 
     Returns:
         list[InstalledModuleInfo]: List of installed modules with their details and status
 
     Raises:
-        HTTPException: 400 if client username not found
+        HTTPException: 400 if client username not found or doesn't belong to the user
         HTTPException: 401 if access token is invalid
     """
     client = await db.execute(
         select(Client)
         .options(selectinload(Client.client_modules).selectinload(ClientModule.module))
-        .where(Client.username == client_username)
+        .where(
+            Client.username == client_username,
+            Client.user_uuid == user.uuid
+        )
     )
     client = client.scalar_one_or_none()
 
@@ -444,7 +447,7 @@ async def module_set_installed_client_username(
     client_username: str,
     module_name: str,
     db: AsyncSession = Depends(get_db),
-    _=Depends(verify_access_token),
+    user: User = Depends(get_current_user),
 ):
     """
     Mark a module as installed on a specific client.
@@ -456,18 +459,17 @@ async def module_set_installed_client_username(
         client_username: Username of the client
         module_name: Name of the module to mark as installed
         db: Database session dependency
-        _: Access token verification dependency
+        user: Current authenticated user
 
     Returns:
         dict: Success result
 
     Raises:
-        HTTPException: 400 if client username or module not found
+        HTTPException: 400 if client username or module not found or doesn't belong to user
         HTTPException: 409 if module already installed on client
         HTTPException: 500 if database operation fails
     """
-    # TODO: Fix legacy auth function
-    client = await get_client_by_username(db, client_username)
+    client = await get_client_by_username(db, client_username, user.uuid)
     if not client:
         logger.warning("Set installed failed: client '%s' not found", client_username)
         raise HTTPException(status_code=400, detail="Client username not found")
@@ -480,7 +482,10 @@ async def module_set_installed_client_username(
     client_with_modules = await db.execute(
         select(Client)
         .options(selectinload(Client.client_modules).selectinload(ClientModule.module))
-        .where(Client.username == client_username)
+        .where(
+            Client.username == client_username,
+            Client.user_uuid == user.uuid
+        )
     )
     client_with_modules = client_with_modules.scalar_one_or_none()
 
@@ -579,7 +584,7 @@ async def module_run_module_name(
         module_name,
         client_username,
     )
-    module, client = await validate_module_and_client(db, module_name, client_username)
+    module, client = await validate_module_and_client(db, module_name, client_username, user.uuid)
 
     client_module = await db.execute(
         select(ClientModule).where(
@@ -644,7 +649,7 @@ async def module_cancel_module_name(
         HTTPException: 400 if module or client validation fails
         HTTPException: 404 if module or client not found
     """
-    module, client = await validate_module_and_client(db, module_name, client_username)
+    module, client = await validate_module_and_client(db, module_name, client_username, user.uuid)
 
     await client_websocket_manager.send_to_client(
         client_uuid=str(client.uuid),

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.logger import get_logger
 from app.models.client import Client
+from app.models.user import User
 from app.schemas.client_auth import *
 from app.schemas.general import BasicTaskResponse, TokenResponse
 from app.services.authentication import (
@@ -27,7 +28,7 @@ async def client_auth_enroll(
     enroll_request: ClientEnrollRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     """
     Register a new client in the system.
@@ -36,6 +37,7 @@ async def client_auth_enroll(
         enroll_request: Client registration data including username, password, and version
         request: HTTP request object containing client IP address
         db: Database session for executing queries
+        user: Current authenticated user who will own this client
 
     Returns:
         Success confirmation upon successful registration
@@ -60,6 +62,7 @@ async def client_auth_enroll(
         hashed_password=hash_password(enroll_request.password),
         ip_address=request.client.host,
         client_version=enroll_request.client_version,
+        user_uuid=user.uuid,
     )
 
     try:

@@ -1,6 +1,9 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.user import User
+from app.services.password import hash_password
 from app.settings import settings
 
 pytestmark = pytest.mark.asyncio
@@ -13,13 +16,19 @@ VALID_PNG = (
 )
 
 
-async def register_and_login(
-    client: AsyncClient, username: str, password: str = "pw"
+async def create_user_and_login(
+    client: AsyncClient, db: AsyncSession, username: str, password: str = "pw"
 ) -> tuple[str, str]:
-    register_response = await client.post(
-        "/user/auth/register", json={"username": username, "password": password}
+    """Create a user directly in the database and login."""
+    hashed_password = hash_password(password)
+    user = User(
+        username=username,
+        hashed_password=hashed_password,
+        is_admin=True
     )
-    assert register_response.status_code == 200
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
 
     login_response = await client.post(
         "/user/auth/login", json={"username": username, "password": password}
@@ -65,21 +74,26 @@ async def login_should_fail(client: AsyncClient, username: str, password: str):
     assert response.status_code == 401
 
 
-async def ensure_default_avatar(client: AsyncClient):
-    await register_and_login(client, "default_avatar_user")
+async def ensure_default_avatar(client: AsyncClient, db: AsyncSession):
+    await create_user_and_login(client, db, "default_avatar_user")
     content = await fetch_avatar(client)
     assert content.startswith(b"\x89PNG")
 
 
-async def ensure_conflicting_username(client: AsyncClient, username: str):
-    response = await client.post(
-        "/user/auth/register", json={"username": username, "password": "pw"}
+async def create_conflicting_user(db: AsyncSession, username: str):
+    """Create a user directly in the database for conflict testing."""
+    hashed_password = hash_password("pw")
+    user = User(
+        username=username,
+        hashed_password=hashed_password,
+        is_admin=True
     )
-    assert response.status_code == 200
+    db.add(user)
+    await db.commit()
 
 
-async def ensure_avatar_size_limit(client: AsyncClient):
-    await register_and_login(client, "limit_user")
+async def ensure_avatar_size_limit(client: AsyncClient, db: AsyncSession):
+    await create_user_and_login(client, db, "limit_user")
     oversized = b"\x89PNG" + b"\x00" * (
         settings.other.max_avatar_size_mb * 1024 * 1024 + 1
     )
@@ -88,8 +102,8 @@ async def ensure_avatar_size_limit(client: AsyncClient):
     assert "File too large" in response.json()["detail"]
 
 
-async def ensure_avatar_validation_errors(client: AsyncClient):
-    await register_and_login(client, "validation_user")
+async def ensure_avatar_validation_errors(client: AsyncClient, db: AsyncSession):
+    await create_user_and_login(client, db, "validation_user")
 
     wrong_type = await upload_avatar(client, "avatar.txt", b"text", "text/plain")
     assert wrong_type.status_code == 400
@@ -141,16 +155,18 @@ async def ensure_username_update(client: AsyncClient, new_username: str):
 
 
 @pytest.mark.asyncio
-async def test_get_me_returns_current_user(client: AsyncClient):
-    username, _ = await register_and_login(client, "profile_user")
+async def test_get_me_returns_current_user(client: AsyncClient, db_session: AsyncSession):
+    """Test that /user/me returns current user profile."""
+    username, _ = await create_user_and_login(client, db_session, "profile_user")
     profile = await get_profile(client)
     await ensure_profile_fields(profile, username)
     await ensure_avatar_flag(profile, False)
 
 
 @pytest.mark.asyncio
-async def test_patch_username_success(client: AsyncClient):
-    original, password = await register_and_login(client, "rename_me")
+async def test_patch_username_success(client: AsyncClient, db_session: AsyncSession):
+    """Test that users can successfully update their username."""
+    original, password = await create_user_and_login(client, db_session, "rename_me")
     await ensure_username_update(client, "renamed_user")
 
     await relogin(client, "renamed_user", password)
@@ -161,23 +177,26 @@ async def test_patch_username_success(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_patch_username_validation_and_conflict(client: AsyncClient):
-    await register_and_login(client, "validation_owner")
+async def test_patch_username_validation_and_conflict(client: AsyncClient, db_session: AsyncSession):
+    """Test username update validation and conflict detection."""
+    await create_user_and_login(client, db_session, "validation_owner")
     await ensure_empty_username_rejected(client)
 
-    await ensure_conflicting_username(client, "taken_name")
+    await create_conflicting_user(db_session, "taken_name")
     await ensure_username_conflict(client, "taken_name")
 
 
 @pytest.mark.asyncio
-async def test_avatar_upload_validation_and_success(client: AsyncClient):
-    await ensure_avatar_validation_errors(client)
+async def test_avatar_upload_validation_and_success(client: AsyncClient, db_session: AsyncSession):
+    """Test avatar upload validation."""
+    await ensure_avatar_validation_errors(client, db_session)
     await upload_valid_avatar(client)
 
 
 @pytest.mark.asyncio
-async def test_avatar_upload_success_sets_flag(client: AsyncClient):
-    username, _ = await register_and_login(client, "avatar_success")
+async def test_avatar_upload_success_sets_flag(client: AsyncClient, db_session: AsyncSession):
+    """Test that uploading an avatar sets the avatar_set flag."""
+    username, _ = await create_user_and_login(client, db_session, "avatar_success")
     await upload_valid_avatar(client)
     profile = await get_profile(client)
     await ensure_profile_fields(profile, username)
@@ -185,10 +204,12 @@ async def test_avatar_upload_success_sets_flag(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_avatar_size_limit(client: AsyncClient):
-    await ensure_avatar_size_limit(client)
+async def test_avatar_size_limit(client: AsyncClient, db_session: AsyncSession):
+    """Test that oversized avatars are rejected."""
+    await ensure_avatar_size_limit(client, db_session)
 
 
 @pytest.mark.asyncio
-async def test_default_avatar_served_when_none_uploaded(client: AsyncClient):
-    await ensure_default_avatar(client)
+async def test_default_avatar_served_when_none_uploaded(client: AsyncClient, db_session: AsyncSession):
+    """Test that a default avatar is served when none is uploaded."""
+    await ensure_default_avatar(client, db_session)

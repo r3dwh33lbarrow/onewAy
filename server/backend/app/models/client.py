@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from sqlalchemy import UUID, Boolean, Column, DateTime, String
+from sqlalchemy import UUID, Boolean, Column, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -14,6 +14,7 @@ class Client(Base):
     Stores authentication details, network identity, operational status,
     and metadata such as hostname, location, and client version.
     Linked to installed modules through the ClientModule association table.
+    Associated with a user who created/owns this client.
     Provides a method to verify a plaintext password against the stored hash.
     """
 
@@ -21,6 +22,7 @@ class Client(Base):
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     username = Column(String, nullable=False, unique=True, index=True)
     hashed_password = Column(String, nullable=False)
+    user_uuid = Column(UUID(as_uuid=True), ForeignKey("users.uuid"), nullable=False)
     ip_address = Column(String(253), nullable=True)
     hostname = Column(String)
     platform = Column(String)
@@ -30,6 +32,7 @@ class Client(Base):
     client_version = Column(String, nullable=False)
     revoked = Column(Boolean, nullable=False, default=False)
 
+    user = relationship("User", back_populates="clients")
     client_modules = relationship(
         "ClientModule",
         back_populates="client",

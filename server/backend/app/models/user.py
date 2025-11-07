@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import UUID, Boolean, Column, DateTime, String
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 from app.services.password import pwd_context
@@ -13,6 +14,7 @@ class User(Base):
 
     Stores authentication details, administrative status, timestamps for
     account creation and last login, and an optional avatar path.
+    Has a one-to-many relationship with clients (users can own multiple clients).
     Provides a method to verify a plaintext password against the stored hash.
     """
 
@@ -29,6 +31,8 @@ class User(Base):
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
     avatar_path = Column(String)
+
+    clients = relationship("Client", back_populates="user", cascade="all, delete-orphan")
 
     def verify_password(self, password: str) -> bool:
         return pwd_context.verify(password, self.hashed_password)

@@ -174,6 +174,7 @@ async def user_generate_client(
             existing_client.ip_address = None
             existing_client.last_contact = None
             existing_client.hostname = None
+            existing_client.user_uuid = user.uuid
 
             await db.execute(
                 update(RefreshToken)
@@ -186,6 +187,7 @@ async def user_generate_client(
                 hashed_password=hashed_password_value,
                 client_version=settings.app.client_version,
                 platform=client_info.platform,
+                user_uuid=user.uuid,
             )
             db.add(new_client)
         await db.commit()

@@ -142,7 +142,10 @@ async def websocket_user_endpoint(
                         continue
 
                     client = await db.execute(
-                        select(Client).where(Client.username == client_username)
+                        select(Client).where(
+                            Client.username == client_username,
+                            Client.user_uuid == user.uuid
+                        )
                     )
                     client = client.scalar_one_or_none()
                     if not client:

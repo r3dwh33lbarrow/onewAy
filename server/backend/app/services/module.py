@@ -232,10 +232,15 @@ async def get_module_by_name(db: AsyncSession, module_name: str) -> Module | Non
 
 
 async def get_client_by_username(
-    db: AsyncSession, client_username: str
+    db: AsyncSession, client_username: str, user_uuid: str | None = None
 ) -> Client | None:
-    """Get a client by username from the database."""
-    result = await db.execute(select(Client).where(Client.username == client_username))
+    """Get a client by username from the database, optionally filtered by user."""
+    query = select(Client).where(Client.username == client_username)
+    if user_uuid is not None:
+        from uuid import UUID
+        query = query.where(Client.user_uuid == UUID(user_uuid) if isinstance(user_uuid, str) else user_uuid)
+
+    result = await db.execute(query)
     client = result.scalar_one_or_none()
     if client:
         logger.debug("Client '%s' found", client_username)
@@ -245,15 +250,15 @@ async def get_client_by_username(
 
 
 async def validate_module_and_client(
-    db: AsyncSession, module_name: str, client_username: str
+    db: AsyncSession, module_name: str, client_username: str, user_uuid: str | None = None
 ) -> Tuple[Module, Client]:
-    """Validate that both module and client exist and return them."""
+    """Validate that both module and client exist and return them, optionally filtering by user."""
     module = await get_module_by_name(db, module_name)
     if not module:
         logger.warning("Validation failed: module '%s' not found", module_name)
         raise HTTPException(status_code=404, detail="Module not found")
 
-    client = await get_client_by_username(db, client_username)
+    client = await get_client_by_username(db, client_username, user_uuid)
     if not client:
         logger.warning("Validation failed: client '%s' not found", client_username)
         raise HTTPException(status_code=404, detail="Client not found")

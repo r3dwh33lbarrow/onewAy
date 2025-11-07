@@ -14,6 +14,7 @@ from app.logger import get_logger
 from app.models.client import Client
 from app.models.module_bucket import ModuleBucketEntry
 from app.models.refresh_token import RefreshToken
+from app.models.user import User
 from app.schemas.client import *
 from app.schemas.general import BasicTaskResponse
 from app.services.authentication import (
@@ -50,7 +51,7 @@ async def client_me(client: Client = Depends(get_current_client)):
 async def client_username(
     username: str,
     db: AsyncSession = Depends(get_db),
-    _=Depends(verify_access_token),
+    user: User = Depends(get_current_user),
 ):
     """
     Retrieve detailed information for a specific client by username.
@@ -58,15 +59,20 @@ async def client_username(
     Args:
         username: The unique username of the client to retrieve
         db: Database session for executing queries
-        _: Current authenticated user or client
+        user: Current authenticated user
 
     Returns:
         Complete client information including UUID, network details, and status
 
     Raises:
-        HTTPException: 404 if client not found
+        HTTPException: 404 if client not found or doesn't belong to the user
     """
-    result = await db.execute(select(Client).where(Client.username == username))
+    result = await db.execute(
+        select(Client).where(
+            Client.username == username,
+            Client.user_uuid == user.uuid
+        )
+    )
     result = result.scalar_one_or_none()
 
     if result:
@@ -87,9 +93,16 @@ async def client_username(
 
 @router.delete("/action/{username}", response_model=BasicTaskResponse)
 async def client_delete_username(
-    username: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)
+    username: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
-    client = await db.execute(select(Client).where(Client.username == username))
+    client = await db.execute(
+        select(Client).where(
+            Client.username == username,
+            Client.user_uuid == user.uuid
+        )
+    )
     client = client.scalar_one_or_none()
 
     if not client:
@@ -115,49 +128,36 @@ async def client_delete_username(
 @router.delete("/{username}/revoke-tokens", response_model=BasicTaskResponse)
 async def revoke_client_refresh_tokens(
     username: str,
-    request: Request,
     db: AsyncSession = Depends(get_db),
-    _=Depends(verify_access_token),
+    user: User = Depends(get_current_user),
 ):
     """
     Revoke all refresh tokens for a specific client.
 
-    Users can revoke tokens for any client.
-    Clients can only revoke their own tokens.
+    Users can only revoke tokens for their own clients.
 
     Args:
         username: The username of the client whose tokens should be revoked
-        request: The incoming request to determine if requester is user or client
         db: Database session for executing queries
-        _: Current authenticated user or client
+        user: Current authenticated user
 
     Returns:
         Success status of the revocation operation
 
     Raises:
-        HTTPException: 404 if client not found, 403 if client tries to revoke another client's tokens
+        HTTPException: 404 if client not found or doesn't belong to the user
     """
-    result = await db.execute(select(Client).where(Client.username == username))
+    result = await db.execute(
+        select(Client).where(
+            Client.username == username,
+            Client.user_uuid == user.uuid
+        )
+    )
     target_client = result.scalar_one_or_none()
 
     if not target_client:
         logger.warning("Token revocation failed: client '%s' not found", username)
         raise HTTPException(status_code=404, detail="Client not found")
-
-    if is_client(request):
-        result = await db.execute(select(Client).where(Client.uuid == uuid.UUID(_)))
-        requesting_client = result.scalar_one_or_none()
-
-        if not requesting_client or requesting_client.uuid != target_client.uuid:
-            logger.warning(
-                "Client '%s' attempted to revoke tokens for another client '%s'",
-                requesting_client.username if requesting_client else "unknown",
-                username,
-            )
-            raise HTTPException(
-                status_code=403,
-                detail="Clients can only revoke their own refresh tokens",
-            )
 
     try:
         result = await db.execute(
@@ -198,19 +198,22 @@ async def revoke_client_refresh_tokens(
 
 @router.get("/get-all", response_model=ClientAllResponse)
 async def client_all(
-    db: AsyncSession = Depends(get_db), _=Depends(verify_access_token)
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
     """
-    Retrieve a list of all registered clients with basic information.
+    Retrieve a list of all clients belonging to the authenticated user.
 
     Args:
         db: Database session for executing queries
-        _: Current authenticated user or client
+        user: Current authenticated user
 
     Returns:
         List of clients with basic info (username, IP, hostname, status, last contact)
     """
-    result = await db.execute(select(Client))
+    result = await db.execute(
+        select(Client).where(Client.user_uuid == user.uuid)
+    )
     clients = result.scalars().all()
 
     client_list = []
@@ -225,7 +228,7 @@ async def client_all(
         )
         client_list.append(client_info)
 
-    logger.debug("Fetched %d clients", len(client_list))
+    logger.debug("Fetched %d clients for user '%s'", len(client_list), user.username)
     return ClientAllResponse(clients=client_list)
 
 
