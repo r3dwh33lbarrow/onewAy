@@ -3,7 +3,6 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { apiClient, type ApiError } from "./apiClient";
 import LoginPanel from "./components/LoginPanel";
 import ProtectedRoute from "./components/ProtectedRoute";
-import RegisterPanel from "./components/RegisterPanel";
 import NotFound from "./pages/404";
 import { BucketPage } from "./pages/BucketPage.tsx";
 import ClientBuilder from "./pages/ClientBuilder.tsx";
@@ -23,9 +22,6 @@ export default function App() {
   const Login = (data: AuthRequest): Promise<BasicTaskResponse | ApiError> =>
     apiClient.post<AuthRequest, BasicTaskResponse>("/user/auth/login", data);
 
-  const Register = (data: AuthRequest): Promise<BasicTaskResponse | ApiError> =>
-    apiClient.post<AuthRequest, BasicTaskResponse>("/user/auth/register", data);
-
   return (
     <BrowserRouter>
       <Routes>
@@ -36,10 +32,6 @@ export default function App() {
           }
         />
         <Route path="/login" element={<LoginPanel onSubmit={Login} />} />
-        <Route
-          path="/register"
-          element={<RegisterPanel onSubmit={Register} />}
-        />
         <Route
           path="/dashboard"
           element={
