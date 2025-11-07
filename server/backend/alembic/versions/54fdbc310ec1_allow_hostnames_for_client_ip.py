@@ -5,15 +5,17 @@ Revises: ea3268ba52eb
 Create Date: 2025-11-05 14:27:54.851524
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
-revision: str = '54fdbc310ec1'
-down_revision: Union[str, Sequence[str], None] = 'ea3268ba52eb'
+revision: str = "54fdbc310ec1"
+down_revision: Union[str, Sequence[str], None] = "ea3268ba52eb"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

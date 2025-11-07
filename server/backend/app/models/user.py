@@ -32,7 +32,9 @@ class User(Base):
     )
     avatar_path = Column(String)
 
-    clients = relationship("Client", back_populates="user", cascade="all, delete-orphan")
+    clients = relationship(
+        "Client", back_populates="user", cascade="all, delete-orphan"
+    )
 
     def verify_password(self, password: str) -> bool:
         return pwd_context.verify(password, self.hashed_password)

@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import sys
 import tomllib
-
 from datetime import UTC, datetime
 from typing import Any
 
@@ -16,8 +15,12 @@ from app.services.password import hash_password
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Create new admin accounts for onewAy")
 
-    parser.add_argument("-u", "--username", help="Username for new admin", required=True)
-    parser.add_argument("-p", "--password", help="Password for new admin", required=True)
+    parser.add_argument(
+        "-u", "--username", help="Username for new admin", required=True
+    )
+    parser.add_argument(
+        "-p", "--password", help="Password for new admin", required=True
+    )
 
     return parser.parse_args()
 
@@ -57,7 +60,7 @@ async def add_admin(username: str, password: str, db_url: str) -> None:
                 hashed_password=hashed_password,
                 is_admin=True,
                 last_login=datetime.now(UTC),
-                created_at=datetime.now(UTC)
+                created_at=datetime.now(UTC),
             )
 
             session.add(new_admin)
@@ -75,7 +78,6 @@ async def add_admin(username: str, password: str, db_url: str) -> None:
             await engine.dispose()
 
 
-
 if __name__ == "__main__":
     file = "config.toml"
     args = parse_args()
@@ -84,4 +86,6 @@ if __name__ == "__main__":
         print(f"[-] No database URL found in {file}")
         sys.exit(1)
 
-    asyncio.run(add_admin(args.username, args.password, conf.get("database").get("url")))
+    asyncio.run(
+        add_admin(args.username, args.password, conf.get("database").get("url"))
+    )

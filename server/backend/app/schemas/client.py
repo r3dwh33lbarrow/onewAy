@@ -23,7 +23,9 @@ class BasicClientInfo(BaseModel):
         try:
             return normalize_hostname_or_ip(value)
         except ValueError as exc:
-            raise ValueError("ip_address must be a valid IP address or hostname") from exc
+            raise ValueError(
+                "ip_address must be a valid IP address or hostname"
+            ) from exc
 
 
 class ClientAllResponse(BaseModel):
@@ -44,7 +46,9 @@ class ClientUpdateInfo(BaseModel):
         try:
             return normalize_hostname_or_ip(value)
         except ValueError as exc:
-            raise ValueError("ip_address must be a valid IP address or hostname") from exc
+            raise ValueError(
+                "ip_address must be a valid IP address or hostname"
+            ) from exc
 
 
 class ClientAllInfo(BasicClientInfo):

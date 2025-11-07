@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.utils import normalize_hostname_or_ip
 
+
 class GenerateClientRequest(BaseModel):
     platform: Literal["windows", "mac", "linux"]
     ip_address: str = Field(..., min_length=1)
@@ -20,7 +21,9 @@ class GenerateClientRequest(BaseModel):
         try:
             return normalize_hostname_or_ip(value)
         except ValueError as exc:
-            raise ValueError("IP address must be a valid IP address or hostname") from exc
+            raise ValueError(
+                "IP address must be a valid IP address or hostname"
+            ) from exc
 
 
 class VerifyRustResponse(BaseModel):

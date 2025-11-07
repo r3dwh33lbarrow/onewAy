@@ -11,11 +11,7 @@ pytestmark = pytest.mark.asyncio
 async def create_test_user(db: AsyncSession, username: str, password: str = "pw"):
     """Helper to create a test user directly in the database."""
     hashed_password = hash_password(password)
-    user = User(
-        username=username,
-        hashed_password=hashed_password,
-        is_admin=True
-    )
+    user = User(username=username, hashed_password=hashed_password, is_admin=True)
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -33,7 +29,9 @@ async def login_user(client: AsyncClient, username: str, password: str = "pw"):
 
 
 @pytest.mark.parametrize("username", ["alice", "bob"])
-async def test_login_logout_flow(client: AsyncClient, db_session: AsyncSession, username: str):
+async def test_login_logout_flow(
+    client: AsyncClient, db_session: AsyncSession, username: str
+):
     """Test that users can login and logout successfully."""
     await create_test_user(db_session, username)
     await login_user(client, username)
@@ -45,7 +43,9 @@ async def test_login_logout_flow(client: AsyncClient, db_session: AsyncSession, 
     assert client.cookies.get("access_token") is None
 
 
-async def test_login_rejects_invalid_credentials(client: AsyncClient, db_session: AsyncSession):
+async def test_login_rejects_invalid_credentials(
+    client: AsyncClient, db_session: AsyncSession
+):
     """Test that login fails with incorrect password."""
     await create_test_user(db_session, "invalid_user", "correct_password")
 
@@ -67,7 +67,9 @@ async def test_logout_without_prior_login_succeeds(client: AsyncClient):
     assert response.json() == {"result": "success"}
 
 
-async def test_ws_token_requires_authentication(client: AsyncClient, db_session: AsyncSession):
+async def test_ws_token_requires_authentication(
+    client: AsyncClient, db_session: AsyncSession
+):
     """Test that websocket token endpoint requires authentication."""
     unauthorized = await client.post("/user/auth/ws-token")
     assert unauthorized.status_code == 401
@@ -81,7 +83,9 @@ async def test_ws_token_requires_authentication(client: AsyncClient, db_session:
     assert isinstance(payload["access_token"], str) and payload["access_token"]
 
 
-async def test_login_updates_last_login_timestamp(client: AsyncClient, db_session: AsyncSession):
+async def test_login_updates_last_login_timestamp(
+    client: AsyncClient, db_session: AsyncSession
+):
     """Test that login updates the last_login timestamp."""
     await create_test_user(db_session, "timestamp_user")
     await login_user(client, "timestamp_user")
@@ -126,7 +130,9 @@ async def test_access_protected_route_requires_auth(client: AsyncClient):
     assert response.status_code == 401
 
 
-async def test_access_protected_route_with_auth(client: AsyncClient, db_session: AsyncSession):
+async def test_access_protected_route_with_auth(
+    client: AsyncClient, db_session: AsyncSession
+):
     """Test that protected routes work with valid authentication."""
     await create_test_user(db_session, "protected_user")
     await login_user(client, "protected_user")

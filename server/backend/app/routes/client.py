@@ -68,10 +68,7 @@ async def client_username(
         HTTPException: 404 if client not found or doesn't belong to the user
     """
     result = await db.execute(
-        select(Client).where(
-            Client.username == username,
-            Client.user_uuid == user.uuid
-        )
+        select(Client).where(Client.username == username, Client.user_uuid == user.uuid)
     )
     result = result.scalar_one_or_none()
 
@@ -95,13 +92,10 @@ async def client_username(
 async def client_delete_username(
     username: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     client = await db.execute(
-        select(Client).where(
-            Client.username == username,
-            Client.user_uuid == user.uuid
-        )
+        select(Client).where(Client.username == username, Client.user_uuid == user.uuid)
     )
     client = client.scalar_one_or_none()
 
@@ -148,10 +142,7 @@ async def revoke_client_refresh_tokens(
         HTTPException: 404 if client not found or doesn't belong to the user
     """
     result = await db.execute(
-        select(Client).where(
-            Client.username == username,
-            Client.user_uuid == user.uuid
-        )
+        select(Client).where(Client.username == username, Client.user_uuid == user.uuid)
     )
     target_client = result.scalar_one_or_none()
 
@@ -198,8 +189,7 @@ async def revoke_client_refresh_tokens(
 
 @router.get("/get-all", response_model=ClientAllResponse)
 async def client_all(
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ):
     """
     Retrieve a list of all clients belonging to the authenticated user.
@@ -211,9 +201,7 @@ async def client_all(
     Returns:
         List of clients with basic info (username, IP, hostname, status, last contact)
     """
-    result = await db.execute(
-        select(Client).where(Client.user_uuid == user.uuid)
-    )
+    result = await db.execute(select(Client).where(Client.user_uuid == user.uuid))
     clients = result.scalars().all()
 
     client_list = []

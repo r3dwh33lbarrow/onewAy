@@ -238,7 +238,12 @@ async def get_client_by_username(
     query = select(Client).where(Client.username == client_username)
     if user_uuid is not None:
         from uuid import UUID
-        query = query.where(Client.user_uuid == UUID(user_uuid) if isinstance(user_uuid, str) else user_uuid)
+
+        query = query.where(
+            Client.user_uuid == UUID(user_uuid)
+            if isinstance(user_uuid, str)
+            else user_uuid
+        )
 
     result = await db.execute(query)
     client = result.scalar_one_or_none()
@@ -250,7 +255,10 @@ async def get_client_by_username(
 
 
 async def validate_module_and_client(
-    db: AsyncSession, module_name: str, client_username: str, user_uuid: str | None = None
+    db: AsyncSession,
+    module_name: str,
+    client_username: str,
+    user_uuid: str | None = None,
 ) -> Tuple[Module, Client]:
     """Validate that both module and client exist and return them, optionally filtering by user."""
     module = await get_module_by_name(db, module_name)

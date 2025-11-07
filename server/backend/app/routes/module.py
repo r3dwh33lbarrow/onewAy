@@ -413,10 +413,7 @@ async def module_installed_client_username(
     client = await db.execute(
         select(Client)
         .options(selectinload(Client.client_modules).selectinload(ClientModule.module))
-        .where(
-            Client.username == client_username,
-            Client.user_uuid == user.uuid
-        )
+        .where(Client.username == client_username, Client.user_uuid == user.uuid)
     )
     client = client.scalar_one_or_none()
 
@@ -482,10 +479,7 @@ async def module_set_installed_client_username(
     client_with_modules = await db.execute(
         select(Client)
         .options(selectinload(Client.client_modules).selectinload(ClientModule.module))
-        .where(
-            Client.username == client_username,
-            Client.user_uuid == user.uuid
-        )
+        .where(Client.username == client_username, Client.user_uuid == user.uuid)
     )
     client_with_modules = client_with_modules.scalar_one_or_none()
 
@@ -584,7 +578,9 @@ async def module_run_module_name(
         module_name,
         client_username,
     )
-    module, client = await validate_module_and_client(db, module_name, client_username, user.uuid)
+    module, client = await validate_module_and_client(
+        db, module_name, client_username, user.uuid
+    )
 
     client_module = await db.execute(
         select(ClientModule).where(
@@ -649,7 +645,9 @@ async def module_cancel_module_name(
         HTTPException: 400 if module or client validation fails
         HTTPException: 404 if module or client not found
     """
-    module, client = await validate_module_and_client(db, module_name, client_username, user.uuid)
+    module, client = await validate_module_and_client(
+        db, module_name, client_username, user.uuid
+    )
 
     await client_websocket_manager.send_to_client(
         client_uuid=str(client.uuid),
