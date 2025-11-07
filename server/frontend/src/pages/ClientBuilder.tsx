@@ -29,7 +29,7 @@ export default function ClientBuilder() {
   const [outputOverride, setOutputOverride] = useState(false);
   const [debug, setDebug] = useState(false);
 
-  const { anyErrors, addError } = useErrorStore();
+  const { addError } = useErrorStore();
   const passwordLengthSecure = password.length >= 12;
   const rustInstalled = rustTargets?.rust_installed ?? null;
   const windowsTargetInstalled = rustTargets?.windows_target_installed ?? false;

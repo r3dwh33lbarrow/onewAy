@@ -123,7 +123,9 @@ describe("RedirectReasonStore Tests", () => {
 
     it("should handle typical redirect scenario", () => {
       // User gets redirected
-      useRedirectReasonStore.getState().setReason("Your session has expired. Please log in again.");
+      useRedirectReasonStore
+        .getState()
+        .setReason("Your session has expired. Please log in again.");
 
       let state = useRedirectReasonStore.getState();
       expect(state.reason).not.toBeNull();
@@ -143,7 +145,9 @@ describe("RedirectReasonStore Tests", () => {
     it("should handle multiple redirects with different reasons", () => {
       // First redirect
       useRedirectReasonStore.getState().setReason("Authentication required");
-      expect(useRedirectReasonStore.getState().reason).toBe("Authentication required");
+      expect(useRedirectReasonStore.getState().reason).toBe(
+        "Authentication required",
+      );
 
       useRedirectReasonStore.getState().clearReason();
 
@@ -168,7 +172,8 @@ describe("RedirectReasonStore Tests", () => {
     });
 
     it("should handle reasons with newlines", () => {
-      const multilineReason = "Error:\nYour session has expired\nPlease log in again";
+      const multilineReason =
+        "Error:\nYour session has expired\nPlease log in again";
       useRedirectReasonStore.getState().setReason(multilineReason);
 
       const state = useRedirectReasonStore.getState();

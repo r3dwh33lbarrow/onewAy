@@ -14,7 +14,7 @@ import type { BasicTaskResponse } from "../schemas/general";
 import type { UserInfoResponse, UserUpdateRequest } from "../schemas/user";
 import { useErrorStore } from "../stores/errorStore.ts";
 import { useAvatarStore } from "../stores/useAvatarStore.ts";
-import { useTheme } from "../themes/ThemeProvider.tsx";
+import { useTheme } from "../themes/themeContext";
 
 export default function SettingsPage() {
   const [status, setStatus] = useState<string | null>(null);

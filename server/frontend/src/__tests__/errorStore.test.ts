@@ -88,7 +88,8 @@ describe("ErrorStore Tests", () => {
     it("should handle special characters in error messages", () => {
       jest.useFakeTimers();
 
-      const specialMessage = "Error: <script>alert('xss')</script> & \"quotes\"";
+      const specialMessage =
+        "Error: <script>alert('xss')</script> & \"quotes\"";
       useErrorStore.getState().addError(specialMessage);
 
       const state = useErrorStore.getState();

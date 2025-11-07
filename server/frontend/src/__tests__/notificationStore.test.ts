@@ -1,5 +1,5 @@
-import { useNotificationStore } from "../stores/notificationStore";
 import { apiClient } from "../apiClient";
+import { useNotificationStore } from "../stores/notificationStore";
 
 // Mock the apiClient but keep the actual isApiError implementation
 jest.mock("../apiClient", () => {
@@ -45,8 +45,20 @@ describe("NotificationStore Tests", () => {
   describe("query", () => {
     it("should fetch notifications and update state", async () => {
       const mockBuckets = [
-        { name: "bucket1", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: "client1", entry_uuid: "uuid1" },
-        { name: "bucket2", consumed: true, created_at: "2024-01-01T00:00:00Z", client_username: "client2", entry_uuid: "uuid2" },
+        {
+          name: "bucket1",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: "client1",
+          entry_uuid: "uuid1",
+        },
+        {
+          name: "bucket2",
+          consumed: true,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: "client2",
+          entry_uuid: "uuid2",
+        },
       ];
 
       mockApiClient.get.mockResolvedValue({ buckets: mockBuckets });
@@ -62,8 +74,20 @@ describe("NotificationStore Tests", () => {
 
     it("should set hasUnread to false when all buckets are consumed", async () => {
       const mockBuckets = [
-        { name: "bucket1", consumed: true, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
-        { name: "bucket2", consumed: true, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
+        {
+          name: "bucket1",
+          consumed: true,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
+        {
+          name: "bucket2",
+          consumed: true,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
       ];
 
       mockApiClient.get.mockResolvedValue({ buckets: mockBuckets });
@@ -76,9 +100,27 @@ describe("NotificationStore Tests", () => {
 
     it("should set hasUnread to true when any bucket is unconsumed", async () => {
       const mockBuckets = [
-        { name: "bucket1", consumed: true, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
-        { name: "bucket2", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
-        { name: "bucket3", consumed: true, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
+        {
+          name: "bucket1",
+          consumed: true,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
+        {
+          name: "bucket2",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
+        {
+          name: "bucket3",
+          consumed: true,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
       ];
 
       mockApiClient.get.mockResolvedValue({ buckets: mockBuckets });
@@ -90,7 +132,7 @@ describe("NotificationStore Tests", () => {
     });
 
     it("should handle API errors", async () => {
-      const mockError: any = {
+      const mockError: import("../apiClient").ApiError = {
         statusCode: 500,
         message: "Internal Server Error",
         detail: "Something went wrong",
@@ -128,7 +170,9 @@ describe("NotificationStore Tests", () => {
 
     it("should not query if less than 1 minute has passed without force option", async () => {
       const now = new Date();
-      useNotificationStore.setState({ last_updated: new Date(now.getTime() - 30000) }); // 30 seconds ago
+      useNotificationStore.setState({
+        last_updated: new Date(now.getTime() - 30000),
+      }); // 30 seconds ago
 
       await useNotificationStore.getState().query();
 
@@ -137,7 +181,9 @@ describe("NotificationStore Tests", () => {
 
     it("should query if more than 1 minute has passed", async () => {
       const now = new Date();
-      useNotificationStore.setState({ last_updated: new Date(now.getTime() - 61000) }); // 61 seconds ago
+      useNotificationStore.setState({
+        last_updated: new Date(now.getTime() - 61000),
+      }); // 61 seconds ago
 
       mockApiClient.get.mockResolvedValue({ buckets: [] });
 
@@ -148,7 +194,9 @@ describe("NotificationStore Tests", () => {
 
     it("should query even if less than 1 minute has passed when force is true", async () => {
       const now = new Date();
-      useNotificationStore.setState({ last_updated: new Date(now.getTime() - 10000) }); // 10 seconds ago
+      useNotificationStore.setState({
+        last_updated: new Date(now.getTime() - 10000),
+      }); // 10 seconds ago
 
       mockApiClient.get.mockResolvedValue({ buckets: [] });
 
@@ -178,9 +226,27 @@ describe("NotificationStore Tests", () => {
   describe("markAsConsumed", () => {
     it("should mark a specific notification as consumed", () => {
       const mockBuckets = [
-        { name: "bucket1", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
-        { name: "bucket2", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
-        { name: "bucket3", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
+        {
+          name: "bucket1",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
+        {
+          name: "bucket2",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
+        {
+          name: "bucket3",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
       ];
 
       useNotificationStore.setState({ notifications: mockBuckets });
@@ -195,11 +261,26 @@ describe("NotificationStore Tests", () => {
 
     it("should update hasUnread flag when marking as consumed", () => {
       const mockBuckets = [
-        { name: "bucket1", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
-        { name: "bucket2", consumed: true, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
+        {
+          name: "bucket1",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
+        {
+          name: "bucket2",
+          consumed: true,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
       ];
 
-      useNotificationStore.setState({ notifications: mockBuckets, hasUnread: true });
+      useNotificationStore.setState({
+        notifications: mockBuckets,
+        hasUnread: true,
+      });
 
       useNotificationStore.getState().markAsConsumed("bucket1");
 
@@ -209,11 +290,26 @@ describe("NotificationStore Tests", () => {
 
     it("should keep hasUnread true if other unread notifications exist", () => {
       const mockBuckets = [
-        { name: "bucket1", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
-        { name: "bucket2", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
+        {
+          name: "bucket1",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
+        {
+          name: "bucket2",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
       ];
 
-      useNotificationStore.setState({ notifications: mockBuckets, hasUnread: true });
+      useNotificationStore.setState({
+        notifications: mockBuckets,
+        hasUnread: true,
+      });
 
       useNotificationStore.getState().markAsConsumed("bucket1");
 
@@ -223,8 +319,20 @@ describe("NotificationStore Tests", () => {
 
     it("should not affect other notifications when marking one as consumed", () => {
       const mockBuckets = [
-        { name: "bucket1", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: "client1", entry_uuid: "uuid1" },
-        { name: "bucket2", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: "client2", entry_uuid: "uuid2" },
+        {
+          name: "bucket1",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: "client1",
+          entry_uuid: "uuid1",
+        },
+        {
+          name: "bucket2",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: "client2",
+          entry_uuid: "uuid2",
+        },
       ];
 
       useNotificationStore.setState({ notifications: mockBuckets });
@@ -239,7 +347,13 @@ describe("NotificationStore Tests", () => {
 
     it("should handle marking non-existent notification gracefully", () => {
       const mockBuckets = [
-        { name: "bucket1", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
+        {
+          name: "bucket1",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
       ];
 
       useNotificationStore.setState({ notifications: mockBuckets });
@@ -255,10 +369,19 @@ describe("NotificationStore Tests", () => {
 
     it("should handle marking already consumed notification", () => {
       const mockBuckets = [
-        { name: "bucket1", consumed: true, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
+        {
+          name: "bucket1",
+          consumed: true,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
       ];
 
-      useNotificationStore.setState({ notifications: mockBuckets, hasUnread: false });
+      useNotificationStore.setState({
+        notifications: mockBuckets,
+        hasUnread: false,
+      });
 
       useNotificationStore.getState().markAsConsumed("bucket1");
 
@@ -271,7 +394,13 @@ describe("NotificationStore Tests", () => {
   describe("Integration scenarios", () => {
     it("should handle complete workflow: query, mark consumed, query again", async () => {
       const mockBuckets = [
-        { name: "bucket1", consumed: false, created_at: "2024-01-01T00:00:00Z", client_username: null, entry_uuid: null },
+        {
+          name: "bucket1",
+          consumed: false,
+          created_at: "2024-01-01T00:00:00Z",
+          client_username: null,
+          entry_uuid: null,
+        },
       ];
 
       mockApiClient.get.mockResolvedValue({ buckets: mockBuckets });
@@ -313,7 +442,7 @@ describe("NotificationStore Tests", () => {
       const mockBuckets = [
         { name: "bucket1" }, // missing consumed field
         { consumed: false }, // missing name field
-      ] as any;
+      ] as unknown as import("../schemas/module_bucket").BucketInfo[];
 
       mockApiClient.get.mockResolvedValue({ buckets: mockBuckets });
 

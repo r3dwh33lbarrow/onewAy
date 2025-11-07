@@ -1,20 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-interface ThemeContextValue {
-  isDark: boolean;
-  setIsDark: (value: boolean) => void;
-  useSystemTheme: boolean;
-  setUseSystemTheme: (value: boolean) => void;
-}
-
-const ThemeContext = createContext<ThemeContextValue>({
-  isDark: false,
-  setIsDark: () => {},
-  useSystemTheme: true,
-  setUseSystemTheme: () => {},
-});
-
-export const useTheme = () => useContext(ThemeContext);
+import { ThemeContext } from "./themeContext";
 
 const preferDarkQuery = "(prefers-color-scheme: dark)";
 

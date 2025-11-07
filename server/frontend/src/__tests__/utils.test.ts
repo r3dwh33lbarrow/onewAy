@@ -1,3 +1,4 @@
+import type { ApiError } from "../apiClient";
 import {
   snakeCaseToTitle,
   snakeCaseToDashCase,
@@ -5,7 +6,6 @@ import {
   generatePassword,
   titleCaseToDashCase,
 } from "../utils";
-import type { ApiError } from "../apiClient";
 
 describe("Utils Tests", () => {
   describe("snakeCaseToTitle", () => {
@@ -114,7 +114,9 @@ describe("Utils Tests", () => {
     });
 
     it("should handle special characters", () => {
-      expect(titleCaseToDashCase("Test With @ Symbol")).toBe("test-with-@-symbol");
+      expect(titleCaseToDashCase("Test With @ Symbol")).toBe(
+        "test-with-@-symbol",
+      );
     });
   });
 
@@ -141,7 +143,7 @@ describe("Utils Tests", () => {
       const error: ApiError = {
         statusCode: 401,
         message: "Unauthorized",
-        detail: undefined as any,
+        detail: undefined,
       };
       expect(apiErrorToString(error)).toBe("401: Unauthorized");
     });
@@ -211,7 +213,7 @@ describe("Utils Tests", () => {
 
     it("should only use allowed characters", () => {
       const allowedChars =
-        /^[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()\-_=+\[\]{}|;:,.<>?]+$/;
+        /^[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()\-_=+[\]{}|;:,.<>?]+$/;
 
       for (let i = 0; i < 10; i++) {
         const password = generatePassword(100);
@@ -237,14 +239,15 @@ describe("Utils Tests", () => {
 
     it("should work with Math.random fallback", () => {
       // Mock crypto to test fallback
-      const originalCrypto = global.crypto;
-      (global as any).crypto = undefined;
+      const originalCrypto = (globalThis as unknown as { crypto?: Crypto })
+        .crypto;
+      (globalThis as unknown as { crypto?: Crypto }).crypto = undefined;
 
       const password = generatePassword(20);
       expect(password).toHaveLength(20);
 
       // Restore crypto
-      (global as any).crypto = originalCrypto;
+      (globalThis as unknown as { crypto?: Crypto }).crypto = originalCrypto;
     });
 
     it("should include variety of character types in longer passwords", () => {
@@ -253,10 +256,12 @@ describe("Utils Tests", () => {
       const hasUppercase = /[A-Z]/.test(password);
       const hasLowercase = /[a-z]/.test(password);
       const hasNumber = /[0-9]/.test(password);
-      const hasSpecial = /[!@#$%^&*()\-_=+\[\]{}|;:,.<>?]/.test(password);
+      const hasSpecial = /[!@#$%^&*()\-_=+[\]{}|;:,.<>?]/.test(password);
 
       // With 100 characters, very likely to have all types
-      expect(hasUppercase || hasLowercase || hasNumber || hasSpecial).toBe(true);
+      expect(hasUppercase || hasLowercase || hasNumber || hasSpecial).toBe(
+        true,
+      );
     });
   });
 

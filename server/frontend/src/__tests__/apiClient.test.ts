@@ -69,9 +69,9 @@ describe("Live API Tests (localhost:8000)", () => {
       }
 
       const client = clients.clients[0];
-      const installed = await apiClient.get<{ all_installed: InstalledModuleInfo[] }>(
-        `/module/installed/${encodeURIComponent(client.username)}`,
-      );
+      const installed = await apiClient.get<{
+        all_installed: InstalledModuleInfo[];
+      }>(`/module/installed/${encodeURIComponent(client.username)}`);
       expect(!isApiError(installed)).toBe(true);
       if (!isApiError(installed)) {
         expect(Array.isArray(installed.all_installed)).toBe(true);
@@ -163,18 +163,15 @@ describe("Live API Tests (localhost:8000)", () => {
     TIMEOUT,
   );
 
-  it(
-    "isApiError correctly identifies errors",
-    () => {
-      const error = {
-        statusCode: 404,
-        message: "Not Found",
-        detail: "Resource not found",
-      };
-      expect(isApiError(error)).toBe(true);
+  it("isApiError correctly identifies errors", () => {
+    const error = {
+      statusCode: 404,
+      message: "Not Found",
+      detail: "Resource not found",
+    };
+    expect(isApiError(error)).toBe(true);
 
-      const success = { result: "success" };
-      expect(isApiError(success)).toBe(false);
-    },
-  );
+    const success = { result: "success" };
+    expect(isApiError(success)).toBe(false);
+  });
 });

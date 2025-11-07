@@ -114,14 +114,8 @@ class ApiClient {
         credentials: "include",
       });
 
-      if (!response.ok) {
-        return false;
-      }
-
-      // Successful refresh returns 200 with no payload.
-      return true;
-    } catch (error) {
-      console.error("Refresh token request failed:", error);
+      return response.ok;
+    } catch {
       return false;
     }
   }

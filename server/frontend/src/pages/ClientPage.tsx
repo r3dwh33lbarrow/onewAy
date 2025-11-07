@@ -172,16 +172,6 @@ export default function ClientPage() {
     }
   };
 
-  const handleRunModule = async (moduleName: string) => {
-    if (!username) return;
-    const response = await apiClient.get<BasicTaskResponse>(
-      "/module/run/" + moduleName + "?client_username=" + username,
-    );
-    if (isApiError(response)) {
-      addError(`Failed to run module: ${response.detail}`);
-    }
-  };
-
   const logoSrc = (() => {
     switch (clientInfo?.platform) {
       case "mac":
