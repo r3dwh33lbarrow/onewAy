@@ -263,6 +263,53 @@ else
     log "Warning: server/backend directory not found, skipping migrations"
 fi
 
+# --- Admin user creation ---
+ADMIN_USERNAME_FILE="${SECRETS_DIR}/admin_username"
+ADMIN_PASSWORD_FILE="${SECRETS_DIR}/admin_password"
+
+if [[ ! -f "${ADMIN_USERNAME_FILE}" ]] || [[ ! -f "${ADMIN_PASSWORD_FILE}" ]]; then
+    log "No admin user configured. Creating initial admin account."
+
+    if [ -t 0 ]; then
+        # Interactive mode
+        echo ""
+        read -rp "Enter admin username: " ADMIN_USERNAME
+        while [[ -z "${ADMIN_USERNAME}" ]]; do
+            echo "Username cannot be empty."
+            read -rp "Enter admin username: " ADMIN_USERNAME
+        done
+
+        read -rsp "Enter admin password: " ADMIN_PASSWORD
+        echo ""
+        while [[ -z "${ADMIN_PASSWORD}" ]]; do
+            echo "Password cannot be empty."
+            read -rsp "Enter admin password: " ADMIN_PASSWORD
+            echo ""
+        done
+    else
+        # Non-interactive mode: generate credentials
+        ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+        ADMIN_PASSWORD="$(generate_password)"
+        log "Auto-generated admin credentials for non-interactive session."
+        log "Username: ${ADMIN_USERNAME}"
+        log "Password: ${ADMIN_PASSWORD}"
+        log "IMPORTANT: Save these credentials securely!"
+    fi
+
+    # Save admin credentials
+    save_secret "admin_username" "${ADMIN_USERNAME}"
+    save_secret "admin_password" "${ADMIN_PASSWORD}"
+
+    # Create admin user using configure_admin.py
+    log "Creating admin user '${ADMIN_USERNAME}'"
+    cd "${PROJECT_DIR}/server/backend"
+    python configure_admin.py -u "${ADMIN_USERNAME}" -p "${ADMIN_PASSWORD}" || {
+        log "Warning: Failed to create admin user. You may need to create one manually."
+    }
+else
+    log "Admin user already configured (credentials found in secrets directory)."
+fi
+
 start_backend() {
     log "Starting backend on port ${BACKEND_PORT}"
     cd "${PROJECT_DIR}/server/backend"
