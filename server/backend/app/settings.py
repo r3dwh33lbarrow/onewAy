@@ -76,6 +76,10 @@ class PathSettings(BaseSettings):
     resources_dir: str = Field("[ROOT]/server/backend/app/resources")
 
 
+class MetasploitSettings(BaseSettings):
+    msfrpcd_password: Optional[str]
+
+
 class OtherSettings(BaseSettings):
     max_avatar_size_mb: int = Field(2)
 
@@ -87,6 +91,7 @@ class Settings(BaseSettings):
     security: SecuritySettings
     testing: Optional[TestingSettings] = None
     paths: PathSettings
+    metasploit_settings = Optional[MetasploitSettings]
     other: OtherSettings
 
     model_config = {"extra": "ignore", "frozen": True}
