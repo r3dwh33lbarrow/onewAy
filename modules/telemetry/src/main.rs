@@ -1,6 +1,6 @@
-use base64::{engine::general_purpose, Engine};
+use base64::{Engine, engine::general_purpose};
 use chrono::Local;
-use screenshots::{image, Screen};
+use screenshots::{Screen, image};
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
@@ -9,7 +9,6 @@ use sysinfo::System;
 const PROC_WAIT_TIME: u64 = 60 * 5;
 const DATA_START: &str = "[ONEWAY DATA START] [IMAGE]";
 const DATA_END: &str = "[ONEWAY DATA END] [IMAGE]";
-
 
 fn get_current_date_time() -> String {
     let now = Local::now();
@@ -25,19 +24,16 @@ fn get_processes() -> Vec<String> {
     proc_array
 }
 
-fn compare_processes(old_proc: Arc<Mutex<Vec<String>>>, new_proc: Arc<Mutex<Vec<String>>>) -> (Vec<String>, Vec<String>) {
+fn compare_processes(
+    old_proc: Arc<Mutex<Vec<String>>>,
+    new_proc: Arc<Mutex<Vec<String>>>,
+) -> (Vec<String>, Vec<String>) {
     let old = old_proc.lock().unwrap();
     let new = new_proc.lock().unwrap();
 
-    let removed: Vec<String> = old.iter()
-        .filter(|p| !new.contains(p))
-        .cloned()
-        .collect();
+    let removed: Vec<String> = old.iter().filter(|p| !new.contains(p)).cloned().collect();
 
-    let added: Vec<String> = new.iter()
-        .filter(|p| !old.contains(p))
-        .cloned()
-        .collect();
+    let added: Vec<String> = new.iter().filter(|p| !old.contains(p)).cloned().collect();
 
     (added, removed)
 }
@@ -56,10 +52,16 @@ fn proc_list_contains_key_proc(proc_list: Arc<Mutex<Vec<String>>>) -> bool {
 fn get_screenshot() -> Result<Vec<u8>, String> {
     let screens = Screen::all().map_err(|e| format!("Failed to get screens: {}", e))?;
     let screen = screens.first().ok_or("No screens found")?;
-    let image = screen.capture().map_err(|e| format!("Failed to capture screenshot: {}", e))?;
+    let image = screen
+        .capture()
+        .map_err(|e| format!("Failed to capture screenshot: {}", e))?;
 
     let mut png_bytes = Vec::new();
-    image.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
+    image
+        .write_to(
+            &mut std::io::Cursor::new(&mut png_bytes),
+            image::ImageFormat::Png,
+        )
         .map_err(|e| format!("Failed to encode PNG: {}", e))?;
 
     Ok(png_bytes)
@@ -100,7 +102,8 @@ fn proc_loop() {
 
         let new_proc = get_processes();
 
-        let (added, removed) = compare_processes(first_proc.clone(), Arc::new(Mutex::new(new_proc.clone())));
+        let (added, removed) =
+            compare_processes(first_proc.clone(), Arc::new(Mutex::new(new_proc.clone())));
 
         if !added.is_empty() || !removed.is_empty() {
             println!("--- PROCESS UPDATE ---");
