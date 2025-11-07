@@ -16,61 +16,6 @@ router = APIRouter(prefix="/user/auth")
 logger = get_logger()
 
 
-@router.post("/register", response_model=BasicTaskResponse)
-async def user_auth_register(
-    user_register_request: UserRegisterRequest, db: AsyncSession = Depends(get_db)
-):
-    """
-    Register a new user account.
-
-    Creates a new user account with the provided username and password. The password
-    is automatically hashed before storage. Validates that the username is unique.
-
-    Args:
-        user_register_request: UserRegisterRequest containing username and password
-        db: Database session dependency
-
-    Returns:
-        BasicTaskResponse: Success/failure result
-
-    Raises:
-        HTTPException: 409 if username already exists
-        HTTPException: 500 if database operation fails
-    """
-    logger.debug(
-        "User registration attempt for '%s'",
-        user_register_request.username,
-    )
-
-    existing_user = await db.execute(
-        select(User).where(User.username == user_register_request.username)
-    )
-    if existing_user.scalar_one_or_none():
-        logger.warning(
-            "User registration failed: username '%s' already exists",
-            user_register_request.username,
-        )
-        raise HTTPException(status_code=409, detail="Username already exists")
-
-    new_user = User(
-        username=user_register_request.username,
-        hashed_password=hash_password(user_register_request.password),
-    )
-
-    try:
-        db.add(new_user)
-        await db.commit()
-        logger.info("User '%s' registered", new_user.username)
-        return {"result": "success"}
-
-    except Exception:
-        await db.rollback()
-        logger.exception("Failed to register user '%s'", user_register_request.username)
-        raise HTTPException(
-            status_code=500, detail="Failed to add user to the database"
-        )
-
-
 @router.post("/login", response_model=BasicTaskResponse)
 async def user_auth_login(
     user_login_request: UserLoginRequest,
