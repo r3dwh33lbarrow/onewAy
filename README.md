@@ -101,7 +101,3 @@ Should be generated automatically by the frontend but can be compiled directly t
 - Backend tests live under `server/backend/tests/`; run with `pytest` (ensure `testing = true` in `config.toml`).
 - Client integration tests under `client/tests/` expect the backend in testing mode.
 - Frontend tests can be added under `server/frontend/src/__tests__/`.
-
-## License
-
-This project is released under the MIT License. See [`LICENSE`](LICENSE) for details.
